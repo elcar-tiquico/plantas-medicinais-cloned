@@ -1,0 +1,74 @@
+.heroSection {
+  background: var(--gradient-primary-dark);
+  padding: var(--spacing-16) 0;
+}
+
+.heroContent {
+  max-width: 48rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.heroTitle {
+  font-size: var(--font-size-4xl);
+  font-weight: 700;
+  color: var(--color-white);
+  margin-bottom: var(--spacing-6);
+}
+
+.heroSubtitle {
+  font-size: var(--font-size-xl);
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: var(--spacing-8);
+}
+
+.heroButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-4);
+}
+
+.primaryButton {
+  background-color: var(--color-white);
+  color: var(--color-purple-700);
+  font-weight: 500;
+  padding: var(--spacing-3) var(--spacing-6);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: none;
+  transition: all 0.3s ease;
+  transform: translateY(0);
+}
+
+.primaryButton:hover {
+  background-color: var(--color-purple-50);
+  transform: translateY(-2px);
+}
+
+.secondaryButton {
+  background-color: var(--color-green-500);
+  color: var(--color-white);
+  font-weight: 500;
+  padding: var(--spacing-3) var(--spacing-6);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: none;
+  transition: all 0.3s ease;
+  transform: translateY(0);
+}
+
+.secondaryButton:hover {
+  background-color: var(--color-green-600);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .heroTitle {
+    font-size: var(--font-size-3xl);
+  }
+
+  .heroSubtitle {
+    font-size: var(--font-size-lg);
+  }
+}

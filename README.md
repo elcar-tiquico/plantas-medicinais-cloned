@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DATAPLAMT - Base de Dados Bibliográfica das Plantas Nativas
 
-## Getting Started
+DATAPLAMT é uma aplicação web moderna para gerenciar e consultar informações sobre plantas medicinais nativas, com suporte a múltiplos idiomas e recursos avançados de administração.
 
-First, run the development server:
+## Características
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Interface moderna e responsiva
+- Suporte a múltiplos idiomas (Português, Xangana, Xopeee)
+- Sistema de pesquisa avançado
+- Painel administrativo completo
+- Gerenciamento de dicionários de idiomas
+- Gerenciamento de locais de colheita
+- Visualização detalhada de plantas
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tecnologias
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Next.js 14 (App Router)
+- React 18
+- TypeScript
+- Tailwind CSS
+- Lucide React para ícones
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Como executar
 
-## Learn More
+1. Clone o repositório
+2. Instale as dependências:
+   \`\`\`bash
+   npm install
+   \`\`\`
+3. Execute o servidor de desenvolvimento:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+4. Abra [http://localhost:3000](http://localhost:3000) no seu navegador
 
-To learn more about Next.js, take a look at the following resources:
+## Estrutura do Projeto
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `/app` - Rotas e páginas da aplicação
+- `/components` - Componentes React reutilizáveis
+- `/context` - Contextos React para gerenciamento de estado
+- `/hooks` - Hooks personalizados
+- `/lib` - Utilitários e funções auxiliares
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contribuição
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Contribuições são bem-vindas! Por favor, sinta-se à vontade para enviar um Pull Request.

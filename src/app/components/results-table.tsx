@@ -1,0 +1,230 @@
+"use client"
+
+import { useState } from "react"
+import { useSearch } from "@/context/search-context"
+import { PlantDetails } from "@/components/plant-details"
+import { useLanguage } from "@/context/language-context"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import styles from "./results-table.module.css"
+
+export function ResultsTable() {
+  const { results, isLoading, hasSearched } = useSearch()
+  const { translate } = useLanguage()
+  const [selectedPlant, setSelectedPlant] = useState<number | null>(null)
+
+  const toggleDetails = (id: number) => {
+    setSelectedPlant(selectedPlant === id ? null : id)
+  }
+
+  // Estado de carregamento
+  if (isLoading) {
+    return (
+      <div className={styles.resultsCard}>
+        <div className={styles.loadingState}>
+          <div className={styles.loadingIcon}>
+            <svg className={styles.spinner} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle
+                className={styles.spinnerCircle}
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className={styles.spinnerPath}
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          </div>
+          <h3 className={styles.loadingTitle}>{translate("results.searching")}</h3>
+          <p className={styles.loadingText}>
+            Estamos consultando nosso banco de dados. Isso pode levar alguns instantes.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Nenhuma busca realizada ainda
+  if (!hasSearched) {
+    return (
+      <div className={styles.resultsCard}>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <h3 className={styles.emptyTitle}>{translate("results.searchPrompt")}</h3>
+          <p className={styles.emptyText}>
+            Use o formulário ao lado para buscar informações sobre plantas medicinais nativas do Brasil.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Nenhum resultado encontrado
+  if (results.length === 0) {
+    return (
+      <div className={styles.resultsCard}>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <h3 className={styles.emptyTitle}>{translate("results.noResults")}</h3>
+          <p className={styles.emptyText}>{translate("results.tryAgain")}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Resultados encontrados
+  return (
+    <div className={styles.resultsCard}>
+      <div className={styles.resultsHeader}>
+        <h2 className={styles.resultsTitle}>{translate("results.title")}</h2>
+        <div className={styles.resultsActions}>
+          <span className={styles.resultsCount}>
+            {results.length} {results.length === 1 ? translate("results.found") : translate("results.found_plural")}
+          </span>
+          <LanguageSwitcher />
+        </div>
+      </div>
+
+      <div className={styles.resultsList}>
+        {results.map((plant) => (
+          <div key={plant.id} className={styles.resultItem}>
+            <div className={styles.resultItemHeader} onClick={() => toggleDetails(plant.id)}>
+              <div className={styles.resultItemInfo}>
+                <h3 className={styles.resultItemTitle}>{plant.nome}</h3>
+                <p className={styles.resultItemFamily}>{plant.familia}</p>
+                <p className={styles.resultItemScientific}>{plant.nomeCientifico}</p>
+              </div>
+
+              <div className={styles.resultItemActions}>
+                <button
+                  className={styles.actionButton}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    alert(`Baixando artigo sobre ${plant.nome}...`)
+                  }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={styles.actionIcon}
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  {translate("results.download")}
+                </button>
+                <button
+                  className={styles.actionButtonGreen}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    alert(`Abrindo artigo sobre ${plant.nome}...`)
+                  }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={styles.actionIcon}
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  {translate("results.read")}
+                </button>
+                <button
+                  className={styles.toggleButton}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleDetails(plant.id)
+                  }}
+                >
+                  {selectedPlant === plant.id ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {selectedPlant === plant.id && <PlantDetails plant={plant} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
