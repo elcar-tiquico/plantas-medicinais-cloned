@@ -54,7 +54,7 @@ export function Navbar() {
             </li>
             <li className="nav-item">
               <Link className="nav-link" href="/contato">
-                Contato
+                Contacto
               </Link>
             </li>
           </ul>

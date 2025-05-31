@@ -40,7 +40,7 @@ export function ResultsTable() {
           </div>
           <h3 className={styles.loadingTitle}>{translate("results.searching")}</h3>
           <p className={styles.loadingText}>
-            Estamos consultando nosso banco de dados. Isso pode levar alguns instantes.
+            Consultando a nossa base de dados... Isso pode levar alguns instantes.
           </p>
         </div>
       </div>
@@ -70,7 +70,7 @@ export function ResultsTable() {
           </div>
           <h3 className={styles.emptyTitle}>{translate("results.searchPrompt")}</h3>
           <p className={styles.emptyText}>
-            Use o formulário ao lado para buscar informações sobre plantas medicinais nativas do Brasil.
+            Use o formulário ao lado para pesquisar informações sobre plantas medicinais nativas de Moçambique.
           </p>
         </div>
       </div>

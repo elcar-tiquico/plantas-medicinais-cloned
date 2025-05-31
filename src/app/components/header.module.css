@@ -22,10 +22,9 @@
 }
 
 .logoIcon {
-  background: var(--gradient-primary);
+  /* background: var(--gradient-primary); */
   padding: var(--spacing-2);
   border-radius: var(--border-radius);
-  color: var(--color-white);
 }
 
 .logoText {

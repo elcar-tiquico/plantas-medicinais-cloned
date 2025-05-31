@@ -5,10 +5,9 @@ export function HeroSection() {
     <section className={styles.heroSection}>
       <div className="container">
         <div className={styles.heroContent}>
-          <h1 className={styles.heroTitle}>Base de Dados Bibliográfica das Plantas Nativas</h1>
+          <h1 className={styles.heroTitle}>Base de Dados das Plantas Medicinais de Moçambique</h1>
           <p className={styles.heroSubtitle}>
-            Explore o conhecimento tradicional e científico sobre as plantas medicinais nativas utilizadas por
-            Moçambicanos  
+            Explore o conhecimento tradicional e científico sobre as plantas 
           </p>
           <div className={styles.heroButtons}>
             <button className={styles.primaryButton}>Explorar Plantas</button>

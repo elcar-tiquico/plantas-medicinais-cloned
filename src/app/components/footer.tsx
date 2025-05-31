@@ -1,5 +1,6 @@
 import Link from "next/link"
 import styles from "./footer.module.css"
+import Image from "next/image"
 
 export function Footer() {
   return (
@@ -9,31 +10,19 @@ export function Footer() {
           <div className={styles.footerBrand}>
             <div className={styles.footerLogo}>
               <div className={styles.logoIcon}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 3v12"></path>
-                  <path d="M18 9a3 3 0 0 0-3-3H7"></path>
-                  <path d="M3 9a3 3 0 0 0 3 3h11"></path>
-                  <path d="M18 21a3 3 0 0 1-3-3H7"></path>
-                  <path d="M3 15a3 3 0 0 1 3-3h11"></path>
-                </svg>
+                <Image
+                  src="/images/logo.png" // caminho para seu logo na pasta public
+                  alt="PhytoMoz Logo"
+                  width={60}
+                  height={60}
+                />
               </div>
-              <span className={styles.logoText}>RaizSábia</span>
+              <span className={styles.logoText}>PhytoMoz</span>
             </div>
             <p className={styles.footerDescription}>
-              Base de dados bibliográfica das plantas nativas usadas por Mozas, reunindo conhecimento
-              tradicional e científico.
+              Base de dados bibliográfica das plantas medicinais de Moçambique.
             </p>
-            <div className={styles.socialLinks}>
+            {/* <div className={styles.socialLinks}>
               <a href="#" className={styles.socialLink}>
                 <svg className={styles.socialIcon} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -57,7 +46,7 @@ export function Footer() {
                   />
                 </svg>
               </a>
-            </div>
+            </div> */}
           </div>
 
           <div className={styles.footerLinks}>
@@ -70,12 +59,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/about" className={styles.footerLink}>
-                  Sobre Nós
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className={styles.footerLink}>
-                  Contacte-nos
+                  Sobre o Projecto
                 </Link>
               </li>
               <li>
@@ -90,23 +74,14 @@ export function Footer() {
             <h3 className={styles.footerHeading}>Parceiros</h3>
             <div className={styles.partnersGrid}>
               <div className={styles.partnerItem}>
-                <span className={styles.partnerName}>ISCTEM</span>
-              </div>
-              <div className={styles.partnerItem}>
-                <span className={styles.partnerName}>Medicina ISCTEM</span>
-              </div>
-              <div className={styles.partnerItem}>
-                <span className={styles.partnerName}>Cuambitoo</span>
-              </div>
-              <div className={styles.partnerItem}>
-                <span className={styles.partnerName}>Layza</span>
+                <span className={styles.partnerName}>Curso de Farmácia-ISCTEM</span>
               </div>
             </div>
           </div>
         </div>
 
         <div className={styles.footerBottom}>
-          <p className={styles.copyright}>© {new Date().getFullYear()} DATAPLAMT. Todos os direitos reservados.</p>
+          <p className={styles.copyright}>©{new Date().getFullYear()} PhytoMoz. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>

@@ -1,6 +1,7 @@
+"use client"
 import Link from "next/link"
+import Image from "next/image"
 import styles from "./header.module.css"
-import path from "path"
 
 export function Header() {
   return (
@@ -9,36 +10,22 @@ export function Header() {
         <div className={styles.headerContent}>
           <Link href="/" className={styles.logo}>
             <div className={styles.logoIcon}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M6 3v12"></path>
-                <path d="M18 9a3 3 0 0 0-3-3H7"></path>
-                <path d="M3 9a3 3 0 0 0 3 3h11"></path>
-                <path d="M18 21a3 3 0 0 1-3-3H7"></path>
-                <path d="M3 15a3 3 0 0 1 3-3h11"></path>
-              </svg>
+              <Image
+                src="/images/logo.png" // caminho para seu logo na pasta public
+                alt="PhytoMoz Logo"
+                width={60}
+                height={60}
+              />
             </div>
-            <span className={styles.logoText}>RaizSábia</span>
+            <span className={styles.logoText}>PhytoMoz</span>
           </Link>
-
+          
           <nav className={styles.nav}>
             <Link href="/" className={styles.navLink}>
               Home
             </Link>
-            <Link href="/about" className={styles.navLink}>
-              Sobre Nós
-            </Link>
             <Link href="/contact" className={styles.navLink}>
-              Contacte-nos
+              Referências
             </Link>
             <Link href="/admin" className={styles.navLink}>
               Admin
