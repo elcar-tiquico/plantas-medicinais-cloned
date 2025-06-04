@@ -1,0 +1,118 @@
+.footer {
+  background: var(--gradient-primary-dark);
+  color: var(--color-white);
+  padding: var(--spacing-12) 0;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-8);
+}
+
+.footerBrand {
+  max-width: 32rem;
+}
+
+.footerLogo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+}
+
+.logoIcon {
+  /* background-color: var(--color-white); */
+  padding: var(--spacing-2);
+  border-radius: var(--border-radius);
+}
+
+.logoText {
+  font-weight: 700;
+  font-size: var(--font-size-xl);
+}
+
+.footerDescription {
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: var(--spacing-6);
+  max-width: 32rem;
+}
+
+.socialLinks {
+  display: flex;
+  gap: var(--spacing-4);
+}
+
+.socialLink {
+  color: var(--color-white);
+  transition: color 0.2s ease;
+}
+
+.socialLink:hover {
+  color: var(--color-green-300);
+}
+
+.socialIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.footerHeading {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--spacing-4);
+}
+
+.linksList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.footerLink {
+  color: rgba(255, 255, 255, 0.8);
+  transition: color 0.2s ease;
+}
+
+.footerLink:hover {
+  color: var(--color-white);
+}
+
+.partnersGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-4);
+}
+
+.partnerItem {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: var(--spacing-2);
+  border-radius: var(--border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3rem;
+}
+
+.partnerName {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.footerBottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin-top: var(--spacing-12);
+  padding-top: var(--spacing-8);
+  text-align: center;
+}
+
+.copyright {
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@media (min-width: 768px) {
+  .footerGrid {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+}

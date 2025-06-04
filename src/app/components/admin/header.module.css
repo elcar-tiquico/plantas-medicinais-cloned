@@ -1,0 +1,252 @@
+.header {
+  background-color: white;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.container {
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 2rem;
+  }
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 4rem;
+}
+
+.titleContainer {
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.actionButton {
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionButton:hover {
+  color: #111827;
+  background-color: #f3f4f6;
+}
+
+.actionButton:focus {
+  outline: none;
+}
+
+.notificationsContainer {
+  position: relative;
+}
+
+.notificationBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: block;
+  height: 0.5rem;
+  width: 0.5rem;
+  border-radius: 9999px;
+  background-color: #ef4444;
+}
+
+.notificationsDropdown {
+  position: absolute;
+  right: 0;
+  margin-top: 0.5rem;
+  width: 20rem;
+  background-color: white;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+  border: 1px solid #e5e7eb;
+}
+
+.notificationsHeader {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.notificationsTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.notificationsList {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.notificationItem {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: flex-start;
+}
+
+.notificationItem:hover {
+  background-color: #f9fafb;
+}
+
+.notificationIconGreen {
+  flex-shrink: 0;
+  background-color: #ecfdf5;
+  border-radius: 9999px;
+  padding: 0.25rem;
+}
+
+.notificationIconBlue {
+  flex-shrink: 0;
+  background-color: #eff6ff;
+  border-radius: 9999px;
+  padding: 0.25rem;
+}
+
+.notificationSvg {
+  color: #10b981;
+}
+
+.notificationIconBlue .notificationSvg {
+  color: #3b82f6;
+}
+
+.notificationContent {
+  margin-left: 0.75rem;
+  width: 0;
+  flex: 1;
+}
+
+.notificationTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.notificationDesc {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.notificationTime {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.notificationsFooter {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.notificationsLink {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #9333ea;
+  text-decoration: none;
+}
+
+.notificationsLink:hover {
+  color: #7e22ce;
+}
+
+.profileContainer {
+  position: relative;
+}
+
+.profileButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.avatar {
+  height: 2rem;
+  width: 2rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #9333ea, #22c55e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 500;
+}
+
+.profileName {
+  display: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+@media (min-width: 768px) {
+  .profileName {
+    display: block;
+  }
+}
+
+.profileArrow {
+  color: #9ca3af;
+}
+
+.profileDropdown {
+  position: absolute;
+  right: 0;
+  margin-top: 0.5rem;
+  width: 12rem;
+  background-color: white;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+  border: 1px solid #e5e7eb;
+}
+
+.profileLink {
+  display: block;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.profileLink:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.profileDivider {
+  border-top: 1px solid #e5e7eb;
+}

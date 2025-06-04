@@ -1,0 +1,136 @@
+.sidebar {
+  background-color: white;
+  border-right: 1px solid #e5e7eb;
+  height: 100vh;
+  transition: width 0.3s;
+  width: 16rem;
+}
+
+.collapsed {
+  width: 5rem;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo {
+  background: linear-gradient(to right, #9333ea, #22c55e);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.logoIcon {
+  color: white;
+}
+
+.logoText {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #111827;
+}
+
+.collapseButton {
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.collapseButton:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.sidebarNav {
+  margin-top: 1rem;
+  padding: 0 0.5rem;
+}
+
+.navList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navItem {
+  width: 100%;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.navLink:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.activeLink {
+  background-color: #f5f3ff;
+  color: #9333ea;
+}
+
+.collapsedLink {
+  justify-content: center;
+}
+
+.navIcon {
+  flex-shrink: 0;
+}
+
+.navText {
+  margin-left: 0.75rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.sidebarFooter {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.logoutLink {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.logoutLink:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
