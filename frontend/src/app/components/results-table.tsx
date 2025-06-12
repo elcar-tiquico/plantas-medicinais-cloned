@@ -70,7 +70,7 @@ export function ResultsTable() {
           </div>
           <h3 className={styles.emptyTitle}>{translate("results.searchPrompt")}</h3>
           <p className={styles.emptyText}>
-            Use o formulário ao lado para pesquisar informações sobre plantas medicinais nativas de Moçambique.
+            Use o formulário ao lado para pesquisar informações sobre plantas medicinais de Moçambique.
           </p>
         </div>
       </div>

@@ -7,7 +7,7 @@ export function HeroSection() {
         <div className={styles.heroContent}>
           <h1 className={styles.heroTitle}>Base de Dados das Plantas Medicinais de Moçambique</h1>
           <p className={styles.heroSubtitle}>
-            Explore o conhecimento tradicional e científico sobre as plantas 
+            Explore o conhecimento tradicional e científico sobre plantas medicinais 
           </p>
           <div className={styles.heroButtons}>
             <button className={styles.primaryButton}>Explorar Plantas</button>

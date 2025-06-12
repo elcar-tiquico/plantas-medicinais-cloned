@@ -7,8 +7,8 @@ import { LanguageProvider } from "@/context/language-context"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "RaizSábia - Base de Dados Bibliográfica das Plantas Nativas",
-  description: "Base de dados bibliográfica das plantas nativas usadas por comunidades locais em Moçambique.",
+  title: "PhytoMoz - Base de Dados das Plantas Medicinais de Moçambique",
+  description: "Base de dados bibliográfica e multilingue das plantas medicinais usadas por comunidades locais em Moçambique.",
     generator: 'v0.dev'
 }
 

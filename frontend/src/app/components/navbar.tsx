@@ -10,7 +10,7 @@ export function Navbar() {
       <div className="container">
         <Link href="/" className="navbar-brand d-flex align-items-center">
           <Leaf className="me-2 text-white" />
-          <span className="fw-bold">DATAPLAMT</span>
+          <span className="fw-bold">PhytoMoz</span>
         </Link>
 
         <button

@@ -105,18 +105,37 @@ class Uso(db.Model):
     __tablename__ = 'Uso'
     id_uso = db.Column(db.Integer, primary_key=True, autoincrement=True)
     parte_usada = db.Column(db.String(150))
-    indicacao_uso = db.Column(db.Text)
     metodo_preparacao_tradicional = db.Column(db.Text)
     metodo_extraccao = db.Column(db.Text)
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_indicacoes=False):
+        data = {
             'id_uso': self.id_uso,
             'parte_usada': self.parte_usada,
-            'indicacao_uso': self.indicacao_uso,
             'metodo_preparacao_tradicional': self.metodo_preparacao_tradicional,
             'metodo_extraccao': self.metodo_extraccao
         }
+        
+        if include_indicacoes:
+            data['indicacoes'] = [indicacao.to_dict() for indicacao in self.indicacoes]
+        
+        return data
+
+class Indicacao(db.Model):
+    __tablename__ = 'Indicacao'
+    id_indicacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    descricao = db.Column(db.Text, nullable=False)
+    
+    def to_dict(self):
+        return {
+            'id_indicacao': self.id_indicacao,
+            'descricao': self.descricao
+        }
+
+class UsoIndicacao(db.Model):
+    __tablename__ = 'Uso_Indicacao'
+    id_uso = db.Column(db.Integer, db.ForeignKey('Uso.id_uso'), primary_key=True)
+    id_indicacao = db.Column(db.Integer, db.ForeignKey('Indicacao.id_indicacao'), primary_key=True)
 
 class PlantaUso(db.Model):
     __tablename__ = 'Planta_Uso'
@@ -155,15 +174,18 @@ class PlantaComposicao(db.Model):
     id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
     id_composto = db.Column(db.Integer, db.ForeignKey('Composicao_quimica.id_composto'), primary_key=True)
 
-# Configurar relacionamentos many-to-many
+# CONFIGURAR OS RELACIONAMENTOS MANY-TO-MANY
+# Esta é a parte que estava causando o problema - deve vir após a definição de todas as classes
 Planta.autores = db.relationship('Autor', secondary='Autor_Planta', backref='plantas', lazy='select')
 Planta.locais = db.relationship('LocalColheita', secondary='Planta_Local', backref='plantas', lazy='select')
 Planta.usos = db.relationship('Uso', secondary='Planta_Uso', backref='plantas', lazy='select')
 Planta.propriedades = db.relationship('PropriedadeFarmacologica', secondary='Planta_Propriedade', backref='plantas', lazy='select')
 Planta.compostos = db.relationship('ComposicaoQuimica', secondary='Planta_Composicao', backref='plantas', lazy='select')
+Uso.indicacoes = db.relationship('Indicacao', secondary='Uso_Indicacao', backref='usos', lazy='select')
 
 # Função auxiliar para tratamento de erros
 def handle_error(e, message="Erro interno do servidor"):
+    print(f"Erro: {str(e)}")  # Para debug
     return jsonify({'error': message, 'details': str(e)}), 500
 
 # ROTAS - FAMÍLIAS
@@ -198,7 +220,7 @@ def get_familia(id_familia):
     except Exception as e:
         return handle_error(e)
 
-# ROTAS - PLANTAS
+# ROTAS - PLANTAS COM BUSCA MELHORADA
 @app.route('/api/plantas', methods=['GET'])
 def get_plantas():
     try:
@@ -206,9 +228,13 @@ def get_plantas():
         per_page = request.args.get('per_page', 20, type=int)
         search = request.args.get('search', '')
         familia_id = request.args.get('familia_id', type=int)
+        autor_id = request.args.get('autor_id', type=int)
+        local_id = request.args.get('local_id', type=int)
+        uso_id = request.args.get('uso_id', type=int)
         
         query = Planta.query
         
+        # Filtro por texto
         if search:
             query = query.filter(
                 db.or_(
@@ -217,8 +243,21 @@ def get_plantas():
                 )
             )
         
+        # Filtro por família
         if familia_id:
             query = query.filter(Planta.id_familia == familia_id)
+            
+        # Filtro por autor
+        if autor_id:
+            query = query.join(Planta.autores).filter(Autor.id_autor == autor_id)
+            
+        # Filtro por local
+        if local_id:
+            query = query.join(Planta.locais).filter(LocalColheita.id_local == local_id)
+            
+        # Filtro por uso
+        if uso_id:
+            query = query.join(Planta.usos).filter(Uso.id_uso == uso_id)
         
         plantas = query.paginate(
             page=page, per_page=per_page, error_out=False
@@ -305,9 +344,14 @@ def delete_planta(id_planta):
 @app.route('/api/autores', methods=['GET'])
 def get_autores():
     try:
+        print("Buscando autores...")  # Debug
         autores = Autor.query.all()
-        return jsonify([autor.to_dict() for autor in autores])
+        print(f"Encontrados {len(autores)} autores")  # Debug
+        result = [autor.to_dict() for autor in autores]
+        print(f"Retornando: {result}")  # Debug
+        return jsonify(result)
     except Exception as e:
+        print(f"Erro ao buscar autores: {e}")  # Debug
         return handle_error(e)
 
 @app.route('/api/autores', methods=['POST'])
@@ -332,9 +376,14 @@ def create_autor():
 @app.route('/api/locais', methods=['GET'])
 def get_locais():
     try:
+        print("Buscando locais...")  # Debug
         locais = LocalColheita.query.all()
-        return jsonify([local.to_dict() for local in locais])
+        print(f"Encontrados {len(locais)} locais")  # Debug
+        result = [local.to_dict() for local in locais]
+        print(f"Retornando: {result}")  # Debug
+        return jsonify(result)
     except Exception as e:
+        print(f"Erro ao buscar locais: {e}")  # Debug
         return handle_error(e)
 
 @app.route('/api/locais', methods=['POST'])
@@ -359,8 +408,21 @@ def create_local():
 @app.route('/api/usos', methods=['GET'])
 def get_usos():
     try:
+        print("Buscando usos...")  # Debug
         usos = Uso.query.all()
-        return jsonify([uso.to_dict() for uso in usos])
+        print(f"Encontrados {len(usos)} usos")  # Debug
+        result = [uso.to_dict() for uso in usos]
+        print(f"Retornando: {result}")  # Debug
+        return jsonify(result)
+    except Exception as e:
+        print(f"Erro ao buscar usos: {e}")  # Debug
+        return handle_error(e)
+
+@app.route('/api/usos/<int:id_uso>', methods=['GET'])
+def get_uso(id_uso):
+    try:
+        uso = Uso.query.get_or_404(id_uso)
+        return jsonify(uso.to_dict(include_indicacoes=True))
     except Exception as e:
         return handle_error(e)
 
@@ -373,13 +435,36 @@ def create_uso():
         
         uso = Uso(
             parte_usada=data.get('parte_usada'),
-            indicacao_uso=data.get('indicacao_uso'),
             metodo_preparacao_tradicional=data.get('metodo_preparacao_tradicional'),
             metodo_extraccao=data.get('metodo_extraccao')
         )
         db.session.add(uso)
         db.session.commit()
         return jsonify(uso.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# ROTAS - INDICAÇÕES
+@app.route('/api/indicacoes', methods=['GET'])
+def get_indicacoes():
+    try:
+        indicacoes = Indicacao.query.all()
+        return jsonify([indicacao.to_dict() for indicacao in indicacoes])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/indicacoes', methods=['POST'])
+def create_indicacao():
+    try:
+        data = request.get_json()
+        if not data or 'descricao' not in data:
+            return jsonify({'error': 'Descrição é obrigatória'}), 400
+        
+        indicacao = Indicacao(descricao=data['descricao'])
+        db.session.add(indicacao)
+        db.session.commit()
+        return jsonify(indicacao.to_dict()), 201
     except Exception as e:
         db.session.rollback()
         return handle_error(e)
@@ -465,6 +550,22 @@ def associar_local_planta(id_planta, id_local):
         db.session.rollback()
         return handle_error(e)
 
+@app.route('/api/usos/<int:id_uso>/indicacoes/<int:id_indicacao>', methods=['POST'])
+def associar_indicacao_uso(id_uso, id_indicacao):
+    try:
+        uso = Uso.query.get_or_404(id_uso)
+        indicacao = Indicacao.query.get_or_404(id_indicacao)
+        
+        if indicacao not in uso.indicacoes:
+            uso.indicacoes.append(indicacao)
+            db.session.commit()
+            return jsonify({'message': 'Indicação associada ao uso com sucesso'}), 200
+        else:
+            return jsonify({'message': 'Indicação já associada a este uso'}), 409
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
 # ROTAS DE ESTATÍSTICAS
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
@@ -475,6 +576,7 @@ def get_stats():
             'total_autores': Autor.query.count(),
             'total_locais': LocalColheita.query.count(),
             'total_usos': Uso.query.count(),
+            'total_indicacoes': Indicacao.query.count(),
             'total_propriedades': PropriedadeFarmacologica.query.count(),
             'total_compostos': ComposicaoQuimica.query.count()
         }
