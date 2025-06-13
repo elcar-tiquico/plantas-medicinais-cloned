@@ -220,22 +220,41 @@ def get_familia(id_familia):
     except Exception as e:
         return handle_error(e)
 
-# ROTAS - PLANTAS COM BUSCA MELHORADA
+# CORREÇÃO DA ROTA /api/plantas no arquivo Flask
+
+# Substitua a rota /api/plantas existente por esta versão corrigida
+
 @app.route('/api/plantas', methods=['GET'])
 def get_plantas():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
-        search = request.args.get('search', '')
+        
+        # Parâmetros de busca
+        search_popular = request.args.get('search_popular', '')
+        search_cientifico = request.args.get('search_cientifico', '')
+        search = request.args.get('search', '')  # Manter para compatibilidade
+        
+        # Filtros
         familia_id = request.args.get('familia_id', type=int)
         autor_id = request.args.get('autor_id', type=int)
         local_id = request.args.get('local_id', type=int)
-        uso_id = request.args.get('uso_id', type=int)
+        uso_id = request.args.get('uso_id', type=int)  # Manter para compatibilidade
+        
+        # NOVO: Filtro por parte usada
+        parte_usada = request.args.get('parte_usada', '')
         
         query = Planta.query
         
-        # Filtro por texto
-        if search:
+        # Filtros específicos por campo
+        if search_popular:
+            query = query.filter(Planta.nome_comum.ilike(f'%{search_popular}%'))
+        
+        if search_cientifico:
+            query = query.filter(Planta.nome_cientifico.ilike(f'%{search_cientifico}%'))
+        
+        # Manter o filtro geral para compatibilidade (busca em ambos os campos)
+        if search and not search_popular and not search_cientifico:
             query = query.filter(
                 db.or_(
                     Planta.nome_cientifico.ilike(f'%{search}%'),
@@ -255,8 +274,14 @@ def get_plantas():
         if local_id:
             query = query.join(Planta.locais).filter(LocalColheita.id_local == local_id)
             
-        # Filtro por uso
-        if uso_id:
+        # NOVO: Filtro por parte usada (prioritário sobre uso_id)
+        if parte_usada:
+            # Buscar plantas que têm usos com a parte específica
+            query = query.join(Planta.usos).filter(
+                Uso.parte_usada.ilike(f'%{parte_usada}%')
+            )
+        elif uso_id:
+            # Manter compatibilidade com filtro por uso_id
             query = query.join(Planta.usos).filter(Uso.id_uso == uso_id)
         
         plantas = query.paginate(

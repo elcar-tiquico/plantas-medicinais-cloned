@@ -27,6 +27,11 @@ interface Autor {
   afiliacao?: string;
 }
 
+interface Familia {
+  id_familia: number;
+  nome_familia: string;
+}
+
 // URL base da API - ajuste conforme necessário
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -37,22 +42,32 @@ export function SearchForm() {
   const [isRecordingScientific, setIsRecordingScientific] = useState(false)
   
   // Estados para armazenar dados das comboboxes
+  const [familias, setFamilias] = useState<Familia[]>([])
   const [usos, setUsos] = useState<Uso[]>([])
   const [locais, setLocais] = useState<LocalColheita[]>([])
   const [autores, setAutores] = useState<Autor[]>([])
+  const [loadingFamilias, setLoadingFamilias] = useState(true)
   const [loadingUsos, setLoadingUsos] = useState(true)
   const [loadingLocais, setLoadingLocais] = useState(true)
   const [loadingAutores, setLoadingAutores] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Função para buscar usos da API
-  const fetchUsos = async () => {
+  // Estado para partes únicas
+  const [partesUnicas, setPartesUnicas] = useState<string[]>([])
+
+  // Função genérica para fazer requisições
+  const fetchData = async <T,>(
+    endpoint: string,
+    setter: React.Dispatch<React.SetStateAction<T[]>>,
+    loadingSetter: React.Dispatch<React.SetStateAction<boolean>>,
+    entityName: string
+  ) => {
     try {
-      setLoadingUsos(true)
+      loadingSetter(true)
       setError(null)
-      console.log('Buscando usos de:', `${API_BASE_URL}/usos`)
+      console.log(`Buscando ${entityName} de:`, `${API_BASE_URL}${endpoint}`)
       
-      const response = await fetch(`${API_BASE_URL}/usos`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -60,94 +75,56 @@ export function SearchForm() {
         },
       })
       
-      console.log('Response status usos:', response.status)
+      console.log(`Response status ${entityName}:`, response.status)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Usos recebidos:', data)
-        setUsos(Array.isArray(data) ? data : [])
+        console.log(`${entityName} recebidos:`, data)
+        setter(Array.isArray(data) ? data : [])
       } else {
         const errorText = await response.text()
-        console.error('Erro ao buscar usos:', response.status, errorText)
-        setError(`Erro ao carregar usos: ${response.status}`)
+        console.error(`Erro ao buscar ${entityName}:`, response.status, errorText)
+        setError(`Erro ao carregar ${entityName}: ${response.status}`)
       }
     } catch (error) {
-      console.error('Erro na requisição de usos:', error)
-      setError(`Erro de conexão ao carregar usos: ${error}`)
+      console.error(`Erro na requisição de ${entityName}:`, error)
+      setError(`Erro de conexão ao carregar ${entityName}: ${error}`)
     } finally {
-      setLoadingUsos(false)
+      loadingSetter(false)
     }
   }
 
-  // Função para buscar locais da API
-  const fetchLocais = async () => {
-    try {
-      setLoadingLocais(true)
-      console.log('Buscando locais de:', `${API_BASE_URL}/locais`)
-      
-      const response = await fetch(`${API_BASE_URL}/locais`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      })
-      
-      console.log('Response status locais:', response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Locais recebidos:', data)
-        setLocais(Array.isArray(data) ? data : [])
-      } else {
-        const errorText = await response.text()
-        console.error('Erro ao buscar locais:', response.status, errorText)
-        setError(`Erro ao carregar locais: ${response.status}`)
-      }
-    } catch (error) {
-      console.error('Erro na requisição de locais:', error)
-      setError(`Erro de conexão ao carregar locais: ${error}`)
-    } finally {
-      setLoadingLocais(false)
-    }
-  }
+  // Funções específicas para cada entidade
+  const fetchFamilias = () => fetchData('/familias', setFamilias, setLoadingFamilias, 'famílias')
+  const fetchUsos = () => fetchData('/usos', setUsos, setLoadingUsos, 'usos')
+  const fetchLocais = () => fetchData('/locais', setLocais, setLoadingLocais, 'locais')
+  const fetchAutores = () => fetchData('/autores', setAutores, setLoadingAutores, 'autores')
 
-  // Função para buscar autores da API
-  const fetchAutores = async () => {
-    try {
-      setLoadingAutores(true)
-      console.log('Buscando autores de:', `${API_BASE_URL}/autores`)
+  // Função para extrair partes únicas dos usos
+  useEffect(() => {
+    if (usos.length > 0) {
+      const partesSet = new Set<string>()
       
-      const response = await fetch(`${API_BASE_URL}/autores`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+      usos.forEach(uso => {
+        if (uso.parte_usada && uso.parte_usada.trim()) {
+          // Dividir por vírgulas caso tenha múltiplas partes
+          const partes = uso.parte_usada.split(',').map(p => p.trim())
+          partes.forEach(parte => {
+            if (parte) partesSet.add(parte)
+          })
+        }
       })
       
-      console.log('Response status autores:', response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Autores recebidos:', data)
-        setAutores(Array.isArray(data) ? data : [])
-      } else {
-        const errorText = await response.text()
-        console.error('Erro ao buscar autores:', response.status, errorText)
-        setError(`Erro ao carregar autores: ${response.status}`)
-      }
-    } catch (error) {
-      console.error('Erro na requisição de autores:', error)
-      setError(`Erro de conexão ao carregar autores: ${error}`)
-    } finally {
-      setLoadingAutores(false)
+      const partesArray = Array.from(partesSet).sort()
+      setPartesUnicas(partesArray)
+      console.log('Partes únicas extraídas:', partesArray)
     }
-  }
+  }, [usos])
 
   // Carregar dados quando o componente montar
   useEffect(() => {
     console.log('Componente montado, carregando dados...')
+    fetchFamilias()
     fetchUsos()
     fetchLocais()
     fetchAutores()
@@ -155,11 +132,29 @@ export function SearchForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    performSearch()
+    
+    // Filtros de busca usando parte_usada em vez de uso_id
+    const searchFilters = {
+      // Filtros específicos usando os IDs corretos
+      familia_id: filters.family ? parseInt(filters.family) : undefined,
+      autor_id: filters.author ? parseInt(filters.author) : undefined,
+      local_id: filters.observationLocation ? parseInt(filters.observationLocation) : undefined,
+      
+      // NOVO: Usar parte_usada em vez de uso_id
+      parte_usada: filters.traditionalUse ? filters.traditionalUse : undefined,
+      
+      // Parâmetros específicos para nome popular e científico
+      search_popular: filters.popularName ? filters.popularName.trim() : undefined,
+      search_cientifico: filters.scientificName ? filters.scientificName.trim() : undefined,
+    }
+    
+    console.log('Filtros de busca:', searchFilters)
+    performSearch(searchFilters)
   }
 
   const handleClear = () => {
     clearSearch()
+    setError(null)
   }
 
   const toggleRecordingPopular = () => {
@@ -186,19 +181,6 @@ export function SearchForm() {
     }
   }
 
-  // Função para obter partes únicas dos usos
-  const getPartesUnicas = () => {
-    const partesSet = new Set<string>()
-    
-    usos.forEach(uso => {
-      if (uso.parte_usada && uso.parte_usada.trim()) {
-        partesSet.add(uso.parte_usada.trim())
-      }
-    })
-    
-    return Array.from(partesSet).sort()
-  }
-
   // Função para formatar o texto de exibição do local
   const formatLocalDisplay = (local: LocalColheita) => {
     const parts = []
@@ -207,7 +189,7 @@ export function SearchForm() {
       parts.push(local.regiao.trim())
     }
     
-    if (local.provincia && local.provincia.trim()) {
+    if (local.provincia && local.provincia.trim() && local.provincia !== local.regiao) {
       parts.push(local.provincia.trim())
     }
     
@@ -229,6 +211,15 @@ export function SearchForm() {
     return display
   }
 
+  // Função para retentar carregamento
+  const retryLoad = () => {
+    setError(null)
+    fetchFamilias()
+    fetchUsos()
+    fetchLocais()
+    fetchAutores()
+  }
+
   return (
     <div className={styles.searchForm}>
       <div className={styles.searchHeader}>
@@ -239,12 +230,7 @@ export function SearchForm() {
           <div className={styles.errorMessage}>
             <p>⚠️ {error}</p>
             <button 
-              onClick={() => {
-                setError(null)
-                fetchUsos()
-                fetchLocais()
-                fetchAutores()
-              }}
+              onClick={retryLoad}
               className={styles.retryButton}
             >
               Tentar Novamente
@@ -253,6 +239,7 @@ export function SearchForm() {
         )}
         
         <form onSubmit={handleSubmit} className={styles.form}>
+          {/* Nome Popular */}
           <div className={styles.formGroup}>
             <label htmlFor="nomePopular" className={styles.formLabel}>
               {translate("search.popularName")}
@@ -264,7 +251,10 @@ export function SearchForm() {
                 className={styles.formInput}
                 placeholder={translate("search.placeholder.popular")}
                 value={filters.popularName}
-                onChange={(e) => setFilters((prev) => ({ ...prev, popularName: e.target.value }))}
+                onChange={(e) => setFilters((prev) => ({ 
+                  ...prev, 
+                  popularName: e.target.value
+                }))}
               />
               <button
                 type="button"
@@ -296,6 +286,7 @@ export function SearchForm() {
             )}
           </div>
 
+          {/* Nome Científico */}
           <div className={styles.formGroup}>
             <label htmlFor="nomeCientifico" className={styles.formLabel}>
               {translate("search.scientificName")}
@@ -307,7 +298,10 @@ export function SearchForm() {
                 className={styles.formInput}
                 placeholder={translate("search.placeholder.scientific")}
                 value={filters.scientificName}
-                onChange={(e) => setFilters((prev) => ({ ...prev, scientificName: e.target.value }))}
+                onChange={(e) => setFilters((prev) => ({ 
+                  ...prev, 
+                  scientificName: e.target.value
+                }))}
               />
               <button
                 type="button"
@@ -339,23 +333,52 @@ export function SearchForm() {
             )}
           </div>
 
+          {/* Família */}
           <div className={styles.formGroup}>
-            <label htmlFor="parteUsada" className={styles.formLabel}>
-              {translate("search.traditionalUse")} - Parte Usada
+            <label htmlFor="familia" className={styles.formLabel}>
+              Família Botânica
             </label>
             <select
-              id="parteUsada"
+              id="familia"
               className={styles.formSelect}
-              value={filters.traditionalUse}
+              value={filters.family || ''}
+              onChange={(e) => setFilters((prev) => ({ ...prev, family: e.target.value }))}
+              disabled={loadingFamilias}
+            >
+              <option value="">
+                {loadingFamilias ? "Carregando famílias..." : 
+                 familias.length === 0 ? "Nenhuma família encontrada" :
+                 "Escolha uma família botânica..."}
+              </option>
+              {familias.map((familia) => (
+                <option key={familia.id_familia} value={familia.id_familia.toString()}>
+                  {familia.nome_familia}
+                </option>
+              ))}
+            </select>
+            {loadingFamilias && (
+              <p className={styles.loadingText}>Carregando famílias...</p>
+            )}
+          </div>
+
+          {/* Uso Tradicional - CORRIGIDO: Agora usa partes únicas */}
+          <div className={styles.formGroup}>
+            <label htmlFor="usoTradicional" className={styles.formLabel}>
+              {translate("search.traditionalUse")}
+            </label>
+            <select
+              id="usoTradicional"
+              className={styles.formSelect}
+              value={filters.traditionalUse || ''}
               onChange={(e) => setFilters((prev) => ({ ...prev, traditionalUse: e.target.value }))}
               disabled={loadingUsos}
             >
               <option value="">
                 {loadingUsos ? "Carregando partes usadas..." : 
-                 getPartesUnicas().length === 0 ? "Nenhuma parte encontrada" :
+                 partesUnicas.length === 0 ? "Nenhuma parte encontrada" :
                  "Escolha uma parte usada..."}
               </option>
-              {getPartesUnicas().map((parte) => (
+              {partesUnicas.map((parte) => (
                 <option key={parte} value={parte}>
                   {parte}
                 </option>
@@ -366,6 +389,7 @@ export function SearchForm() {
             )}
           </div>
 
+          {/* Autor */}
           <div className={styles.formGroup}>
             <label htmlFor="autor" className={styles.formLabel}>
               {translate("search.author")}
@@ -373,14 +397,14 @@ export function SearchForm() {
             <select
               id="autor"
               className={styles.formSelect}
-              value={filters.author}
+              value={filters.author || ''}
               onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value }))}
               disabled={loadingAutores}
             >
               <option value="">
                 {loadingAutores ? "Carregando autores..." : 
                  autores.length === 0 ? "Nenhum autor encontrado" :
-                 "Escolha ou busque um autor na lista..."}
+                 "Escolha um autor..."}
               </option>
               {autores.map((autor) => (
                 <option key={autor.id_autor} value={autor.id_autor.toString()}>
@@ -393,6 +417,7 @@ export function SearchForm() {
             )}
           </div>
 
+          {/* Local de Observação */}
           <div className={styles.formGroup}>
             <label htmlFor="localObservacao" className={styles.formLabel}>
               {translate("search.location")}
@@ -400,14 +425,14 @@ export function SearchForm() {
             <select
               id="localObservacao"
               className={styles.formSelect}
-              value={filters.observationLocation}
+              value={filters.observationLocation || ''}
               onChange={(e) => setFilters((prev) => ({ ...prev, observationLocation: e.target.value }))}
               disabled={loadingLocais}
             >
               <option value="">
                 {loadingLocais ? "Carregando locais..." : 
                  locais.length === 0 ? "Nenhum local encontrado" :
-                 "Escolha ou busque um local na lista..."}
+                 "Escolha um local..."}
               </option>
               {locais.map((local) => (
                 <option key={local.id_local} value={local.id_local.toString()}>
