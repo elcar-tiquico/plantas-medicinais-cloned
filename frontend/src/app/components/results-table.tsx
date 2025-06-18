@@ -7,6 +7,53 @@ import { useLanguage } from "@/context/language-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import styles from "./results-table.module.css"
 
+// Componente para tooltip de autores
+function AuthorTooltip({ plant }: { plant: any }) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  
+  // Extrair autores dos dados (assumindo que estão na estrutura atual)
+  const autores = plant.autores_detalhados || []
+  
+  if (autores.length === 0) {
+    return <span className={styles.authorInfo}>{plant.afiliacao}</span>
+  }
+
+  return (
+    <div className={styles.authorTooltipContainer}>
+      <button
+        className={styles.authorButton}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={() => setShowTooltip(!showTooltip)}
+      >
+        👥 {autores.length} Autor{autores.length > 1 ? 'es' : ''}
+      </button>
+      
+      {showTooltip && (
+        <div className={styles.authorTooltip}>
+          <div className={styles.tooltipTitle}>Autores e Afiliações:</div>
+          <div className={styles.authorsList}>
+            {autores.map((autor: any, index: number) => (
+              <div key={autor.id_autor || index} className={styles.authorItem}>
+                <div className={styles.authorName}>{autor.nome_autor}</div>
+                {autor.afiliacao && (
+                  <div className={styles.authorAffiliation}>
+                    🏛️ {autor.afiliacao}
+                    {autor.sigla_afiliacao && (
+                      <span className={styles.authorSigla}> ({autor.sigla_afiliacao})</span>
+                    )}
+                  </div>
+                )}
+                {index < autores.length - 1 && <div className={styles.authorDivider}></div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ResultsTable() {
   const { results, isLoading, hasSearched } = useSearch()
   const { translate } = useLanguage()
@@ -123,9 +170,23 @@ export function ResultsTable() {
           <div key={plant.id} className={styles.resultItem}>
             <div className={styles.resultItemHeader} onClick={() => toggleDetails(plant.id)}>
               <div className={styles.resultItemInfo}>
-                <h3 className={styles.resultItemTitle}>{plant.nome}</h3>
-                <p className={styles.resultItemFamily}>{plant.familia}</p>
-                <p className={styles.resultItemScientific}>{plant.nomeCientifico}</p>
+                {/* Nomes populares (normal) */}
+                <h3 className={styles.resultItemTitle}>
+                  {plant.nomes_comuns?.join(' • ') || plant.nome}
+                </h3>
+                
+                {/* Família (MAIÚSCULAS) */}
+                <p className={styles.resultItemFamily}>{plant.familia?.toUpperCase()}</p>
+                
+                {/* Nome científico (itálico) */}
+                <p className={styles.resultItemScientific}>
+                  <em>{plant.nomeCientifico}</em>
+                </p>
+                
+                {/* Tooltip de autores */}
+                <div className={styles.authorSection}>
+                  <AuthorTooltip plant={plant} />
+                </div>
               </div>
 
               <div className={styles.resultItemActions}>

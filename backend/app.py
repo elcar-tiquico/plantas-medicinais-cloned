@@ -18,9 +18,10 @@ app.config['JSON_AS_ASCII'] = False
 
 # Inicializar extensões
 db = SQLAlchemy(app)
-CORS(app)  # Permitir requests do Next.js
+CORS(app)
 
-# Modelos da Base de Dados
+# MODELOS ATUALIZADOS PARA A NOVA ESTRUTURA
+
 class Familia(db.Model):
     __tablename__ = 'Familia'
     id_familia = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -37,110 +38,80 @@ class Familia(db.Model):
 class Planta(db.Model):
     __tablename__ = 'Planta'
     id_planta = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nome_cientifico = db.Column(db.String(150), nullable=False)
-    nome_comum = db.Column(db.String(150))
-    numero_exsicata = db.Column(db.String(50))
-    referencia = db.Column(db.Text)
     id_familia = db.Column(db.Integer, db.ForeignKey('Familia.id_familia'), nullable=False)
+    nome_cientifico = db.Column(db.String(150), nullable=False)
+    numero_exsicata = db.Column(db.String(50))
+    
+    # Relacionamentos
+    nomes_comuns = db.relationship('NomeComum', backref='planta', lazy=True, cascade="all, delete-orphan")
+    usos_planta = db.relationship('UsoPlanta', backref='planta', lazy=True, cascade="all, delete-orphan")
     
     def to_dict(self, include_relations=False):
         data = {
             'id_planta': self.id_planta,
             'nome_cientifico': self.nome_cientifico,
-            'nome_comum': self.nome_comum,
             'numero_exsicata': self.numero_exsicata,
-            'referencia': self.referencia,
             'id_familia': self.id_familia,
-            'familia': self.familia.nome_familia if self.familia else None
+            'familia': self.familia.nome_familia if self.familia else None,
+            'nomes_comuns': [nc.nome_comum_planta for nc in self.nomes_comuns]
         }
         
         if include_relations:
+            # NOVA ESTRUTURA: Buscar partes usadas com indicações específicas através de Uso_Planta
+            partes_com_indicacoes = []
+            for uso in self.usos_planta:
+                parte_data = {
+                    'id_uso': uso.parte_usada.id_uso,
+                    'parte_usada': uso.parte_usada.parte_usada,
+                    'indicacoes': [{'id_indicacao': ind.id_indicacao, 'descricao': ind.descricao} 
+                                  for ind in uso.indicacoes],
+                    'metodos_preparacao': [{'id_preparacao': mp.id_preparacao, 'descricao': mp.descricao} 
+                                          for mp in uso.metodos_preparacao],
+                    'metodos_extracao': [{'id_extraccao': me.id_extraccao, 'descricao': me.descricao} 
+                                        for me in uso.metodos_extracao],
+                    'observacoes': uso.observacoes
+                }
+                partes_com_indicacoes.append(parte_data)
+            
             data.update({
                 'autores': [autor.to_dict() for autor in self.autores],
-                'locais': [local.to_dict() for local in self.locais],
-                'usos': [uso.to_dict() for uso in self.usos],
+                'provincias': [provincia.to_dict() for provincia in self.provincias],
+                'partes_usadas': partes_com_indicacoes,  # ← CORRIGIDO: agora usa estrutura específica
                 'propriedades': [prop.to_dict() for prop in self.propriedades],
-                'compostos': [comp.to_dict() for comp in self.compostos]
+                'compostos': [comp.to_dict() for comp in self.compostos],
+                'referencias': [ref.to_dict() for ref in self.referencias]
             })
         
         return data
 
-class Autor(db.Model):
-    __tablename__ = 'Autor'
-    id_autor = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nome_autor = db.Column(db.String(100), nullable=False)
-    afiliacao = db.Column(db.String(150))
+class NomeComum(db.Model):
+    __tablename__ = 'Nome_comum'
+    id_nome = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), nullable=False)
+    nome_comum_planta = db.Column(db.String(150), nullable=False)
     
     def to_dict(self):
         return {
-            'id_autor': self.id_autor,
-            'nome_autor': self.nome_autor,
-            'afiliacao': self.afiliacao
+            'id_nome': self.id_nome,
+            'id_planta': self.id_planta,
+            'nome_comum_planta': self.nome_comum_planta
         }
 
-class AutorPlanta(db.Model):
-    __tablename__ = 'Autor_Planta'
-    id_autor = db.Column(db.Integer, db.ForeignKey('Autor.id_autor'), primary_key=True)
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-
-class LocalColheita(db.Model):
-    __tablename__ = 'Local_colheita'
-    id_local = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    provincia = db.Column(db.String(100))
-    regiao = db.Column(db.String(100))
+class Referencia(db.Model):
+    __tablename__ = 'Referencia'
+    id_referencia = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    link_referencia = db.Column(db.Text, nullable=False)
     
     def to_dict(self):
         return {
-            'id_local': self.id_local,
-            'provincia': self.provincia,
-            'regiao': self.regiao
+            'id_referencia': self.id_referencia,
+            'link_referencia': self.link_referencia
         }
 
-class PlantaLocal(db.Model):
-    __tablename__ = 'Planta_Local'
+class PlantaReferencia(db.Model):
+    __tablename__ = 'Planta_Referencia'
     id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-    id_local = db.Column(db.Integer, db.ForeignKey('Local_colheita.id_local'), primary_key=True)
-
-class Uso(db.Model):
-    __tablename__ = 'Uso'
-    id_uso = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    parte_usada = db.Column(db.String(150))
-    metodo_preparacao_tradicional = db.Column(db.Text)
-    metodo_extraccao = db.Column(db.Text)
-    
-    def to_dict(self, include_indicacoes=False):
-        data = {
-            'id_uso': self.id_uso,
-            'parte_usada': self.parte_usada,
-            'metodo_preparacao_tradicional': self.metodo_preparacao_tradicional,
-            'metodo_extraccao': self.metodo_extraccao
-        }
-        
-        if include_indicacoes:
-            data['indicacoes'] = [indicacao.to_dict() for indicacao in self.indicacoes]
-        
-        return data
-
-class Indicacao(db.Model):
-    __tablename__ = 'Indicacao'
-    id_indicacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    descricao = db.Column(db.Text, nullable=False)
-    
-    def to_dict(self):
-        return {
-            'id_indicacao': self.id_indicacao,
-            'descricao': self.descricao
-        }
-
-class UsoIndicacao(db.Model):
-    __tablename__ = 'Uso_Indicacao'
-    id_uso = db.Column(db.Integer, db.ForeignKey('Uso.id_uso'), primary_key=True)
-    id_indicacao = db.Column(db.Integer, db.ForeignKey('Indicacao.id_indicacao'), primary_key=True)
-
-class PlantaUso(db.Model):
-    __tablename__ = 'Planta_Uso'
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-    id_uso = db.Column(db.Integer, db.ForeignKey('Uso.id_uso'), primary_key=True)
+    id_referencia = db.Column(db.Integer, db.ForeignKey('Referencia.id_referencia'), primary_key=True)
 
 class PropriedadeFarmacologica(db.Model):
     __tablename__ = 'Propriedade_farmacologica'
@@ -158,6 +129,26 @@ class PlantaPropriedade(db.Model):
     id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
     id_propriedade = db.Column(db.Integer, db.ForeignKey('Propriedade_farmacologica.id_propriedade'), primary_key=True)
 
+class Autor(db.Model):
+    __tablename__ = 'Autor'
+    id_autor = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome_autor = db.Column(db.String(150))
+    afiliacao = db.Column(db.String(150))
+    sigla_afiliacao = db.Column(db.String(50))
+    
+    def to_dict(self):
+        return {
+            'id_autor': self.id_autor,
+            'nome_autor': self.nome_autor,
+            'afiliacao': self.afiliacao,
+            'sigla_afiliacao': self.sigla_afiliacao
+        }
+
+class AutorPlanta(db.Model):
+    __tablename__ = 'Autor_Planta'
+    id_autor = db.Column(db.Integer, db.ForeignKey('Autor.id_autor'), primary_key=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
+
 class ComposicaoQuimica(db.Model):
     __tablename__ = 'Composicao_quimica'
     id_composto = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -174,18 +165,138 @@ class PlantaComposicao(db.Model):
     id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
     id_composto = db.Column(db.Integer, db.ForeignKey('Composicao_quimica.id_composto'), primary_key=True)
 
-# CONFIGURAR OS RELACIONAMENTOS MANY-TO-MANY
-# Esta é a parte que estava causando o problema - deve vir após a definição de todas as classes
+class Provincia(db.Model):
+    __tablename__ = 'Provincia'
+    id_provincia = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome_provincia = db.Column(db.String(100), nullable=False)
+    
+    regioes = db.relationship('Regiao', backref='provincia', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id_provincia': self.id_provincia,
+            'nome_provincia': self.nome_provincia
+        }
+
+class Regiao(db.Model):
+    __tablename__ = 'Regiao'
+    id_regiao = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome_regiao = db.Column(db.String(100))
+    id_provincia = db.Column(db.Integer, db.ForeignKey('Provincia.id_provincia'))
+    
+    def to_dict(self):
+        return {
+            'id_regiao': self.id_regiao,
+            'nome_regiao': self.nome_regiao,
+            'id_provincia': self.id_provincia,
+            'provincia': self.provincia.nome_provincia if self.provincia else None
+        }
+
+class PlantaProvincia(db.Model):
+    __tablename__ = 'Planta_Provincia'
+    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
+    id_provincia = db.Column(db.Integer, db.ForeignKey('Provincia.id_provincia'), primary_key=True)
+
+class ParteUsada(db.Model):
+    __tablename__ = 'Parte_usada'
+    id_uso = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    parte_usada = db.Column(db.String(100))
+    
+    def to_dict(self):
+        return {
+            'id_uso': self.id_uso,
+            'parte_usada': self.parte_usada
+        }
+
+class MetodoExtracao(db.Model):
+    __tablename__ = 'Metodo_extraccao'
+    id_extraccao = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    descricao = db.Column(db.Text)
+    
+    def to_dict(self):
+        return {
+            'id_extraccao': self.id_extraccao,
+            'descricao': self.descricao
+        }
+
+class MetodoPreparacaoTradicional(db.Model):
+    __tablename__ = 'Metodo_preparacao_tradicional'
+    id_preparacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    descricao = db.Column(db.Text)
+    
+    def to_dict(self):
+        return {
+            'id_preparacao': self.id_preparacao,
+            'descricao': self.descricao
+        }
+
+class Indicacao(db.Model):
+    __tablename__ = 'Indicacao'
+    id_indicacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    descricao = db.Column(db.Text)
+    
+    def to_dict(self):
+        return {
+            'id_indicacao': self.id_indicacao,
+            'descricao': self.descricao
+        }
+
+# =====================================================
+# NOVOS MODELOS PARA ESTRUTURA CORRIGIDA
+# =====================================================
+
+class UsoPlanta(db.Model):
+    __tablename__ = 'Uso_Planta'
+    id_uso_planta = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), nullable=False)
+    id_parte = db.Column(db.Integer, db.ForeignKey('Parte_usada.id_uso'), nullable=False)
+    observacoes = db.Column(db.Text)
+    
+    # Relacionamentos
+    parte_usada = db.relationship('ParteUsada', backref='usos', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id_uso_planta': self.id_uso_planta,
+            'id_planta': self.id_planta,
+            'id_parte': self.id_parte,
+            'observacoes': self.observacoes,
+            'parte_usada': self.parte_usada.parte_usada if self.parte_usada else None
+        }
+
+class UsoPlantaIndicacao(db.Model):
+    __tablename__ = 'Uso_Planta_Indicacao'
+    id_uso_planta = db.Column(db.Integer, db.ForeignKey('Uso_Planta.id_uso_planta'), primary_key=True)
+    id_indicacao = db.Column(db.Integer, db.ForeignKey('Indicacao.id_indicacao'), primary_key=True)
+
+class UsoPlantaPreparacao(db.Model):
+    __tablename__ = 'Uso_Planta_Preparacao'
+    id_uso_planta = db.Column(db.Integer, db.ForeignKey('Uso_Planta.id_uso_planta'), primary_key=True)
+    id_preparacao = db.Column(db.Integer, db.ForeignKey('Metodo_preparacao_tradicional.id_preparacao'), primary_key=True)
+
+class UsoPlantaExtracao(db.Model):
+    __tablename__ = 'Uso_Planta_Extracao'
+    id_uso_planta = db.Column(db.Integer, db.ForeignKey('Uso_Planta.id_uso_planta'), primary_key=True)
+    id_extraccao = db.Column(db.Integer, db.ForeignKey('Metodo_extraccao.id_extraccao'), primary_key=True)
+
+# =====================================================
+# RELACIONAMENTOS MANY-TO-MANY ATUALIZADOS
+# =====================================================
+
 Planta.autores = db.relationship('Autor', secondary='Autor_Planta', backref='plantas', lazy='select')
-Planta.locais = db.relationship('LocalColheita', secondary='Planta_Local', backref='plantas', lazy='select')
-Planta.usos = db.relationship('Uso', secondary='Planta_Uso', backref='plantas', lazy='select')
+Planta.provincias = db.relationship('Provincia', secondary='Planta_Provincia', backref='plantas', lazy='select')
 Planta.propriedades = db.relationship('PropriedadeFarmacologica', secondary='Planta_Propriedade', backref='plantas', lazy='select')
 Planta.compostos = db.relationship('ComposicaoQuimica', secondary='Planta_Composicao', backref='plantas', lazy='select')
-Uso.indicacoes = db.relationship('Indicacao', secondary='Uso_Indicacao', backref='usos', lazy='select')
+Planta.referencias = db.relationship('Referencia', secondary='Planta_Referencia', backref='plantas', lazy='select')
+
+# NOVOS RELACIONAMENTOS PARA USO ESPECÍFICO
+UsoPlanta.indicacoes = db.relationship('Indicacao', secondary='Uso_Planta_Indicacao', backref='usos_planta', lazy='select')
+UsoPlanta.metodos_preparacao = db.relationship('MetodoPreparacaoTradicional', secondary='Uso_Planta_Preparacao', backref='usos_planta', lazy='select')
+UsoPlanta.metodos_extracao = db.relationship('MetodoExtracao', secondary='Uso_Planta_Extracao', backref='usos_planta', lazy='select')
 
 # Função auxiliar para tratamento de erros
 def handle_error(e, message="Erro interno do servidor"):
-    print(f"Erro: {str(e)}")  # Para debug
+    print(f"Erro: {str(e)}")
     return jsonify({'error': message, 'details': str(e)}), 500
 
 # ROTAS - FAMÍLIAS
@@ -212,18 +323,7 @@ def create_familia():
         db.session.rollback()
         return handle_error(e)
 
-@app.route('/api/familias/<int:id_familia>', methods=['GET'])
-def get_familia(id_familia):
-    try:
-        familia = Familia.query.get_or_404(id_familia)
-        return jsonify(familia.to_dict())
-    except Exception as e:
-        return handle_error(e)
-
-# CORREÇÃO DA ROTA /api/plantas no arquivo Flask
-
-# Substitua a rota /api/plantas existente por esta versão corrigida
-
+# ROTAS - PLANTAS (ATUALIZADAS PARA NOVA ESTRUTURA)
 @app.route('/api/plantas', methods=['GET'])
 def get_plantas():
     try:
@@ -233,32 +333,34 @@ def get_plantas():
         # Parâmetros de busca
         search_popular = request.args.get('search_popular', '')
         search_cientifico = request.args.get('search_cientifico', '')
-        search = request.args.get('search', '')  # Manter para compatibilidade
+        search = request.args.get('search', '')
         
         # Filtros
         familia_id = request.args.get('familia_id', type=int)
         autor_id = request.args.get('autor_id', type=int)
-        local_id = request.args.get('local_id', type=int)
-        uso_id = request.args.get('uso_id', type=int)  # Manter para compatibilidade
-        
-        # NOVO: Filtro por parte usada
+        provincia_id = request.args.get('provincia_id', type=int)
+        regiao_id = request.args.get('regiao_id', type=int)
         parte_usada = request.args.get('parte_usada', '')
+        parte_id = request.args.get('parte_id', type=int)
         
         query = Planta.query
         
-        # Filtros específicos por campo
+        # Filtro por nome popular (buscar nos nomes comuns)
         if search_popular:
-            query = query.filter(Planta.nome_comum.ilike(f'%{search_popular}%'))
+            query = query.join(Planta.nomes_comuns).filter(
+                NomeComum.nome_comum_planta.ilike(f'%{search_popular}%')
+            )
         
+        # Filtro por nome científico
         if search_cientifico:
             query = query.filter(Planta.nome_cientifico.ilike(f'%{search_cientifico}%'))
         
-        # Manter o filtro geral para compatibilidade (busca em ambos os campos)
+        # Filtro geral (científico OU popular)
         if search and not search_popular and not search_cientifico:
-            query = query.filter(
+            query = query.outerjoin(Planta.nomes_comuns).filter(
                 db.or_(
                     Planta.nome_cientifico.ilike(f'%{search}%'),
-                    Planta.nome_comum.ilike(f'%{search}%')
+                    NomeComum.nome_comum_planta.ilike(f'%{search}%')
                 )
             )
         
@@ -270,19 +372,24 @@ def get_plantas():
         if autor_id:
             query = query.join(Planta.autores).filter(Autor.id_autor == autor_id)
             
-        # Filtro por local
-        if local_id:
-            query = query.join(Planta.locais).filter(LocalColheita.id_local == local_id)
+        # Filtro por província
+        if provincia_id:
+            query = query.join(Planta.provincias).filter(Provincia.id_provincia == provincia_id)
+        
+        # Filtro por região (através da província)
+        if regiao_id:
+            query = query.join(Planta.provincias).join(Provincia.regioes).filter(Regiao.id_regiao == regiao_id)
             
-        # NOVO: Filtro por parte usada (prioritário sobre uso_id)
+        # CORRIGIDO: Filtro por parte usada através da nova estrutura
         if parte_usada:
-            # Buscar plantas que têm usos com a parte específica
-            query = query.join(Planta.usos).filter(
-                Uso.parte_usada.ilike(f'%{parte_usada}%')
+            query = query.join(Planta.usos_planta).join(UsoPlanta.parte_usada).filter(
+                ParteUsada.parte_usada.ilike(f'%{parte_usada}%')
             )
-        elif uso_id:
-            # Manter compatibilidade com filtro por uso_id
-            query = query.join(Planta.usos).filter(Uso.id_uso == uso_id)
+        elif parte_id:
+            query = query.join(Planta.usos_planta).filter(UsoPlanta.id_parte == parte_id)
+        
+        # Remover duplicatas
+        query = query.distinct()
         
         plantas = query.paginate(
             page=page, per_page=per_page, error_out=False
@@ -317,13 +424,23 @@ def create_planta():
         
         planta = Planta(
             nome_cientifico=data['nome_cientifico'],
-            nome_comum=data.get('nome_comum'),
             numero_exsicata=data.get('numero_exsicata'),
-            referencia=data.get('referencia'),
             id_familia=data['id_familia']
         )
         
         db.session.add(planta)
+        db.session.flush()  # Para obter o ID da planta
+        
+        # Adicionar nomes comuns se fornecidos
+        if 'nomes_comuns' in data and data['nomes_comuns']:
+            for nome_comum in data['nomes_comuns']:
+                if nome_comum.strip():
+                    nome = NomeComum(
+                        id_planta=planta.id_planta,
+                        nome_comum_planta=nome_comum.strip()
+                    )
+                    db.session.add(nome)
+        
         db.session.commit()
         return jsonify(planta.to_dict()), 201
     except IntegrityError:
@@ -342,11 +459,24 @@ def update_planta(id_planta):
         if not data:
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
+        # Atualizar campos básicos
         planta.nome_cientifico = data.get('nome_cientifico', planta.nome_cientifico)
-        planta.nome_comum = data.get('nome_comum', planta.nome_comum)
         planta.numero_exsicata = data.get('numero_exsicata', planta.numero_exsicata)
-        planta.referencia = data.get('referencia', planta.referencia)
         planta.id_familia = data.get('id_familia', planta.id_familia)
+        
+        # Atualizar nomes comuns se fornecidos
+        if 'nomes_comuns' in data:
+            # Remover nomes antigos
+            NomeComum.query.filter_by(id_planta=id_planta).delete()
+            
+            # Adicionar novos nomes
+            for nome_comum in data['nomes_comuns']:
+                if nome_comum.strip():
+                    nome = NomeComum(
+                        id_planta=id_planta,
+                        nome_comum_planta=nome_comum.strip()
+                    )
+                    db.session.add(nome)
         
         db.session.commit()
         return jsonify(planta.to_dict())
@@ -365,30 +495,152 @@ def delete_planta(id_planta):
         db.session.rollback()
         return handle_error(e)
 
-# ROTAS - AUTORES
+# ROTAS - NOMES COMUNS
+@app.route('/api/plantas/<int:id_planta>/nomes-comuns', methods=['GET'])
+def get_nomes_comuns_planta(id_planta):
+    try:
+        planta = Planta.query.get_or_404(id_planta)
+        return jsonify([nc.to_dict() for nc in planta.nomes_comuns])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/plantas/<int:id_planta>/nomes-comuns', methods=['POST'])
+def add_nome_comum_planta(id_planta):
+    try:
+        planta = Planta.query.get_or_404(id_planta)
+        data = request.get_json()
+        
+        if not data or 'nome_comum_planta' not in data:
+            return jsonify({'error': 'Nome comum é obrigatório'}), 400
+        
+        nome = NomeComum(
+            id_planta=id_planta,
+            nome_comum_planta=data['nome_comum_planta']
+        )
+        db.session.add(nome)
+        db.session.commit()
+        return jsonify(nome.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# NOVAS ROTAS PARA USO ESPECÍFICO DE PLANTAS
+@app.route('/api/plantas/<int:id_planta>/usos', methods=['GET'])
+def get_usos_planta(id_planta):
+    try:
+        planta = Planta.query.get_or_404(id_planta)
+        usos = []
+        
+        for uso in planta.usos_planta:
+            uso_data = uso.to_dict()
+            uso_data.update({
+                'indicacoes': [ind.to_dict() for ind in uso.indicacoes],
+                'metodos_preparacao': [mp.to_dict() for mp in uso.metodos_preparacao],
+                'metodos_extracao': [me.to_dict() for me in uso.metodos_extracao]
+            })
+            usos.append(uso_data)
+        
+        return jsonify(usos)
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/plantas/<int:id_planta>/usos', methods=['POST'])
+def create_uso_planta(id_planta):
+    try:
+        planta = Planta.query.get_or_404(id_planta)
+        data = request.get_json()
+        
+        if not data or 'id_parte' not in data:
+            return jsonify({'error': 'ID da parte é obrigatório'}), 400
+        
+        # Verificar se já existe uso desta parte para esta planta
+        uso_existente = UsoPlanta.query.filter_by(
+            id_planta=id_planta,
+            id_parte=data['id_parte']
+        ).first()
+        
+        if uso_existente:
+            return jsonify({'error': 'Uso desta parte já existe para esta planta'}), 409
+        
+        uso = UsoPlanta(
+            id_planta=id_planta,
+            id_parte=data['id_parte'],
+            observacoes=data.get('observacoes')
+        )
+        
+        db.session.add(uso)
+        db.session.flush()
+        
+        # Adicionar indicações se fornecidas
+        if 'indicacoes' in data:
+            for id_indicacao in data['indicacoes']:
+                indicacao = Indicacao.query.get(id_indicacao)
+                if indicacao:
+                    uso.indicacoes.append(indicacao)
+        
+        # Adicionar métodos de preparação se fornecidos
+        if 'metodos_preparacao' in data:
+            for id_preparacao in data['metodos_preparacao']:
+                metodo = MetodoPreparacaoTradicional.query.get(id_preparacao)
+                if metodo:
+                    uso.metodos_preparacao.append(metodo)
+        
+        # Adicionar métodos de extração se fornecidos
+        if 'metodos_extracao' in data:
+            for id_extraccao in data['metodos_extracao']:
+                metodo = MetodoExtracao.query.get(id_extraccao)
+                if metodo:
+                    uso.metodos_extracao.append(metodo)
+        
+        db.session.commit()
+        return jsonify(uso.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# ROTAS EXISTENTES MANTIDAS
+@app.route('/api/referencias', methods=['GET'])
+def get_referencias():
+    try:
+        referencias = Referencia.query.all()
+        return jsonify([ref.to_dict() for ref in referencias])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/referencias', methods=['POST'])
+def create_referencia():
+    try:
+        data = request.get_json()
+        if not data or 'link_referencia' not in data:
+            return jsonify({'error': 'Link da referência é obrigatório'}), 400
+        
+        referencia = Referencia(link_referencia=data['link_referencia'])
+        db.session.add(referencia)
+        db.session.commit()
+        return jsonify(referencia.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
 @app.route('/api/autores', methods=['GET'])
 def get_autores():
     try:
-        print("Buscando autores...")  # Debug
         autores = Autor.query.all()
-        print(f"Encontrados {len(autores)} autores")  # Debug
-        result = [autor.to_dict() for autor in autores]
-        print(f"Retornando: {result}")  # Debug
-        return jsonify(result)
+        return jsonify([autor.to_dict() for autor in autores])
     except Exception as e:
-        print(f"Erro ao buscar autores: {e}")  # Debug
         return handle_error(e)
 
 @app.route('/api/autores', methods=['POST'])
 def create_autor():
     try:
         data = request.get_json()
-        if not data or 'nome_autor' not in data:
-            return jsonify({'error': 'Nome do autor é obrigatório'}), 400
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
         
         autor = Autor(
-            nome_autor=data['nome_autor'],
-            afiliacao=data.get('afiliacao')
+            nome_autor=data.get('nome_autor'),
+            afiliacao=data.get('afiliacao'),
+            sigla_afiliacao=data.get('sigla_afiliacao')
         )
         db.session.add(autor)
         db.session.commit()
@@ -397,99 +649,91 @@ def create_autor():
         db.session.rollback()
         return handle_error(e)
 
-# ROTAS - LOCAIS DE COLHEITA
-@app.route('/api/locais', methods=['GET'])
-def get_locais():
+# ROTAS - PROVÍNCIAS
+@app.route('/api/provincias', methods=['GET'])
+def get_provincias():
     try:
-        print("Buscando locais...")  # Debug
-        locais = LocalColheita.query.all()
-        print(f"Encontrados {len(locais)} locais")  # Debug
-        result = [local.to_dict() for local in locais]
-        print(f"Retornando: {result}")  # Debug
-        return jsonify(result)
+        provincias = Provincia.query.all()
+        return jsonify([provincia.to_dict() for provincia in provincias])
     except Exception as e:
-        print(f"Erro ao buscar locais: {e}")  # Debug
         return handle_error(e)
 
-@app.route('/api/locais', methods=['POST'])
-def create_local():
+@app.route('/api/provincias', methods=['POST'])
+def create_provincia():
+    try:
+        data = request.get_json()
+        if not data or 'nome_provincia' not in data:
+            return jsonify({'error': 'Nome da província é obrigatório'}), 400
+        
+        provincia = Provincia(nome_provincia=data['nome_provincia'])
+        db.session.add(provincia)
+        db.session.commit()
+        return jsonify(provincia.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# ROTAS - REGIÕES
+@app.route('/api/regioes', methods=['GET'])
+def get_regioes():
+    try:
+        provincia_id = request.args.get('provincia_id', type=int)
+        query = Regiao.query
+        
+        if provincia_id:
+            query = query.filter(Regiao.id_provincia == provincia_id)
+            
+        regioes = query.all()
+        return jsonify([regiao.to_dict() for regiao in regioes])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/regioes', methods=['POST'])
+def create_regiao():
     try:
         data = request.get_json()
         if not data:
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
-        local = LocalColheita(
-            provincia=data.get('provincia'),
-            regiao=data.get('regiao')
+        regiao = Regiao(
+            nome_regiao=data.get('nome_regiao'),
+            id_provincia=data.get('id_provincia')
         )
-        db.session.add(local)
+        db.session.add(regiao)
         db.session.commit()
-        return jsonify(local.to_dict()), 201
+        return jsonify(regiao.to_dict()), 201
     except Exception as e:
         db.session.rollback()
         return handle_error(e)
 
-# ROTAS - USOS
-@app.route('/api/usos', methods=['GET'])
-def get_usos():
+# ROTAS - PARTES USADAS
+@app.route('/api/partes-usadas', methods=['GET'])
+def get_partes_usadas():
     try:
-        print("Buscando usos...")  # Debug
-        usos = Uso.query.all()
-        print(f"Encontrados {len(usos)} usos")  # Debug
-        result = [uso.to_dict() for uso in usos]
-        print(f"Retornando: {result}")  # Debug
-        return jsonify(result)
-    except Exception as e:
-        print(f"Erro ao buscar usos: {e}")  # Debug
-        return handle_error(e)
-
-@app.route('/api/usos/<int:id_uso>', methods=['GET'])
-def get_uso(id_uso):
-    try:
-        uso = Uso.query.get_or_404(id_uso)
-        return jsonify(uso.to_dict(include_indicacoes=True))
+        partes = ParteUsada.query.all()
+        return jsonify([parte.to_dict() for parte in partes])
     except Exception as e:
         return handle_error(e)
 
-@app.route('/api/usos', methods=['POST'])
-def create_uso():
+@app.route('/api/partes-usadas/<int:id_uso>', methods=['GET'])
+def get_parte_usada(id_uso):
+    try:
+        parte = ParteUsada.query.get_or_404(id_uso)
+        return jsonify(parte.to_dict())
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/partes-usadas', methods=['POST'])
+def create_parte_usada():
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Dados não fornecidos'}), 400
+        if not data or 'parte_usada' not in data:
+            return jsonify({'error': 'Nome da parte usada é obrigatório'}), 400
         
-        uso = Uso(
-            parte_usada=data.get('parte_usada'),
-            metodo_preparacao_tradicional=data.get('metodo_preparacao_tradicional'),
-            metodo_extraccao=data.get('metodo_extraccao')
-        )
-        db.session.add(uso)
+        parte = ParteUsada(parte_usada=data['parte_usada'])
+        db.session.add(parte)
         db.session.commit()
-        return jsonify(uso.to_dict()), 201
-    except Exception as e:
-        db.session.rollback()
-        return handle_error(e)
-
-# ROTAS - INDICAÇÕES
-@app.route('/api/indicacoes', methods=['GET'])
-def get_indicacoes():
-    try:
-        indicacoes = Indicacao.query.all()
-        return jsonify([indicacao.to_dict() for indicacao in indicacoes])
-    except Exception as e:
-        return handle_error(e)
-
-@app.route('/api/indicacoes', methods=['POST'])
-def create_indicacao():
-    try:
-        data = request.get_json()
-        if not data or 'descricao' not in data:
-            return jsonify({'error': 'Descrição é obrigatória'}), 400
-        
-        indicacao = Indicacao(descricao=data['descricao'])
-        db.session.add(indicacao)
-        db.session.commit()
-        return jsonify(indicacao.to_dict()), 201
+        return jsonify(parte.to_dict()), 201
     except Exception as e:
         db.session.rollback()
         return handle_error(e)
@@ -542,6 +786,78 @@ def create_composto():
         db.session.rollback()
         return handle_error(e)
 
+# ROTAS - INDICAÇÕES
+@app.route('/api/indicacoes', methods=['GET'])
+def get_indicacoes():
+    try:
+        indicacoes = Indicacao.query.all()
+        return jsonify([indicacao.to_dict() for indicacao in indicacoes])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/indicacoes', methods=['POST'])
+def create_indicacao():
+    try:
+        data = request.get_json()
+        if not data or 'descricao' not in data:
+            return jsonify({'error': 'Descrição é obrigatória'}), 400
+        
+        indicacao = Indicacao(descricao=data['descricao'])
+        db.session.add(indicacao)
+        db.session.commit()
+        return jsonify(indicacao.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# ROTAS - MÉTODOS DE EXTRAÇÃO
+@app.route('/api/metodos-extracao', methods=['GET'])
+def get_metodos_extracao():
+    try:
+        metodos = MetodoExtracao.query.all()
+        return jsonify([metodo.to_dict() for metodo in metodos])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/metodos-extracao', methods=['POST'])
+def create_metodo_extracao():
+    try:
+        data = request.get_json()
+        if not data or 'descricao' not in data:
+            return jsonify({'error': 'Descrição é obrigatória'}), 400
+        
+        metodo = MetodoExtracao(descricao=data['descricao'])
+        db.session.add(metodo)
+        db.session.commit()
+        return jsonify(metodo.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# ROTAS - MÉTODOS DE PREPARAÇÃO
+@app.route('/api/metodos-preparacao', methods=['GET'])
+def get_metodos_preparacao():
+    try:
+        metodos = MetodoPreparacaoTradicional.query.all()
+        return jsonify([metodo.to_dict() for metodo in metodos])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/metodos-preparacao', methods=['POST'])
+def create_metodo_preparacao():
+    try:
+        data = request.get_json()
+        if not data or 'descricao' not in data:
+            return jsonify({'error': 'Descrição é obrigatória'}), 400
+        
+        metodo = MetodoPreparacaoTradicional(descricao=data['descricao'])
+        db.session.add(metodo)
+        db.session.commit()
+        return jsonify(metodo.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
 # ROTAS DE ASSOCIAÇÃO
 @app.route('/api/plantas/<int:id_planta>/autores/<int:id_autor>', methods=['POST'])
 def associar_autor_planta(id_planta, id_autor):
@@ -559,26 +875,43 @@ def associar_autor_planta(id_planta, id_autor):
         db.session.rollback()
         return handle_error(e)
 
-@app.route('/api/plantas/<int:id_planta>/locais/<int:id_local>', methods=['POST'])
-def associar_local_planta(id_planta, id_local):
+@app.route('/api/plantas/<int:id_planta>/referencias/<int:id_referencia>', methods=['POST'])
+def associar_referencia_planta(id_planta, id_referencia):
     try:
         planta = Planta.query.get_or_404(id_planta)
-        local = LocalColheita.query.get_or_404(id_local)
+        referencia = Referencia.query.get_or_404(id_referencia)
         
-        if local not in planta.locais:
-            planta.locais.append(local)
+        if referencia not in planta.referencias:
+            planta.referencias.append(referencia)
             db.session.commit()
-            return jsonify({'message': 'Local associado à planta com sucesso'}), 200
+            return jsonify({'message': 'Referência associada à planta com sucesso'}), 200
         else:
-            return jsonify({'message': 'Local já associado a esta planta'}), 409
+            return jsonify({'message': 'Referência já associada a esta planta'}), 409
     except Exception as e:
         db.session.rollback()
         return handle_error(e)
 
-@app.route('/api/usos/<int:id_uso>/indicacoes/<int:id_indicacao>', methods=['POST'])
-def associar_indicacao_uso(id_uso, id_indicacao):
+@app.route('/api/plantas/<int:id_planta>/provincias/<int:id_provincia>', methods=['POST'])
+def associar_provincia_planta(id_planta, id_provincia):
     try:
-        uso = Uso.query.get_or_404(id_uso)
+        planta = Planta.query.get_or_404(id_planta)
+        provincia = Provincia.query.get_or_404(id_provincia)
+        
+        if provincia not in planta.provincias:
+            planta.provincias.append(provincia)
+            db.session.commit()
+            return jsonify({'message': 'Província associada à planta com sucesso'}), 200
+        else:
+            return jsonify({'message': 'Província já associada a esta planta'}), 409
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# NOVAS ROTAS PARA GERENCIAR INDICAÇÕES ESPECÍFICAS DE USO
+@app.route('/api/usos/<int:id_uso_planta>/indicacoes/<int:id_indicacao>', methods=['POST'])
+def associar_indicacao_uso(id_uso_planta, id_indicacao):
+    try:
+        uso = UsoPlanta.query.get_or_404(id_uso_planta)
         indicacao = Indicacao.query.get_or_404(id_indicacao)
         
         if indicacao not in uso.indicacoes:
@@ -591,6 +924,22 @@ def associar_indicacao_uso(id_uso, id_indicacao):
         db.session.rollback()
         return handle_error(e)
 
+@app.route('/api/usos/<int:id_uso_planta>/indicacoes/<int:id_indicacao>', methods=['DELETE'])
+def desassociar_indicacao_uso(id_uso_planta, id_indicacao):
+    try:
+        uso = UsoPlanta.query.get_or_404(id_uso_planta)
+        indicacao = Indicacao.query.get_or_404(id_indicacao)
+        
+        if indicacao in uso.indicacoes:
+            uso.indicacoes.remove(indicacao)
+            db.session.commit()
+            return jsonify({'message': 'Indicação removida do uso com sucesso'}), 200
+        else:
+            return jsonify({'message': 'Indicação não estava associada a este uso'}), 404
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
 # ROTAS DE ESTATÍSTICAS
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
@@ -599,13 +948,67 @@ def get_stats():
             'total_plantas': Planta.query.count(),
             'total_familias': Familia.query.count(),
             'total_autores': Autor.query.count(),
-            'total_locais': LocalColheita.query.count(),
-            'total_usos': Uso.query.count(),
+            'total_provincias': Provincia.query.count(),
+            'total_regioes': Regiao.query.count(),
+            'total_partes_usadas': ParteUsada.query.count(),
             'total_indicacoes': Indicacao.query.count(),
             'total_propriedades': PropriedadeFarmacologica.query.count(),
-            'total_compostos': ComposicaoQuimica.query.count()
+            'total_compostos': ComposicaoQuimica.query.count(),
+            'total_metodos_extracao': MetodoExtracao.query.count(),
+            'total_metodos_preparacao': MetodoPreparacaoTradicional.query.count(),
+            'total_referencias': Referencia.query.count(),
+            'total_nomes_comuns': NomeComum.query.count(),
+            'total_usos_especificos': UsoPlanta.query.count()
         }
         return jsonify(stats)
+    except Exception as e:
+        return handle_error(e)
+
+# ROTA DE DEBUG - Verificar correlações ATUALIZADA
+@app.route('/api/debug/planta/<int:id_planta>/correlacoes', methods=['GET'])
+def debug_plant_correlations(id_planta):
+    try:
+        planta = Planta.query.get_or_404(id_planta)
+        
+        debug_data = {
+            'planta_id': planta.id_planta,
+            'nome_cientifico': planta.nome_cientifico,
+            'nomes_comuns': [nc.nome_comum_planta for nc in planta.nomes_comuns],
+            'usos_especificos_detalhados': []
+        }
+        
+        # CORRIGIDO: Verificar cada uso específico e suas correlações
+        for uso in planta.usos_planta:
+            uso_debug = {
+                'uso_id': uso.id_uso_planta,
+                'parte_id': uso.id_parte,
+                'parte_nome': uso.parte_usada.parte_usada if uso.parte_usada else None,
+                'observacoes': uso.observacoes,
+                'indicacoes_count': len(uso.indicacoes),
+                'indicacoes': [
+                    {
+                        'id': ind.id_indicacao,
+                        'descricao': ind.descricao
+                    } for ind in uso.indicacoes
+                ],
+                'metodos_preparacao_count': len(uso.metodos_preparacao),
+                'metodos_preparacao': [
+                    {
+                        'id': mp.id_preparacao,
+                        'descricao': mp.descricao
+                    } for mp in uso.metodos_preparacao
+                ],
+                'metodos_extracao_count': len(uso.metodos_extracao),
+                'metodos_extracao': [
+                    {
+                        'id': me.id_extraccao,
+                        'descricao': me.descricao
+                    } for me in uso.metodos_extracao
+                ]
+            }
+            debug_data['usos_especificos_detalhados'].append(uso_debug)
+        
+        return jsonify(debug_data)
     except Exception as e:
         return handle_error(e)
 
@@ -615,7 +1018,8 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.utcnow().isoformat(),
-        'version': '1.0.0'
+        'version': '4.0.0',
+        'estrutura': 'corrigida_com_uso_especifico_por_planta'
     })
 
 # Tratamento de erros globais

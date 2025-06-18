@@ -6,25 +6,29 @@ import { useSearch } from "@/context/search-context"
 import { useLanguage } from "@/context/language-context"
 import styles from "./search-form.module.css"
 
-// Tipos baseados na estrutura real da BD
-interface Uso {
+// Tipos baseados na nova estrutura da API
+interface ParteUsada {
   id_uso: number;
   parte_usada?: string;
-  indicacao_uso?: string;
-  metodo_preparacao_tradicional?: string;
-  metodo_extraccao?: string;
 }
 
-interface LocalColheita {
-  id_local: number;
+interface Provincia {
+  id_provincia: number;
+  nome_provincia: string;
+}
+
+interface Regiao {
+  id_regiao: number;
+  nome_regiao?: string;
+  id_provincia: number;
   provincia?: string;
-  regiao?: string;
 }
 
 interface Autor {
   id_autor: number;
   nome_autor: string;
   afiliacao?: string;
+  sigla_afiliacao?: string;
 }
 
 interface Familia {
@@ -32,7 +36,32 @@ interface Familia {
   nome_familia: string;
 }
 
-// URL base da API - ajuste conforme necessário
+interface Indicacao {
+  id_indicacao: number;
+  descricao: string;
+}
+
+interface PropriedadeFarmacologica {
+  id_propriedade: number;
+  descricao: string;
+}
+
+interface ComposicaoQuimica {
+  id_composto: number;
+  nome_composto: string;
+}
+
+interface MetodoExtracao {
+  id_extraccao: number;
+  descricao: string;
+}
+
+interface MetodoPreparacao {
+  id_preparacao: number;
+  descricao: string;
+}
+
+// URL base da API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 export function SearchForm() {
@@ -43,16 +72,31 @@ export function SearchForm() {
   
   // Estados para armazenar dados das comboboxes
   const [familias, setFamilias] = useState<Familia[]>([])
-  const [usos, setUsos] = useState<Uso[]>([])
-  const [locais, setLocais] = useState<LocalColheita[]>([])
+  const [partesUsadas, setPartesUsadas] = useState<ParteUsada[]>([])
+  const [provincias, setProvincias] = useState<Provincia[]>([])
+  const [regioes, setRegioes] = useState<Regiao[]>([])
   const [autores, setAutores] = useState<Autor[]>([])
+  const [indicacoes, setIndicacoes] = useState<Indicacao[]>([])
+  const [propriedades, setPropriedades] = useState<PropriedadeFarmacologica[]>([])
+  const [compostos, setCompostos] = useState<ComposicaoQuimica[]>([])
+  const [metodosExtracao, setMetodosExtracao] = useState<MetodoExtracao[]>([])
+  const [metodosPreparacao, setMetodosPreparacao] = useState<MetodoPreparacao[]>([])
+  
+  // Estados de loading
   const [loadingFamilias, setLoadingFamilias] = useState(true)
-  const [loadingUsos, setLoadingUsos] = useState(true)
-  const [loadingLocais, setLoadingLocais] = useState(true)
+  const [loadingPartesUsadas, setLoadingPartesUsadas] = useState(true)
+  const [loadingProvincias, setLoadingProvincias] = useState(true)
+  const [loadingRegioes, setLoadingRegioes] = useState(false)
   const [loadingAutores, setLoadingAutores] = useState(true)
+  const [loadingIndicacoes, setLoadingIndicacoes] = useState(true)
+  const [loadingPropriedades, setLoadingPropriedades] = useState(true)
+  const [loadingCompostos, setLoadingCompostos] = useState(true)
+  const [loadingMetodosExtracao, setLoadingMetodosExtracao] = useState(true)
+  const [loadingMetodosPreparacao, setLoadingMetodosPreparacao] = useState(true)
+  
   const [error, setError] = useState<string | null>(null)
 
-  // Estado para partes únicas
+  // Estado para partes únicas extraídas
   const [partesUnicas, setPartesUnicas] = useState<string[]>([])
 
   // Função genérica para fazer requisições
@@ -64,7 +108,6 @@ export function SearchForm() {
   ) => {
     try {
       loadingSetter(true)
-      setError(null)
       console.log(`Buscando ${entityName} de:`, `${API_BASE_URL}${endpoint}`)
       
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -84,11 +127,11 @@ export function SearchForm() {
       } else {
         const errorText = await response.text()
         console.error(`Erro ao buscar ${entityName}:`, response.status, errorText)
-        setError(`Erro ao carregar ${entityName}: ${response.status}`)
+        throw new Error(`Erro ${response.status}: ${errorText}`)
       }
     } catch (error) {
       console.error(`Erro na requisição de ${entityName}:`, error)
-      setError(`Erro de conexão ao carregar ${entityName}: ${error}`)
+      setError(`Erro ao carregar ${entityName}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
     } finally {
       loadingSetter(false)
     }
@@ -96,21 +139,55 @@ export function SearchForm() {
 
   // Funções específicas para cada entidade
   const fetchFamilias = () => fetchData('/familias', setFamilias, setLoadingFamilias, 'famílias')
-  const fetchUsos = () => fetchData('/usos', setUsos, setLoadingUsos, 'usos')
-  const fetchLocais = () => fetchData('/locais', setLocais, setLoadingLocais, 'locais')
+  const fetchPartesUsadas = () => fetchData('/partes-usadas', setPartesUsadas, setLoadingPartesUsadas, 'partes usadas')
+  const fetchProvincias = () => fetchData('/provincias', setProvincias, setLoadingProvincias, 'províncias')
   const fetchAutores = () => fetchData('/autores', setAutores, setLoadingAutores, 'autores')
+  const fetchIndicacoes = () => fetchData('/indicacoes', setIndicacoes, setLoadingIndicacoes, 'indicações')
+  const fetchPropriedades = () => fetchData('/propriedades', setPropriedades, setLoadingPropriedades, 'propriedades')
+  const fetchCompostos = () => fetchData('/compostos', setCompostos, setLoadingCompostos, 'compostos')
+  const fetchMetodosExtracao = () => fetchData('/metodos-extracao', setMetodosExtracao, setLoadingMetodosExtracao, 'métodos de extração')
+  const fetchMetodosPreparacao = () => fetchData('/metodos-preparacao', setMetodosPreparacao, setLoadingMetodosPreparacao, 'métodos de preparação')
 
-  // Função para extrair partes únicas dos usos
+  // Função para buscar regiões de uma província específica
+  const fetchRegioes = async (provinciaId?: number) => {
+    try {
+      setLoadingRegioes(true)
+      const endpoint = provinciaId ? `/regioes?provincia_id=${provinciaId}` : '/regioes'
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setRegioes(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Erro ao buscar regiões:', error)
+    } finally {
+      setLoadingRegioes(false)
+    }
+  }
+
+  // Função para extrair partes únicas
   useEffect(() => {
-    if (usos.length > 0) {
+    if (partesUsadas.length > 0) {
       const partesSet = new Set<string>()
       
-      usos.forEach(uso => {
-        if (uso.parte_usada && uso.parte_usada.trim()) {
-          // Dividir por vírgulas caso tenha múltiplas partes
-          const partes = uso.parte_usada.split(',').map(p => p.trim())
-          partes.forEach(parte => {
-            if (parte) partesSet.add(parte)
+      partesUsadas.forEach(parte => {
+        if (parte.parte_usada && parte.parte_usada.trim()) {
+          // Dividir por vírgulas e outros separadores comuns
+          const partes = parte.parte_usada
+            .split(/[,;\/\+\&]/)
+            .map(p => p.trim())
+            .filter(p => p.length > 0)
+          
+          partes.forEach(p => {
+            if (p) partesSet.add(p)
           })
         }
       })
@@ -119,34 +196,89 @@ export function SearchForm() {
       setPartesUnicas(partesArray)
       console.log('Partes únicas extraídas:', partesArray)
     }
-  }, [usos])
+  }, [partesUsadas])
 
   // Carregar dados quando o componente montar
   useEffect(() => {
     console.log('Componente montado, carregando dados...')
-    fetchFamilias()
-    fetchUsos()
-    fetchLocais()
-    fetchAutores()
+    const loadAllData = async () => {
+      setError(null)
+      
+      // Carregar dados essenciais primeiro
+      await Promise.all([
+        fetchFamilias(),
+        fetchPartesUsadas(),
+        fetchProvincias(),
+        fetchAutores()
+      ])
+      
+      // Carregar dados complementares
+      await Promise.all([
+        fetchIndicacoes(),
+        fetchPropriedades(),
+        fetchCompostos(),
+        fetchMetodosExtracao(),
+        fetchMetodosPreparacao()
+      ])
+      
+      // Carregar todas as regiões inicialmente
+      fetchRegioes()
+    }
+    
+    loadAllData()
   }, [])
+
+  // Carregar regiões quando a província mudar
+  useEffect(() => {
+    if (filters.provincia && filters.provincia !== "") {
+      fetchRegioes(parseInt(filters.provincia))
+    } else {
+      fetchRegioes() // Carregar todas as regiões
+    }
+  }, [filters.provincia])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Filtros de busca usando parte_usada em vez de uso_id
-    const searchFilters = {
-      // Filtros específicos usando os IDs corretos
-      familia_id: filters.family ? parseInt(filters.family) : undefined,
-      autor_id: filters.author ? parseInt(filters.author) : undefined,
-      local_id: filters.observationLocation ? parseInt(filters.observationLocation) : undefined,
-      
-      // NOVO: Usar parte_usada em vez de uso_id
-      parte_usada: filters.traditionalUse ? filters.traditionalUse : undefined,
-      
-      // Parâmetros específicos para nome popular e científico
-      search_popular: filters.popularName ? filters.popularName.trim() : undefined,
-      search_cientifico: filters.scientificName ? filters.scientificName.trim() : undefined,
+    // Construir filtros baseados na API atual
+    const searchFilters: Record<string, any> = {}
+    
+    // Filtros por ID
+    if (filters.family) {
+      searchFilters.familia_id = parseInt(filters.family)
     }
+    
+    if (filters.author) {
+      searchFilters.autor_id = parseInt(filters.author)
+    }
+    
+    if (filters.provincia) {
+      searchFilters.provincia_id = parseInt(filters.provincia)
+    }
+    
+    if (filters.regiao) {
+      searchFilters.regiao_id = parseInt(filters.regiao)
+    }
+    
+    // Filtros por parte usada
+    if (filters.parteId) {
+      searchFilters.parte_id = parseInt(filters.parteId)
+    } else if (filters.parteUsada) {
+      searchFilters.parte_usada = filters.parteUsada
+    }
+    
+    // Filtros de texto para nomes
+    if (filters.popularName && filters.popularName.trim()) {
+      searchFilters.search_popular = filters.popularName.trim()
+    }
+    
+    if (filters.scientificName && filters.scientificName.trim()) {
+      searchFilters.search_cientifico = filters.scientificName.trim()
+    }
+    
+    // Paginação
+    searchFilters.page = 1
+    searchFilters.per_page = 50
     
     console.log('Filtros de busca:', searchFilters)
     performSearch(searchFilters)
@@ -155,17 +287,17 @@ export function SearchForm() {
   const handleClear = () => {
     clearSearch()
     setError(null)
+    setRegioes([]) // Limpar regiões
+    fetchRegioes() // Recarregar todas as regiões
   }
 
   const toggleRecordingPopular = () => {
     setIsRecordingPopular(!isRecordingPopular)
     if (!isRecordingPopular) {
       setTimeout(() => {
-        if (Math.random() > 0.5) {
-          setFilters((prev) => ({ ...prev, popularName: "Mpalhacufa" }))
-        } else {
-          setFilters((prev) => ({ ...prev, popularName: "Moringa" }))
-        }
+        const exemploNomes = ["Mpalhacufa", "Moringa", "Mulungu", "Nhamacua", "Xicarangoma"]
+        const nomeAleatorio = exemploNomes[Math.floor(Math.random() * exemploNomes.length)]
+        setFilters((prev) => ({ ...prev, popularName: nomeAleatorio }))
         setIsRecordingPopular(false)
       }, 2000)
     }
@@ -175,29 +307,12 @@ export function SearchForm() {
     setIsRecordingScientific(!isRecordingScientific)
     if (!isRecordingScientific) {
       setTimeout(() => {
-        setFilters((prev) => ({ ...prev, scientificName: "Baccharis" }))
+        const exemplosCientificos = ["Baccharis", "Moringa oleifera", "Strychnos", "Phyllanthus", "Combretum"]
+        const nomeAleatorio = exemplosCientificos[Math.floor(Math.random() * exemplosCientificos.length)]
+        setFilters((prev) => ({ ...prev, scientificName: nomeAleatorio }))
         setIsRecordingScientific(false)
       }, 2000)
     }
-  }
-
-  // Função para formatar o texto de exibição do local
-  const formatLocalDisplay = (local: LocalColheita) => {
-    const parts = []
-    
-    if (local.regiao && local.regiao.trim()) {
-      parts.push(local.regiao.trim())
-    }
-    
-    if (local.provincia && local.provincia.trim() && local.provincia !== local.regiao) {
-      parts.push(local.provincia.trim())
-    }
-    
-    if (parts.length > 0) {
-      return parts.join(', ')
-    }
-    
-    return `Local ${local.id_local}`
   }
 
   // Função para formatar o texto de exibição do autor
@@ -205,19 +320,34 @@ export function SearchForm() {
     let display = autor.nome_autor || `Autor ${autor.id_autor}`
     
     if (autor.afiliacao && autor.afiliacao.trim()) {
-      display += ` - ${autor.afiliacao.trim()}`
+      display += ` (${autor.afiliacao.trim()})`
+    }
+    
+    if (autor.sigla_afiliacao && autor.sigla_afiliacao.trim()) {
+      display += ` [${autor.sigla_afiliacao.trim()}]`
     }
     
     return display
+  }
+
+  // Função para formatar a parte usada
+  const formatParteUsadaDisplay = (parte: ParteUsada) => {
+    return parte.parte_usada || `Parte ${parte.id_uso}`
   }
 
   // Função para retentar carregamento
   const retryLoad = () => {
     setError(null)
     fetchFamilias()
-    fetchUsos()
-    fetchLocais()
+    fetchPartesUsadas()
+    fetchProvincias()
     fetchAutores()
+    fetchIndicacoes()
+    fetchPropriedades()
+    fetchCompostos()
+    fetchMetodosExtracao()
+    fetchMetodosPreparacao()
+    fetchRegioes()
   }
 
   return (
@@ -250,7 +380,7 @@ export function SearchForm() {
                 id="nomePopular"
                 className={styles.formInput}
                 placeholder={translate("search.placeholder.popular")}
-                value={filters.popularName}
+                value={filters.popularName || ''}
                 onChange={(e) => setFilters((prev) => ({ 
                   ...prev, 
                   popularName: e.target.value
@@ -260,6 +390,7 @@ export function SearchForm() {
                 type="button"
                 onClick={toggleRecordingPopular}
                 className={`${styles.iconButton} ${isRecordingPopular ? styles.recording : ""}`}
+                title="Busca por voz"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -297,7 +428,7 @@ export function SearchForm() {
                 id="nomeCientifico"
                 className={styles.formInput}
                 placeholder={translate("search.placeholder.scientific")}
-                value={filters.scientificName}
+                value={filters.scientificName || ''}
                 onChange={(e) => setFilters((prev) => ({ 
                   ...prev, 
                   scientificName: e.target.value
@@ -307,6 +438,7 @@ export function SearchForm() {
                 type="button"
                 onClick={toggleRecordingScientific}
                 className={`${styles.iconButton} ${isRecordingScientific ? styles.recording : ""}`}
+                title="Busca por voz"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -333,7 +465,7 @@ export function SearchForm() {
             )}
           </div>
 
-          {/* Família */}
+          {/* Família Botânica */}
           <div className={styles.formGroup}>
             <label htmlFor="familia" className={styles.formLabel}>
               Família Botânica
@@ -361,20 +493,24 @@ export function SearchForm() {
             )}
           </div>
 
-          {/* Uso Tradicional - CORRIGIDO: Agora usa partes únicas */}
+          {/* Parte da Planta Usada (String) - para busca geral */}
           <div className={styles.formGroup}>
-            <label htmlFor="usoTradicional" className={styles.formLabel}>
-              {translate("search.traditionalUse")}
+            <label htmlFor="parteUsada" className={styles.formLabel}>
+              Parte da Planta Usada
             </label>
             <select
-              id="usoTradicional"
+              id="parteUsada"
               className={styles.formSelect}
-              value={filters.traditionalUse || ''}
-              onChange={(e) => setFilters((prev) => ({ ...prev, traditionalUse: e.target.value }))}
-              disabled={loadingUsos}
+              value={filters.parteUsada || ''}
+              onChange={(e) => setFilters((prev) => ({ 
+                ...prev, 
+                parteUsada: e.target.value,
+                parteId: '' // Limpar o ID quando selecionar por string
+              }))}
+              disabled={loadingPartesUsadas}
             >
               <option value="">
-                {loadingUsos ? "Carregando partes usadas..." : 
+                {loadingPartesUsadas ? "Carregando partes usadas..." : 
                  partesUnicas.length === 0 ? "Nenhuma parte encontrada" :
                  "Escolha uma parte usada..."}
               </option>
@@ -384,9 +520,41 @@ export function SearchForm() {
                 </option>
               ))}
             </select>
-            {loadingUsos && (
+            {loadingPartesUsadas && (
               <p className={styles.loadingText}>Carregando partes usadas...</p>
             )}
+          </div>
+
+          {/* Parte Específica (ID) - para busca por uso específico */}
+          <div className={styles.formGroup}>
+            <label htmlFor="parteEspecifica" className={styles.formLabel}>
+              Parte Específica (Uso Específico)
+            </label>
+            <select
+              id="parteEspecifica"
+              className={styles.formSelect}
+              value={filters.parteId || ''}
+              onChange={(e) => setFilters((prev) => ({ 
+                ...prev, 
+                parteId: e.target.value,
+                parteUsada: '' // Limpar a string quando selecionar por ID
+              }))}
+              disabled={loadingPartesUsadas}
+            >
+              <option value="">
+                {loadingPartesUsadas ? "Carregando partes..." : 
+                 partesUsadas.length === 0 ? "Nenhuma parte encontrada" :
+                 "Escolha uma parte específica..."}
+              </option>
+              {partesUsadas.map((parte) => (
+                <option key={parte.id_uso} value={parte.id_uso.toString()}>
+                  {formatParteUsadaDisplay(parte)}
+                </option>
+              ))}
+            </select>
+            <p className={styles.helpText}>
+              <small>Use esta opção para buscar plantas com usos específicos documentados.</small>
+            </p>
           </div>
 
           {/* Autor */}
@@ -417,35 +585,67 @@ export function SearchForm() {
             )}
           </div>
 
-          {/* Local de Observação */}
+          {/* Província */}
           <div className={styles.formGroup}>
-            <label htmlFor="localObservacao" className={styles.formLabel}>
-              {translate("search.location")}
+            <label htmlFor="provincia" className={styles.formLabel}>
+              Província
             </label>
             <select
-              id="localObservacao"
+              id="provincia"
               className={styles.formSelect}
-              value={filters.observationLocation || ''}
-              onChange={(e) => setFilters((prev) => ({ ...prev, observationLocation: e.target.value }))}
-              disabled={loadingLocais}
+              value={filters.provincia || ''}
+              onChange={(e) => setFilters((prev) => ({ ...prev, provincia: e.target.value, regiao: '' }))}
+              disabled={loadingProvincias}
             >
               <option value="">
-                {loadingLocais ? "Carregando locais..." : 
-                 locais.length === 0 ? "Nenhum local encontrado" :
-                 "Escolha um local..."}
+                {loadingProvincias ? "Carregando províncias..." : 
+                 provincias.length === 0 ? "Nenhuma província encontrada" :
+                 "Escolha uma província..."}
               </option>
-              {locais.map((local) => (
-                <option key={local.id_local} value={local.id_local.toString()}>
-                  {formatLocalDisplay(local)}
+              {provincias.map((provincia) => (
+                <option key={provincia.id_provincia} value={provincia.id_provincia.toString()}>
+                  {provincia.nome_provincia}
                 </option>
               ))}
             </select>
-            {loadingLocais && (
-              <p className={styles.loadingText}>Carregando locais...</p>
+            {loadingProvincias && (
+              <p className={styles.loadingText}>Carregando províncias...</p>
             )}
           </div>
 
-          <p className={styles.helpText}>{translate("search.empty")}</p>
+          {/* Região (baseada na província selecionada) */}
+          {filters.provincia && regioes.length > 0 && (
+            <div className={styles.formGroup}>
+              <label htmlFor="regiao" className={styles.formLabel}>
+                Região
+              </label>
+              <select
+                id="regiao"
+                className={styles.formSelect}
+                value={filters.regiao || ''}
+                onChange={(e) => setFilters((prev) => ({ ...prev, regiao: e.target.value }))}
+                disabled={loadingRegioes}
+              >
+                <option value="">
+                  {loadingRegioes ? "Carregando regiões..." : 
+                   regioes.length === 0 ? "Nenhuma região encontrada" :
+                   "Escolha uma região (opcional)..."}
+                </option>
+                {regioes.map((regiao) => (
+                  <option key={regiao.id_regiao} value={regiao.id_regiao.toString()}>
+                    {regiao.nome_regiao || `Região ${regiao.id_regiao}`}
+                  </option>
+                ))}
+              </select>
+              {loadingRegioes && (
+                <p className={styles.loadingText}>Carregando regiões...</p>
+              )}
+            </div>
+          )}
+
+          <p className={styles.helpText}>
+            {translate("search.empty")} Deixe os campos vazios para ver todas as plantas.
+          </p>
 
           <div className={styles.formActions}>
             <button type="button" onClick={handleClear} className={styles.clearButton}>
