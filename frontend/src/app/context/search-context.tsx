@@ -2,34 +2,29 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react"
 
-// Tipos para os filtros de busca
+// Tipos para os filtros de busca simplificados
 export interface SearchFilters {
   popularName: string
   scientificName: string
-  family?: string
-  author?: string
-  provincia?: string
-  regiao?: string
   parteUsada?: string
-  parteId?: string
+  usoTradicional?: string
+  provincia?: string
+  author?: string
 }
 
 // Tipo para os parâmetros da API
 export interface ApiSearchParams {
-  search?: string
   search_popular?: string
   search_cientifico?: string
-  familia_id?: number
-  autor_id?: number
-  provincia_id?: number
-  regiao_id?: number
   parte_usada?: string
-  parte_id?: number
+  indicacao_id?: number
+  provincia_id?: number
+  autor_id?: number
   page?: number
   per_page?: number
 }
 
-// Interface Plant melhorada para nova estrutura
+// Interface Plant simplificada
 export interface Plant {
   id: number
   nome: string
@@ -48,7 +43,7 @@ export interface Plant {
   // Novos campos detalhados
   nomes_comuns: string[]
   autores_detalhados: AutorDetalhado[]
-  usos_especificos: UsoEspecifico[]  // ← CORRIGIDO: agora usa usos específicos
+  usos_especificos: UsoEspecifico[]
   provincias_detalhadas: ProvinciaDetalhada[]
   referencias_detalhadas: ReferenciaDetalhada[]
 }
@@ -61,7 +56,6 @@ export interface AutorDetalhado {
   sigla_afiliacao?: string
 }
 
-// NOVA: Interface para uso específico (planta + parte + indicações)
 export interface UsoEspecifico {
   id_uso_planta: number
   id_parte: number
@@ -82,7 +76,7 @@ export interface ReferenciaDetalhada {
   link_referencia: string
 }
 
-// Interface da API Flask atualizada para nova estrutura
+// Interface da API Flask
 interface ApiPlant {
   id_planta: number
   nome_cientifico: string
@@ -100,7 +94,6 @@ interface ApiPlant {
     id_provincia: number
     nome_provincia?: string
   }>
-  // CORRIGIDO: Nova estrutura com partes_usadas específicas por planta
   partes_usadas?: Array<{ 
     id_uso: number
     parte_usada?: string
@@ -131,16 +124,14 @@ const SearchContext = createContext<SearchContextType | undefined>(undefined)
 // URL base da API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
-// Filtros iniciais
+// Filtros iniciais simplificados
 const initialFilters: SearchFilters = {
   popularName: "",
   scientificName: "",
-  family: "",
-  author: "",
-  provincia: "",
-  regiao: "",
   parteUsada: "",
-  parteId: "",
+  usoTradicional: "",
+  provincia: "",
+  author: "",
 }
 
 export function SearchProvider({ children }: { children: ReactNode }) {
@@ -152,7 +143,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   // Função para converter dados da API para o formato esperado pelo frontend
   const convertApiPlantToFrontend = (apiPlant: ApiPlant): Plant => {
-    console.log("Convertendo planta:", apiPlant.nome_cientifico, apiPlant) // DEBUG
+    console.log("Convertendo planta:", apiPlant.nome_cientifico, apiPlant)
     
     // Processar autores com detalhes completos
     const autores_detalhados: AutorDetalhado[] = apiPlant.autores?.map(a => ({
@@ -162,12 +153,10 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       sigla_afiliacao: a.sigla_afiliacao
     })) || []
 
-    // CORRIGIDO: Processar usos específicos da nova estrutura
+    // Processar usos específicos
     const usos_especificos: UsoEspecifico[] = apiPlant.partes_usadas?.map(uso => {
-      console.log("Processando uso específico:", uso.parte_usada, "Indicações:", uso.indicacoes) // DEBUG
-      
       return {
-        id_uso_planta: uso.id_uso, // Note: pode precisar ajustar se a API usar campo diferente
+        id_uso_planta: uso.id_uso,
         id_parte: uso.id_uso,
         parte_usada: uso.parte_usada || '',
         observacoes: uso.observacoes,
@@ -185,8 +174,6 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         })) || []
       }
     }) || []
-
-    console.log("Usos específicos processados:", usos_especificos) // DEBUG
 
     // Processar províncias
     const provincias_detalhadas: ProvinciaDetalhada[] = apiPlant.provincias?.map(p => ({
@@ -224,7 +211,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       uso.metodos_extracao.map(me => me.descricao)
     ).filter(Boolean).join('; ')
     
-    // CORRIGIDO: Agrupar usos por parte usada para mostrar correlação específica
+    // Agrupar usos por parte usada para mostrar correlação específica
     const usosStr = usos_especificos.map(uso => {
       const parteName = uso.parte_usada
       const indicacoes = uso.indicacoes.map(ind => ind.descricao).filter(Boolean)
@@ -255,7 +242,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       numeroExcicata: apiPlant.numero_exsicata || '',
       parteUsada: partesUsadasStr,
       metodoPreparacao: metodosPreparacaoStr,
-      usos: usosStr, // ← CORRIGIDO: Agora mostra correlação específica por planta
+      usos: usosStr,
       metodoExtracao: metodosExtracaoStr,
       composicaoQuimica: compostosStr,
       propriedadesFarmacologicas: propriedadesStr,
@@ -264,12 +251,12 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       // Novos campos detalhados
       nomes_comuns: apiPlant.nomes_comuns || [],
       autores_detalhados,
-      usos_especificos, // ← CORRIGIDO: nova estrutura
+      usos_especificos,
       provincias_detalhadas,
       referencias_detalhadas
     }
 
-    console.log("Resultado final da conversão:", result) // DEBUG
+    console.log("Resultado final da conversão:", result)
     return result
   }
 
@@ -289,34 +276,34 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       }
 
       if (!customParams) {
+        // Busca por nome popular
         if (filters.popularName && filters.popularName.trim()) {
           searchParams.search_popular = filters.popularName.trim()
         }
         
+        // Busca por nome científico
         if (filters.scientificName && filters.scientificName.trim()) {
           searchParams.search_cientifico = filters.scientificName.trim()
         }
 
-        if (filters.family && filters.family !== "") {
-          searchParams.familia_id = parseInt(filters.family)
+        // Busca por parte usada (string)
+        if (filters.parteUsada && filters.parteUsada.trim()) {
+          searchParams.parte_usada = filters.parteUsada.trim()
         }
         
-        if (filters.author && filters.author !== "") {
-          searchParams.autor_id = parseInt(filters.author)
+        // Busca por uso tradicional (ID da indicação)
+        if (filters.usoTradicional && filters.usoTradicional !== "") {
+          searchParams.indicacao_id = parseInt(filters.usoTradicional)
         }
         
+        // Busca por província (ID)
         if (filters.provincia && filters.provincia !== "") {
           searchParams.provincia_id = parseInt(filters.provincia)
         }
         
-        if (filters.regiao && filters.regiao !== "") {
-          searchParams.regiao_id = parseInt(filters.regiao)
-        }
-        
-        if (filters.parteId && filters.parteId !== "") {
-          searchParams.parte_id = parseInt(filters.parteId)
-        } else if (filters.parteUsada && filters.parteUsada !== "") {
-          searchParams.parte_usada = filters.parteUsada
+        // Busca por autor (ID)
+        if (filters.author && filters.author !== "") {
+          searchParams.autor_id = parseInt(filters.author)
         }
       }
 

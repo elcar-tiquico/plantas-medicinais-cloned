@@ -323,25 +323,25 @@ def create_familia():
         db.session.rollback()
         return handle_error(e)
 
-# ROTAS - PLANTAS (ATUALIZADAS PARA NOVA ESTRUTURA)
+# Adicione estas atualizações ao seu arquivo Flask existente
+
+# ROTA ATUALIZADA - PLANTAS (com suporte a busca por indicação)
 @app.route('/api/plantas', methods=['GET'])
 def get_plantas():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         
-        # Parâmetros de busca
+        # Parâmetros de busca simplificados
         search_popular = request.args.get('search_popular', '')
         search_cientifico = request.args.get('search_cientifico', '')
         search = request.args.get('search', '')
         
-        # Filtros
-        familia_id = request.args.get('familia_id', type=int)
+        # Filtros específicos
         autor_id = request.args.get('autor_id', type=int)
         provincia_id = request.args.get('provincia_id', type=int)
-        regiao_id = request.args.get('regiao_id', type=int)
         parte_usada = request.args.get('parte_usada', '')
-        parte_id = request.args.get('parte_id', type=int)
+        indicacao_id = request.args.get('indicacao_id', type=int)  # NOVO: filtro por indicação
         
         query = Planta.query
         
@@ -363,10 +363,6 @@ def get_plantas():
                     NomeComum.nome_comum_planta.ilike(f'%{search}%')
                 )
             )
-        
-        # Filtro por família
-        if familia_id:
-            query = query.filter(Planta.id_familia == familia_id)
             
         # Filtro por autor
         if autor_id:
@@ -375,18 +371,18 @@ def get_plantas():
         # Filtro por província
         if provincia_id:
             query = query.join(Planta.provincias).filter(Provincia.id_provincia == provincia_id)
-        
-        # Filtro por região (através da província)
-        if regiao_id:
-            query = query.join(Planta.provincias).join(Provincia.regioes).filter(Regiao.id_regiao == regiao_id)
             
-        # CORRIGIDO: Filtro por parte usada através da nova estrutura
+        # Filtro por parte usada através da nova estrutura
         if parte_usada:
             query = query.join(Planta.usos_planta).join(UsoPlanta.parte_usada).filter(
                 ParteUsada.parte_usada.ilike(f'%{parte_usada}%')
             )
-        elif parte_id:
-            query = query.join(Planta.usos_planta).filter(UsoPlanta.id_parte == parte_id)
+        
+        # NOVO: Filtro por indicação (uso tradicional)
+        if indicacao_id:
+            query = query.join(Planta.usos_planta).join(UsoPlanta.indicacoes).filter(
+                Indicacao.id_indicacao == indicacao_id
+            )
         
         # Remover duplicatas
         query = query.distinct()
@@ -401,6 +397,277 @@ def get_plantas():
             'pages': plantas.pages,
             'current_page': page,
             'per_page': per_page
+        })
+    except Exception as e:
+        return handle_error(e)
+
+# NOVA ROTA - Buscar plantas por indicação específica
+@app.route('/api/plantas/por-indicacao/<int:id_indicacao>', methods=['GET'])
+def get_plantas_por_indicacao(id_indicacao):
+    """Buscar plantas que têm uma indicação específica"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Verificar se a indicação existe
+        indicacao = Indicacao.query.get_or_404(id_indicacao)
+        
+        # Buscar plantas que têm essa indicação através dos usos
+        query = Planta.query.join(Planta.usos_planta).join(UsoPlanta.indicacoes).filter(
+            Indicacao.id_indicacao == id_indicacao
+        ).distinct()
+        
+        plantas = query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            'indicacao': indicacao.to_dict(),
+            'plantas': [planta.to_dict(include_relations=True) for planta in plantas.items],
+            'total': plantas.total,
+            'pages': plantas.pages,
+            'current_page': page,
+            'per_page': per_page
+        })
+    except Exception as e:
+        return handle_error(e)
+
+# NOVA ROTA - Buscar plantas por parte usada específica
+@app.route('/api/plantas/por-parte-usada', methods=['GET'])
+def get_plantas_por_parte_usada():
+    """Buscar plantas por parte usada (string)"""
+    try:
+        parte_usada = request.args.get('parte_usada', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        if not parte_usada:
+            return jsonify({'error': 'Parâmetro parte_usada é obrigatório'}), 400
+        
+        # Buscar plantas que usam essa parte
+        query = Planta.query.join(Planta.usos_planta).join(UsoPlanta.parte_usada).filter(
+            ParteUsada.parte_usada.ilike(f'%{parte_usada}%')
+        ).distinct()
+        
+        plantas = query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            'parte_usada_busca': parte_usada,
+            'plantas': [planta.to_dict(include_relations=True) for planta in plantas.items],
+            'total': plantas.total,
+            'pages': plantas.pages,
+            'current_page': page,
+            'per_page': per_page
+        })
+    except Exception as e:
+        return handle_error(e)
+
+# NOVA ROTA - Estatísticas por indicação
+@app.route('/api/stats/indicacoes', methods=['GET'])
+def get_stats_indicacoes():
+    """Estatísticas de uso por indicação"""
+    try:
+        # Contar quantas plantas têm cada indicação
+        stats_query = db.session.query(
+            Indicacao.id_indicacao,
+            Indicacao.descricao,
+            db.func.count(UsoPlanta.id_planta.distinct()).label('total_plantas')
+        ).join(
+            UsoPlantaIndicacao, Indicacao.id_indicacao == UsoPlantaIndicacao.id_indicacao
+        ).join(
+            UsoPlanta, UsoPlantaIndicacao.id_uso_planta == UsoPlanta.id_uso_planta
+        ).group_by(
+            Indicacao.id_indicacao, Indicacao.descricao
+        ).order_by(
+            db.desc('total_plantas')
+        ).all()
+        
+        stats = []
+        for stat in stats_query:
+            stats.append({
+                'id_indicacao': stat.id_indicacao,
+                'descricao': stat.descricao,
+                'total_plantas': stat.total_plantas
+            })
+        
+        return jsonify({
+            'stats_indicacoes': stats,
+            'total_indicacoes_com_plantas': len(stats)
+        })
+    except Exception as e:
+        return handle_error(e)
+
+# NOVA ROTA - Estatísticas por parte usada
+@app.route('/api/stats/partes-usadas', methods=['GET'])
+def get_stats_partes_usadas():
+    """Estatísticas de uso por parte da planta"""
+    try:
+        # Contar quantas plantas usam cada parte
+        stats_query = db.session.query(
+            ParteUsada.id_uso,
+            ParteUsada.parte_usada,
+            db.func.count(UsoPlanta.id_planta.distinct()).label('total_plantas')
+        ).join(
+            UsoPlanta, ParteUsada.id_uso == UsoPlanta.id_parte
+        ).group_by(
+            ParteUsada.id_uso, ParteUsada.parte_usada
+        ).order_by(
+            db.desc('total_plantas')
+        ).all()
+        
+        stats = []
+        for stat in stats_query:
+            stats.append({
+                'id_uso': stat.id_uso,
+                'parte_usada': stat.parte_usada,
+                'total_plantas': stat.total_plantas
+            })
+        
+        return jsonify({
+            'stats_partes_usadas': stats,
+            'total_partes_com_plantas': len(stats)
+        })
+    except Exception as e:
+        return handle_error(e)
+
+# NOVA ROTA - Busca combinada (múltiplos critérios)
+@app.route('/api/plantas/busca-avancada', methods=['POST'])
+def busca_avancada():
+    """Busca avançada com múltiplos critérios"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Dados de busca não fornecidos'}), 400
+        
+        page = data.get('page', 1)
+        per_page = data.get('per_page', 20)
+        
+        query = Planta.query
+        filtros_aplicados = []
+        
+        # Filtro por nome popular
+        if data.get('search_popular'):
+            query = query.join(Planta.nomes_comuns).filter(
+                NomeComum.nome_comum_planta.ilike(f'%{data["search_popular"]}%')
+            )
+            filtros_aplicados.append(f"Nome popular contém '{data['search_popular']}'")
+        
+        # Filtro por nome científico
+        if data.get('search_cientifico'):
+            query = query.filter(Planta.nome_cientifico.ilike(f'%{data["search_cientifico"]}%'))
+            filtros_aplicados.append(f"Nome científico contém '{data['search_cientifico']}'")
+        
+        # Filtro por autor
+        if data.get('autor_id'):
+            query = query.join(Planta.autores).filter(Autor.id_autor == data['autor_id'])
+            autor = Autor.query.get(data['autor_id'])
+            if autor:
+                filtros_aplicados.append(f"Autor: {autor.nome_autor}")
+        
+        # Filtro por província
+        if data.get('provincia_id'):
+            query = query.join(Planta.provincias).filter(Provincia.id_provincia == data['provincia_id'])
+            provincia = Provincia.query.get(data['provincia_id'])
+            if provincia:
+                filtros_aplicados.append(f"Província: {provincia.nome_provincia}")
+        
+        # Filtro por parte usada
+        if data.get('parte_usada'):
+            query = query.join(Planta.usos_planta).join(UsoPlanta.parte_usada).filter(
+                ParteUsada.parte_usada.ilike(f'%{data["parte_usada"]}%')
+            )
+            filtros_aplicados.append(f"Parte usada contém '{data['parte_usada']}'")
+        
+        # Filtro por indicação
+        if data.get('indicacao_id'):
+            query = query.join(Planta.usos_planta).join(UsoPlanta.indicacoes).filter(
+                Indicacao.id_indicacao == data['indicacao_id']
+            )
+            indicacao = Indicacao.query.get(data['indicacao_id'])
+            if indicacao:
+                filtros_aplicados.append(f"Uso: {indicacao.descricao}")
+        
+        # Remover duplicatas e executar query
+        query = query.distinct()
+        plantas = query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            'plantas': [planta.to_dict(include_relations=True) for planta in plantas.items],
+            'total': plantas.total,
+            'pages': plantas.pages,
+            'current_page': page,
+            'per_page': per_page,
+            'filtros_aplicados': filtros_aplicados,
+            'criterios_busca': data
+        })
+    except Exception as e:
+        return handle_error(e)
+
+# ROTA ATUALIZADA - Buscar correlações específicas
+@app.route('/api/correlacoes/planta-indicacao', methods=['GET'])
+def get_correlacoes_planta_indicacao():
+    """Buscar correlações específicas entre plantas, partes usadas e indicações"""
+    try:
+        planta_id = request.args.get('planta_id', type=int)
+        indicacao_id = request.args.get('indicacao_id', type=int)
+        parte_usada = request.args.get('parte_usada', '')
+        
+        # Query base para usos específicos
+        query = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            NomeComum.nome_comum_planta,
+            ParteUsada.parte_usada,
+            Indicacao.descricao.label('indicacao'),
+            UsoPlanta.observacoes
+        ).join(
+            UsoPlanta, Planta.id_planta == UsoPlanta.id_planta
+        ).join(
+            ParteUsada, UsoPlanta.id_parte == ParteUsada.id_uso
+        ).join(
+            UsoPlantaIndicacao, UsoPlanta.id_uso_planta == UsoPlantaIndicacao.id_uso_planta
+        ).join(
+            Indicacao, UsoPlantaIndicacao.id_indicacao == Indicacao.id_indicacao
+        ).outerjoin(
+            NomeComum, Planta.id_planta == NomeComum.id_planta
+        )
+        
+        # Aplicar filtros se fornecidos
+        if planta_id:
+            query = query.filter(Planta.id_planta == planta_id)
+        
+        if indicacao_id:
+            query = query.filter(Indicacao.id_indicacao == indicacao_id)
+        
+        if parte_usada:
+            query = query.filter(ParteUsada.parte_usada.ilike(f'%{parte_usada}%'))
+        
+        resultados = query.all()
+        
+        # Organizar resultados
+        correlacoes = []
+        for resultado in resultados:
+            correlacoes.append({
+                'planta_id': resultado.id_planta,
+                'nome_cientifico': resultado.nome_cientifico,
+                'nome_comum': resultado.nome_comum_planta,
+                'parte_usada': resultado.parte_usada,
+                'indicacao': resultado.indicacao,
+                'observacoes': resultado.observacoes
+            })
+        
+        return jsonify({
+            'correlacoes': correlacoes,
+            'total': len(correlacoes),
+            'filtros': {
+                'planta_id': planta_id,
+                'indicacao_id': indicacao_id,
+                'parte_usada': parte_usada
+            }
         })
     except Exception as e:
         return handle_error(e)

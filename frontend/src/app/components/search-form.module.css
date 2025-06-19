@@ -1,3 +1,5 @@
+/* search-form.module.css */
+
 .searchForm {
   background-color: var(--color-white);
   border-radius: var(--border-radius-2xl);
@@ -15,6 +17,7 @@
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--color-white);
+  margin: 0;
 }
 
 .searchBody {
@@ -29,6 +32,9 @@
 
 .formGroup {
   margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
 }
 
 .formLabel {
@@ -47,6 +53,7 @@
   border-radius: var(--border-radius);
   font-size: var(--font-size-base);
   transition: all 0.2s ease;
+  background: var(--color-white);
 }
 
 .formInput:focus,
@@ -56,6 +63,118 @@
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
 }
 
+.formInput:disabled,
+.formSelect:disabled {
+  background: var(--color-gray-50);
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+}
+
+/* ComboBox Styles */
+.comboBoxContainer {
+  position: relative;
+}
+
+.comboBoxWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.comboBoxInput {
+  padding-right: calc(var(--spacing-3) + 2rem) !important;
+  cursor: pointer;
+}
+
+.comboBoxButton {
+  position: absolute;
+  right: var(--spacing-2);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-1);
+  color: var(--color-gray-400);
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comboBoxButton:hover {
+  color: var(--color-gray-700);
+}
+
+.comboBoxButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.comboBoxIcon {
+  transition: transform 0.2s ease;
+  width: 1rem;
+  height: 1rem;
+}
+
+.comboBoxIcon.rotated {
+  transform: rotate(180deg);
+}
+
+.comboBoxDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-300);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+}
+
+.comboBoxOption {
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  text-align: left;
+  border: none;
+  background: var(--color-white);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid var(--color-gray-100);
+  font-size: var(--font-size-sm);
+}
+
+.comboBoxOption:hover,
+.comboBoxOption.highlighted {
+  background: var(--color-gray-50);
+}
+
+.comboBoxOption.selected {
+  background: var(--color-purple-50);
+  color: var(--color-purple-700);
+  font-weight: 500;
+}
+
+.comboBoxOption:last-child {
+  border-bottom: none;
+}
+
+.loadingText,
+.noResultsText {
+  color: var(--color-gray-500);
+  font-style: italic;
+}
+
+.clearOptionText {
+  color: var(--color-red-600);
+  font-weight: 500;
+}
+
+/* Input with Icon */
 .inputWithIcon {
   position: relative;
 }
@@ -71,15 +190,19 @@
   background: transparent;
   border: none;
   color: var(--color-gray-400);
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
+  border-radius: var(--border-radius);
 }
 
 .iconButton:hover {
   color: var(--color-purple-500);
+  background: var(--color-purple-50);
 }
 
 .iconButton.recording {
   color: var(--color-red-500);
+  background: var(--color-red-50);
+  animation: pulse 1.5s infinite;
 }
 
 .recordingText {
@@ -97,17 +220,20 @@
   border-radius: 50%;
   background-color: var(--color-red-500);
   margin-right: var(--spacing-2);
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse 1s infinite;
 }
 
 .helpText {
   font-size: var(--font-size-xs);
   color: var(--color-gray-500);
+  text-align: center;
+  margin: 0;
 }
 
 .formActions {
   display: flex;
   gap: var(--spacing-3);
+  margin-top: var(--spacing-4);
 }
 
 .clearButton,
@@ -121,6 +247,7 @@
   font-size: var(--font-size-sm);
   font-weight: 500;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .clearButton {
@@ -131,6 +258,7 @@
 
 .clearButton:hover {
   background-color: var(--color-gray-50);
+  border-color: var(--color-gray-400);
 }
 
 .searchButton {
@@ -139,17 +267,22 @@
   border: none;
 }
 
-.searchButton:hover {
+.searchButton:hover:not(:disabled) {
   opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .searchButton:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
 }
 
 .buttonIcon {
   margin-right: var(--spacing-2);
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 .spinnerIcon {
@@ -167,9 +300,52 @@
   opacity: 0.75;
 }
 
+.errorMessage {
+  background: var(--color-red-50);
+  border: 1px solid var(--color-red-200);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+  color: var(--color-red-700);
+}
+
+.errorMessage p {
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.retryButton {
+  background: var(--color-red-600);
+  color: var(--color-white);
+  border: none;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s ease;
+}
+
+.retryButton:hover {
+  background: var(--color-red-700);
+}
+
+.loadingText {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  margin-top: var(--spacing-1);
+}
+
+/* Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes pulse {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
   }
   50% {
@@ -177,11 +353,26 @@
   }
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
+/* Responsive Design */
+@media (max-width: 768px) {
+  .searchBody {
+    padding: var(--spacing-4);
   }
-  to {
-    transform: rotate(360deg);
+  
+  .searchHeader {
+    padding: var(--spacing-4);
+  }
+  
+  .searchTitle {
+    font-size: var(--font-size-lg);
+  }
+  
+  .formActions {
+    flex-direction: column;
+  }
+  
+  .clearButton,
+  .searchButton {
+    width: 100%;
   }
 }

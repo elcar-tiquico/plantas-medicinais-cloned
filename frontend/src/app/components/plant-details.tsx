@@ -84,7 +84,7 @@ function ParteUsadaCorrelacao({ plant }: { plant: Plant }) {
               <div className={styles.parteItem}>
                 <div className={styles.parteHeader}>
                   <div className={styles.parteHeaderContent}>
-                    <span className={styles.parteNome}>Extração</span>
+                    <span className={styles.parteNome}>Extracção</span>
                   </div>
                 </div>
                 <div className={styles.parteDetails}>
@@ -163,7 +163,7 @@ function ParteUsadaCorrelacao({ plant }: { plant: Plant }) {
                     {/* Métodos de Extração */}
                     {uso.metodos_extracao && uso.metodos_extracao.length > 0 && (
                       <div className={styles.parteDetailItem}>
-                        <div className={styles.parteDetailLabel}>Extração Científica</div>
+                        <div className={styles.parteDetailLabel}>Extracção Científica</div>
                         <div className={styles.parteDetailValue}>
                           <div className={styles.tagsList}>
                             {uso.metodos_extracao.map((me, idx) => (

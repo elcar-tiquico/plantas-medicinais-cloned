@@ -1,27 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSearch } from "@/context/search-context"
 import { useLanguage } from "@/context/language-context"
 import styles from "./search-form.module.css"
 
-// Tipos baseados na nova estrutura da API
-interface ParteUsada {
-  id_uso: number;
-  parte_usada?: string;
-}
-
+// Tipos baseados na estrutura simplificada
 interface Provincia {
   id_provincia: number;
   nome_provincia: string;
-}
-
-interface Regiao {
-  id_regiao: number;
-  nome_regiao?: string;
-  id_provincia: number;
-  provincia?: string;
 }
 
 interface Autor {
@@ -31,38 +19,218 @@ interface Autor {
   sigla_afiliacao?: string;
 }
 
-interface Familia {
-  id_familia: number;
-  nome_familia: string;
-}
-
 interface Indicacao {
   id_indicacao: number;
   descricao: string;
 }
 
-interface PropriedadeFarmacologica {
-  id_propriedade: number;
-  descricao: string;
-}
-
-interface ComposicaoQuimica {
-  id_composto: number;
-  nome_composto: string;
-}
-
-interface MetodoExtracao {
-  id_extraccao: number;
-  descricao: string;
-}
-
-interface MetodoPreparacao {
-  id_preparacao: number;
-  descricao: string;
-}
-
 // URL base da API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
+// Componente de ComboBox com busca CORRIGIDO
+interface ComboBoxProps {
+  id: string
+  label: string
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+  loading?: boolean
+  disabled?: boolean
+}
+
+function SearchableComboBox({ 
+  id, 
+  label, 
+  placeholder, 
+  value, 
+  onChange, 
+  options, 
+  loading = false, 
+  disabled = false 
+}: ComboBoxProps) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+
+  // Filtrar opções baseado no termo de busca
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return options
+    return options.filter(option =>
+      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [options, searchTerm])
+
+  // Encontrar o label da opção selecionada
+  const selectedLabel = useMemo(() => {
+    if (!value) return ''
+    const selectedOption = options.find(opt => opt.value === value)
+    return selectedOption ? selectedOption.label : ''
+  }, [value, options])
+
+  // Resetar busca quando fechar
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchTerm('')
+      setHighlightedIndex(-1)
+    }
+  }, [isOpen])
+
+  // CORRIGIDO: Sincronizar searchTerm quando o valor externo muda
+  useEffect(() => {
+    if (!isOpen && value && selectedLabel) {
+      setSearchTerm('')
+    }
+  }, [value, selectedLabel, isOpen])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearchTerm = e.target.value
+    setSearchTerm(newSearchTerm)
+    setHighlightedIndex(-1)
+    if (!isOpen) setIsOpen(true)
+  }
+
+  const handleOptionClick = (optionValue: string) => {
+    console.log(`Selecionando opção: ${optionValue}`) // Debug
+    onChange(optionValue)
+    setIsOpen(false)
+    setSearchTerm('')
+    setHighlightedIndex(-1)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        setIsOpen(true)
+        e.preventDefault()
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setHighlightedIndex(prev => 
+          prev < filteredOptions.length - 1 ? prev + 1 : 0
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setHighlightedIndex(prev => 
+          prev > 0 ? prev - 1 : filteredOptions.length - 1
+        )
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+          handleOptionClick(filteredOptions[highlightedIndex].value)
+        }
+        break
+      case 'Escape':
+        setIsOpen(false)
+        break
+    }
+  }
+
+  const handleInputFocus = () => {
+    setIsOpen(true)
+  }
+
+  // CORRIGIDO: Delay maior para permitir cliques
+  const handleInputBlur = () => {
+    setTimeout(() => setIsOpen(false), 300)
+  }
+
+  return (
+    <div className={styles.formGroup}>
+      <label htmlFor={id} className={styles.formLabel}>
+        {label}
+      </label>
+      <div className={styles.comboBoxContainer}>
+        <div className={styles.comboBoxWrapper}>
+          <input
+            id={id}
+            type="text"
+            className={`${styles.formInput} ${styles.comboBoxInput}`}
+            placeholder={isOpen ? "Digite para filtrar..." : placeholder}
+            value={isOpen ? searchTerm : selectedLabel}
+            onChange={handleInputChange}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            onKeyDown={handleKeyDown}
+            disabled={disabled || loading}
+            autoComplete="off"
+          />
+          <button
+            type="button"
+            className={styles.comboBoxButton}
+            onClick={() => setIsOpen(!isOpen)}
+            disabled={disabled || loading}
+            tabIndex={-1}
+          >
+            <svg
+              className={`${styles.comboBoxIcon} ${isOpen ? styles.rotated : ''}`}
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        
+        {isOpen && (
+          <div className={styles.comboBoxDropdown}>
+            {loading ? (
+              <div className={styles.comboBoxOption}>
+                <span className={styles.loadingText}>Carregando...</span>
+              </div>
+            ) : filteredOptions.length === 0 ? (
+              <div className={styles.comboBoxOption}>
+                <span className={styles.noResultsText}>
+                  {searchTerm ? 'Nenhum resultado encontrado' : 'Nenhuma opção disponível'}
+                </span>
+              </div>
+            ) : (
+              <>
+                {value && (
+                  <button
+                    type="button"
+                    className={styles.comboBoxOption}
+                    onClick={() => handleOptionClick('')}
+                    onMouseDown={(e) => e.preventDefault()} // Evitar blur
+                  >
+                    <span className={styles.clearOptionText}>Limpar seleção</span>
+                  </button>
+                )}
+                {filteredOptions.map((option, index) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${styles.comboBoxOption} ${
+                      index === highlightedIndex ? styles.highlighted : ''
+                    } ${option.value === value ? styles.selected : ''}`}
+                    onClick={() => handleOptionClick(option.value)}
+                    onMouseDown={(e) => e.preventDefault()} // Evitar blur
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function SearchForm() {
   const { filters, setFilters, performSearch, clearSearch, isLoading } = useSearch()
@@ -71,35 +239,20 @@ export function SearchForm() {
   const [isRecordingScientific, setIsRecordingScientific] = useState(false)
   
   // Estados para armazenar dados das comboboxes
-  const [familias, setFamilias] = useState<Familia[]>([])
-  const [partesUsadas, setPartesUsadas] = useState<ParteUsada[]>([])
   const [provincias, setProvincias] = useState<Provincia[]>([])
-  const [regioes, setRegioes] = useState<Regiao[]>([])
   const [autores, setAutores] = useState<Autor[]>([])
   const [indicacoes, setIndicacoes] = useState<Indicacao[]>([])
-  const [propriedades, setPropriedades] = useState<PropriedadeFarmacologica[]>([])
-  const [compostos, setCompostos] = useState<ComposicaoQuimica[]>([])
-  const [metodosExtracao, setMetodosExtracao] = useState<MetodoExtracao[]>([])
-  const [metodosPreparacao, setMetodosPreparacao] = useState<MetodoPreparacao[]>([])
+  const [partesUsadas, setPartesUsadas] = useState<string[]>([])
   
   // Estados de loading
-  const [loadingFamilias, setLoadingFamilias] = useState(true)
-  const [loadingPartesUsadas, setLoadingPartesUsadas] = useState(true)
   const [loadingProvincias, setLoadingProvincias] = useState(true)
-  const [loadingRegioes, setLoadingRegioes] = useState(false)
   const [loadingAutores, setLoadingAutores] = useState(true)
   const [loadingIndicacoes, setLoadingIndicacoes] = useState(true)
-  const [loadingPropriedades, setLoadingPropriedades] = useState(true)
-  const [loadingCompostos, setLoadingCompostos] = useState(true)
-  const [loadingMetodosExtracao, setLoadingMetodosExtracao] = useState(true)
-  const [loadingMetodosPreparacao, setLoadingMetodosPreparacao] = useState(true)
+  const [loadingPartesUsadas, setLoadingPartesUsadas] = useState(true)
   
   const [error, setError] = useState<string | null>(null)
 
-  // Estado para partes únicas extraídas
-  const [partesUnicas, setPartesUnicas] = useState<string[]>([])
-
-  // Função genérica para fazer requisições
+  // Função genérica para fazer requisições COM MELHOR TRATAMENTO DE ERRO
   const fetchData = async <T,>(
     endpoint: string,
     setter: React.Dispatch<React.SetStateAction<T[]>>,
@@ -123,7 +276,14 @@ export function SearchForm() {
       if (response.ok) {
         const data = await response.json()
         console.log(`${entityName} recebidos:`, data)
-        setter(Array.isArray(data) ? data : [])
+        
+        // CORRIGIDO: Validar se é array antes de setar
+        if (Array.isArray(data)) {
+          setter(data)
+        } else {
+          console.warn(`Dados de ${entityName} não são um array:`, data)
+          setter([])
+        }
       } else {
         const errorText = await response.text()
         console.error(`Erro ao buscar ${entityName}:`, response.status, errorText)
@@ -131,30 +291,23 @@ export function SearchForm() {
       }
     } catch (error) {
       console.error(`Erro na requisição de ${entityName}:`, error)
-      setError(`Erro ao carregar ${entityName}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+      // CORRIGIDO: Não sobrescrever erro se já existir
+      if (!error) {
+        setError(`Erro ao carregar ${entityName}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+      }
+      setter([]) // Setar array vazio em caso de erro
     } finally {
       loadingSetter(false)
     }
   }
 
-  // Funções específicas para cada entidade
-  const fetchFamilias = () => fetchData('/familias', setFamilias, setLoadingFamilias, 'famílias')
-  const fetchPartesUsadas = () => fetchData('/partes-usadas', setPartesUsadas, setLoadingPartesUsadas, 'partes usadas')
-  const fetchProvincias = () => fetchData('/provincias', setProvincias, setLoadingProvincias, 'províncias')
-  const fetchAutores = () => fetchData('/autores', setAutores, setLoadingAutores, 'autores')
-  const fetchIndicacoes = () => fetchData('/indicacoes', setIndicacoes, setLoadingIndicacoes, 'indicações')
-  const fetchPropriedades = () => fetchData('/propriedades', setPropriedades, setLoadingPropriedades, 'propriedades')
-  const fetchCompostos = () => fetchData('/compostos', setCompostos, setLoadingCompostos, 'compostos')
-  const fetchMetodosExtracao = () => fetchData('/metodos-extracao', setMetodosExtracao, setLoadingMetodosExtracao, 'métodos de extração')
-  const fetchMetodosPreparacao = () => fetchData('/metodos-preparacao', setMetodosPreparacao, setLoadingMetodosPreparacao, 'métodos de preparação')
-
-  // Função para buscar regiões de uma província específica
-  const fetchRegioes = async (provinciaId?: number) => {
+  // CORRIGIDO: Função para buscar partes usadas com melhor tratamento
+  const fetchPartesUsadas = async () => {
     try {
-      setLoadingRegioes(true)
-      const endpoint = provinciaId ? `/regioes?provincia_id=${provinciaId}` : '/regioes'
+      setLoadingPartesUsadas(true)
+      console.log('Buscando partes usadas de:', `${API_BASE_URL}/partes-usadas`)
       
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/partes-usadas`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -164,39 +317,59 @@ export function SearchForm() {
       
       if (response.ok) {
         const data = await response.json()
-        setRegioes(Array.isArray(data) ? data : [])
+        console.log('Partes usadas recebidas:', data)
+        
+        if (Array.isArray(data)) {
+          // Extrair partes únicas
+          const partesSet = new Set<string>()
+          
+          data.forEach((item: any) => {
+            let parteText = ''
+            
+            // Verificar diferentes possíveis estruturas
+            if (typeof item === 'string') {
+              parteText = item
+            } else if (item.parte_usada) {
+              parteText = item.parte_usada
+            } else if (item.nome) {
+              parteText = item.nome
+            }
+            
+            if (parteText && parteText.trim()) {
+              // Dividir por vírgulas e outros separadores comuns
+              const partes = parteText
+                .split(/[,;\/\+\&]/)
+                .map((p: string) => p.trim())
+                .filter((p: string) => p.length > 0)
+              
+              partes.forEach((p: string) => {
+                if (p) partesSet.add(p)
+              })
+            }
+          })
+          
+          const partesArray = Array.from(partesSet).sort()
+          setPartesUsadas(partesArray)
+          console.log('Partes únicas extraídas:', partesArray)
+        } else {
+          console.warn('Dados de partes usadas não são um array:', data)
+          setPartesUsadas([])
+        }
+      } else {
+        const errorText = await response.text()
+        console.error('Erro ao buscar partes usadas:', errorText)
+        throw new Error(`Erro ${response.status}: ${errorText}`)
       }
     } catch (error) {
-      console.error('Erro ao buscar regiões:', error)
+      console.error('Erro na requisição de partes usadas:', error)
+      setPartesUsadas([])
+      if (!error) {
+        setError(`Erro ao carregar partes usadas: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+      }
     } finally {
-      setLoadingRegioes(false)
+      setLoadingPartesUsadas(false)
     }
   }
-
-  // Função para extrair partes únicas
-  useEffect(() => {
-    if (partesUsadas.length > 0) {
-      const partesSet = new Set<string>()
-      
-      partesUsadas.forEach(parte => {
-        if (parte.parte_usada && parte.parte_usada.trim()) {
-          // Dividir por vírgulas e outros separadores comuns
-          const partes = parte.parte_usada
-            .split(/[,;\/\+\&]/)
-            .map(p => p.trim())
-            .filter(p => p.length > 0)
-          
-          partes.forEach(p => {
-            if (p) partesSet.add(p)
-          })
-        }
-      })
-      
-      const partesArray = Array.from(partesSet).sort()
-      setPartesUnicas(partesArray)
-      console.log('Partes únicas extraídas:', partesArray)
-    }
-  }, [partesUsadas])
 
   // Carregar dados quando o componente montar
   useEffect(() => {
@@ -204,91 +377,86 @@ export function SearchForm() {
     const loadAllData = async () => {
       setError(null)
       
-      // Carregar dados essenciais primeiro
-      await Promise.all([
-        fetchFamilias(),
-        fetchPartesUsadas(),
-        fetchProvincias(),
-        fetchAutores()
-      ])
+      // CORRIGIDO: Carregar dados em paralelo mas tratar erros individualmente
+      const promises = [
+        fetchData('/provincias', setProvincias, setLoadingProvincias, 'províncias'),
+        fetchData('/autores', setAutores, setLoadingAutores, 'autores'),
+        fetchData('/indicacoes', setIndicacoes, setLoadingIndicacoes, 'indicações'),
+        fetchPartesUsadas()
+      ]
       
-      // Carregar dados complementares
-      await Promise.all([
-        fetchIndicacoes(),
-        fetchPropriedades(),
-        fetchCompostos(),
-        fetchMetodosExtracao(),
-        fetchMetodosPreparacao()
-      ])
-      
-      // Carregar todas as regiões inicialmente
-      fetchRegioes()
+      // Aguardar todas as promises, mesmo se algumas falharem
+      await Promise.allSettled(promises)
     }
     
     loadAllData()
   }, [])
 
-  // Carregar regiões quando a província mudar
-  useEffect(() => {
-    if (filters.provincia && filters.provincia !== "") {
-      fetchRegioes(parseInt(filters.provincia))
-    } else {
-      fetchRegioes() // Carregar todas as regiões
-    }
-  }, [filters.provincia])
-
+  // CORRIGIDO: Melhor tratamento do submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Construir filtros baseados na API atual
+    console.log('Submit com filtros atuais:', filters) // Debug
+    
+    // Construir filtros baseados na API
     const searchFilters: Record<string, any> = {}
-    
-    // Filtros por ID
-    if (filters.family) {
-      searchFilters.familia_id = parseInt(filters.family)
-    }
-    
-    if (filters.author) {
-      searchFilters.autor_id = parseInt(filters.author)
-    }
-    
-    if (filters.provincia) {
-      searchFilters.provincia_id = parseInt(filters.provincia)
-    }
-    
-    if (filters.regiao) {
-      searchFilters.regiao_id = parseInt(filters.regiao)
-    }
-    
-    // Filtros por parte usada
-    if (filters.parteId) {
-      searchFilters.parte_id = parseInt(filters.parteId)
-    } else if (filters.parteUsada) {
-      searchFilters.parte_usada = filters.parteUsada
-    }
     
     // Filtros de texto para nomes
     if (filters.popularName && filters.popularName.trim()) {
       searchFilters.search_popular = filters.popularName.trim()
+      console.log('Adicionado filtro search_popular:', searchFilters.search_popular)
     }
     
     if (filters.scientificName && filters.scientificName.trim()) {
       searchFilters.search_cientifico = filters.scientificName.trim()
+      console.log('Adicionado filtro search_cientifico:', searchFilters.search_cientifico)
+    }
+    
+    // CORRIGIDO: Filtro por parte usada (string)
+    if (filters.parteUsada && filters.parteUsada.trim()) {
+      searchFilters.parte_usada = filters.parteUsada.trim()
+      console.log('Adicionado filtro parte_usada:', searchFilters.parte_usada)
+    }
+    
+    // CORRIGIDO: Filtro por uso tradicional (ID da indicação)
+    if (filters.usoTradicional && filters.usoTradicional !== "") {
+      const indicacaoId = parseInt(filters.usoTradicional)
+      if (!isNaN(indicacaoId)) {
+        searchFilters.indicacao_id = indicacaoId
+        console.log('Adicionado filtro indicacao_id:', searchFilters.indicacao_id)
+      }
+    }
+    
+    // CORRIGIDO: Filtro por província (ID)
+    if (filters.provincia && filters.provincia !== "") {
+      const provinciaId = parseInt(filters.provincia)
+      if (!isNaN(provinciaId)) {
+        searchFilters.provincia_id = provinciaId
+        console.log('Adicionado filtro provincia_id:', searchFilters.provincia_id)
+      }
+    }
+    
+    // CORRIGIDO: Filtro por autor (ID)
+    if (filters.author && filters.author !== "") {
+      const autorId = parseInt(filters.author)
+      if (!isNaN(autorId)) {
+        searchFilters.autor_id = autorId
+        console.log('Adicionado filtro autor_id:', searchFilters.autor_id)
+      }
     }
     
     // Paginação
     searchFilters.page = 1
     searchFilters.per_page = 50
     
-    console.log('Filtros de busca:', searchFilters)
+    console.log('Filtros finais para busca:', searchFilters)
     performSearch(searchFilters)
   }
 
   const handleClear = () => {
+    console.log('Limpando formulário') // Debug
     clearSearch()
     setError(null)
-    setRegioes([]) // Limpar regiões
-    fetchRegioes() // Recarregar todas as regiões
   }
 
   const toggleRecordingPopular = () => {
@@ -315,7 +483,7 @@ export function SearchForm() {
     }
   }
 
-  // Função para formatar o texto de exibição do autor
+  // CORRIGIDO: Função para formatar o texto de exibição do autor
   const formatAutorDisplay = (autor: Autor) => {
     let display = autor.nome_autor || `Autor ${autor.id_autor}`
     
@@ -330,24 +498,42 @@ export function SearchForm() {
     return display
   }
 
-  // Função para formatar a parte usada
-  const formatParteUsadaDisplay = (parte: ParteUsada) => {
-    return parte.parte_usada || `Parte ${parte.id_uso}`
-  }
+  // CORRIGIDO: Preparar opções com validação
+  const provinciaOptions = useMemo(() => {
+    return provincias.map(provincia => ({
+      value: provincia.id_provincia.toString(),
+      label: provincia.nome_provincia || `Província ${provincia.id_provincia}`
+    }))
+  }, [provincias])
+
+  const autorOptions = useMemo(() => {
+    return autores.map(autor => ({
+      value: autor.id_autor.toString(),
+      label: formatAutorDisplay(autor)
+    }))
+  }, [autores])
+
+  const indicacaoOptions = useMemo(() => {
+    return indicacoes.map(indicacao => ({
+      value: indicacao.id_indicacao.toString(),
+      label: indicacao.descricao || `Indicação ${indicacao.id_indicacao}`
+    }))
+  }, [indicacoes])
+
+  const parteUsadaOptions = useMemo(() => {
+    return partesUsadas.map(parte => ({
+      value: parte,
+      label: parte
+    }))
+  }, [partesUsadas])
 
   // Função para retentar carregamento
   const retryLoad = () => {
     setError(null)
-    fetchFamilias()
+    fetchData('/provincias', setProvincias, setLoadingProvincias, 'províncias')
+    fetchData('/autores', setAutores, setLoadingAutores, 'autores')
+    fetchData('/indicacoes', setIndicacoes, setLoadingIndicacoes, 'indicações')
     fetchPartesUsadas()
-    fetchProvincias()
-    fetchAutores()
-    fetchIndicacoes()
-    fetchPropriedades()
-    fetchCompostos()
-    fetchMetodosExtracao()
-    fetchMetodosPreparacao()
-    fetchRegioes()
   }
 
   return (
@@ -381,10 +567,13 @@ export function SearchForm() {
                 className={styles.formInput}
                 placeholder={translate("search.placeholder.popular")}
                 value={filters.popularName || ''}
-                onChange={(e) => setFilters((prev) => ({ 
-                  ...prev, 
-                  popularName: e.target.value
-                }))}
+                onChange={(e) => {
+                  console.log('Mudança no nome popular:', e.target.value) // Debug
+                  setFilters((prev) => ({ 
+                    ...prev, 
+                    popularName: e.target.value
+                  }))
+                }}
               />
               <button
                 type="button"
@@ -429,10 +618,13 @@ export function SearchForm() {
                 className={styles.formInput}
                 placeholder={translate("search.placeholder.scientific")}
                 value={filters.scientificName || ''}
-                onChange={(e) => setFilters((prev) => ({ 
-                  ...prev, 
-                  scientificName: e.target.value
-                }))}
+                onChange={(e) => {
+                  console.log('Mudança no nome científico:', e.target.value) // Debug
+                  setFilters((prev) => ({ 
+                    ...prev, 
+                    scientificName: e.target.value
+                  }))
+                }}
               />
               <button
                 type="button"
@@ -465,186 +657,64 @@ export function SearchForm() {
             )}
           </div>
 
-          {/* Família Botânica */}
-          <div className={styles.formGroup}>
-            <label htmlFor="familia" className={styles.formLabel}>
-              Família Botânica
-            </label>
-            <select
-              id="familia"
-              className={styles.formSelect}
-              value={filters.family || ''}
-              onChange={(e) => setFilters((prev) => ({ ...prev, family: e.target.value }))}
-              disabled={loadingFamilias}
-            >
-              <option value="">
-                {loadingFamilias ? "Carregando famílias..." : 
-                 familias.length === 0 ? "Nenhuma família encontrada" :
-                 "Escolha uma família botânica..."}
-              </option>
-              {familias.map((familia) => (
-                <option key={familia.id_familia} value={familia.id_familia.toString()}>
-                  {familia.nome_familia}
-                </option>
-              ))}
-            </select>
-            {loadingFamilias && (
-              <p className={styles.loadingText}>Carregando famílias...</p>
-            )}
-          </div>
+          {/* Parte da Planta Usada */}
+          <SearchableComboBox
+            id="parteUsada"
+            label="Parte da Planta Usada"
+            placeholder="Escolha uma parte usada..."
+            value={filters.parteUsada || ''}
+            onChange={(value) => {
+              console.log('Mudança na parte usada:', value) // Debug
+              setFilters((prev) => ({ ...prev, parteUsada: value }))
+            }}
+            options={parteUsadaOptions}
+            loading={loadingPartesUsadas}
+          />
 
-          {/* Parte da Planta Usada (String) - para busca geral */}
-          <div className={styles.formGroup}>
-            <label htmlFor="parteUsada" className={styles.formLabel}>
-              Parte da Planta Usada
-            </label>
-            <select
-              id="parteUsada"
-              className={styles.formSelect}
-              value={filters.parteUsada || ''}
-              onChange={(e) => setFilters((prev) => ({ 
-                ...prev, 
-                parteUsada: e.target.value,
-                parteId: '' // Limpar o ID quando selecionar por string
-              }))}
-              disabled={loadingPartesUsadas}
-            >
-              <option value="">
-                {loadingPartesUsadas ? "Carregando partes usadas..." : 
-                 partesUnicas.length === 0 ? "Nenhuma parte encontrada" :
-                 "Escolha uma parte usada..."}
-              </option>
-              {partesUnicas.map((parte) => (
-                <option key={parte} value={parte}>
-                  {parte}
-                </option>
-              ))}
-            </select>
-            {loadingPartesUsadas && (
-              <p className={styles.loadingText}>Carregando partes usadas...</p>
-            )}
-          </div>
-
-          {/* Parte Específica (ID) - para busca por uso específico */}
-          <div className={styles.formGroup}>
-            <label htmlFor="parteEspecifica" className={styles.formLabel}>
-              Parte Específica (Uso Específico)
-            </label>
-            <select
-              id="parteEspecifica"
-              className={styles.formSelect}
-              value={filters.parteId || ''}
-              onChange={(e) => setFilters((prev) => ({ 
-                ...prev, 
-                parteId: e.target.value,
-                parteUsada: '' // Limpar a string quando selecionar por ID
-              }))}
-              disabled={loadingPartesUsadas}
-            >
-              <option value="">
-                {loadingPartesUsadas ? "Carregando partes..." : 
-                 partesUsadas.length === 0 ? "Nenhuma parte encontrada" :
-                 "Escolha uma parte específica..."}
-              </option>
-              {partesUsadas.map((parte) => (
-                <option key={parte.id_uso} value={parte.id_uso.toString()}>
-                  {formatParteUsadaDisplay(parte)}
-                </option>
-              ))}
-            </select>
-            <p className={styles.helpText}>
-              <small>Use esta opção para buscar plantas com usos específicos documentados.</small>
-            </p>
-          </div>
-
-          {/* Autor */}
-          <div className={styles.formGroup}>
-            <label htmlFor="autor" className={styles.formLabel}>
-              {translate("search.author")}
-            </label>
-            <select
-              id="autor"
-              className={styles.formSelect}
-              value={filters.author || ''}
-              onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value }))}
-              disabled={loadingAutores}
-            >
-              <option value="">
-                {loadingAutores ? "Carregando autores..." : 
-                 autores.length === 0 ? "Nenhum autor encontrado" :
-                 "Escolha um autor..."}
-              </option>
-              {autores.map((autor) => (
-                <option key={autor.id_autor} value={autor.id_autor.toString()}>
-                  {formatAutorDisplay(autor)}
-                </option>
-              ))}
-            </select>
-            {loadingAutores && (
-              <p className={styles.loadingText}>Carregando autores...</p>
-            )}
-          </div>
+          {/* Uso Tradicional (Indicações) */}
+          <SearchableComboBox
+            id="usoTradicional"
+            label="Uso Tradicional"
+            placeholder="Escolha um uso tradicional..."
+            value={filters.usoTradicional || ''}
+            onChange={(value) => {
+              console.log('Mudança no uso tradicional:', value) // Debug
+              setFilters((prev) => ({ ...prev, usoTradicional: value }))
+            }}
+            options={indicacaoOptions}
+            loading={loadingIndicacoes}
+          />
 
           {/* Província */}
-          <div className={styles.formGroup}>
-            <label htmlFor="provincia" className={styles.formLabel}>
-              Província
-            </label>
-            <select
-              id="provincia"
-              className={styles.formSelect}
-              value={filters.provincia || ''}
-              onChange={(e) => setFilters((prev) => ({ ...prev, provincia: e.target.value, regiao: '' }))}
-              disabled={loadingProvincias}
-            >
-              <option value="">
-                {loadingProvincias ? "Carregando províncias..." : 
-                 provincias.length === 0 ? "Nenhuma província encontrada" :
-                 "Escolha uma província..."}
-              </option>
-              {provincias.map((provincia) => (
-                <option key={provincia.id_provincia} value={provincia.id_provincia.toString()}>
-                  {provincia.nome_provincia}
-                </option>
-              ))}
-            </select>
-            {loadingProvincias && (
-              <p className={styles.loadingText}>Carregando províncias...</p>
-            )}
-          </div>
+          <SearchableComboBox
+            id="provincia"
+            label="Província"
+            placeholder="Escolha uma província..."
+            value={filters.provincia || ''}
+            onChange={(value) => {
+              console.log('Mudança na província:', value) // Debug
+              setFilters((prev) => ({ ...prev, provincia: value }))
+            }}
+            options={provinciaOptions}
+            loading={loadingProvincias}
+          />
 
-          {/* Região (baseada na província selecionada) */}
-          {filters.provincia && regioes.length > 0 && (
-            <div className={styles.formGroup}>
-              <label htmlFor="regiao" className={styles.formLabel}>
-                Região
-              </label>
-              <select
-                id="regiao"
-                className={styles.formSelect}
-                value={filters.regiao || ''}
-                onChange={(e) => setFilters((prev) => ({ ...prev, regiao: e.target.value }))}
-                disabled={loadingRegioes}
-              >
-                <option value="">
-                  {loadingRegioes ? "Carregando regiões..." : 
-                   regioes.length === 0 ? "Nenhuma região encontrada" :
-                   "Escolha uma região (opcional)..."}
-                </option>
-                {regioes.map((regiao) => (
-                  <option key={regiao.id_regiao} value={regiao.id_regiao.toString()}>
-                    {regiao.nome_regiao || `Região ${regiao.id_regiao}`}
-                  </option>
-                ))}
-              </select>
-              {loadingRegioes && (
-                <p className={styles.loadingText}>Carregando regiões...</p>
-              )}
-            </div>
-          )}
+          {/* Autor */}
+          <SearchableComboBox
+            id="autor"
+            label={translate("search.author")}
+            placeholder="Escolha um autor..."
+            value={filters.author || ''}
+            onChange={(value) => {
+              console.log('Mudança no autor:', value) // Debug
+              setFilters((prev) => ({ ...prev, author: value }))
+            }}
+            options={autorOptions}
+            loading={loadingAutores}
+          />
 
           <p className={styles.helpText}>
-            {translate("search.empty")} Deixe os campos vazios para ver todas as plantas.
+            {translate("search.empty")}
           </p>
 
           <div className={styles.formActions}>
