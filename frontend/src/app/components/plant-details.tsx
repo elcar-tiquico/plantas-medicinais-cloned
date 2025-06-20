@@ -232,6 +232,108 @@ function AutoresDetalhados({ plant }: { plant: Plant }) {
   )
 }
 
+// Componente de referências ultra simples - apenas emoji + texto
+function ReferenciasDetalhadas({ plant }: { plant: Plant }) {
+  const referencias = plant.referencias_detalhadas || []
+  
+  // Se não tem referências detalhadas, mostra a referência simples
+  if (referencias.length === 0 && plant.referencia) {
+    return (
+      <div className={styles.referenciasSection}>
+        <div className={styles.referenciasRow}>
+          <dt className={styles.referenciasLabel}>Referências</dt>
+          <dd className={styles.referenciasContent}>
+            <div className={styles.referenciaSimples}>
+              {plant.referencia}
+            </div>
+          </dd>
+        </div>
+      </div>
+    )
+  }
+
+  if (referencias.length === 0) return null
+
+  const getTipoIcon = (tipo: string): string => {
+    switch (tipo) {
+      case 'URL': return '🔗'
+      case 'Artigo': return '📄'
+      case 'Livro': return '📚'
+      case 'Tese': return '🎓'
+      default: return '📋'
+    }
+  }
+
+  const isValidUrl = (url: string): boolean => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  return (
+    <div className={styles.referenciasSection}>
+      <div className={styles.referenciasRow}>
+        <dt className={styles.referenciasLabel}>
+          Referências ({referencias.length})
+        </dt>
+        <dd className={styles.referenciasContent}>
+          <div className={styles.referenciasList}>
+            {referencias
+              .sort((a, b) => {
+                // Ordenar por ano (mais recente primeiro), depois por título
+                if (a.ano && b.ano) {
+                  return parseInt(b.ano) - parseInt(a.ano)
+                }
+                if (a.ano && !b.ano) return -1
+                if (!a.ano && b.ano) return 1
+                
+                const tituloA = a.titulo_referencia || a.link_referencia || ''
+                const tituloB = b.titulo_referencia || b.link_referencia || ''
+                return tituloA.localeCompare(tituloB)
+              })
+              .map((ref, index) => {
+                const titulo = ref.titulo_referencia || ref.link_referencia
+                const isUrl = ref.tipo_referencia === 'URL' || isValidUrl(ref.link_referencia || '')
+                
+                return (
+                  <div key={ref.id_referencia || index} className={styles.referenciaItem}>
+                    <span className={styles.referenciaIcon}>
+                      {getTipoIcon(ref.tipo_referencia || 'Outros')}
+                    </span>
+                    
+                    <div className={styles.referenciaTexto}>
+                      {isUrl && ref.link_referencia ? (
+                        <a 
+                          href={ref.link_referencia}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.referenciaLink}
+                        >
+                          {titulo}
+                        </a>
+                      ) : (
+                        titulo
+                      )}
+                    </div>
+                    
+                    {ref.ano && (
+                      <span className={styles.referenciaAno}>
+                        {ref.ano}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </dd>
+      </div>
+    </div>
+  )
+}
+
 export function PlantDetails({ plant }: PlantDetailsProps) {
   const { translate } = useLanguage()
   const [showArticle, setShowArticle] = useState(false)
@@ -288,7 +390,7 @@ export function PlantDetails({ plant }: PlantDetailsProps) {
     }, <em>${plant.nomeCientifico}</em>, fitoquímica, etnofarmacologia</p>
     
     <p><strong>Referência:</strong> ${
-      plant.referencia || plant.referencias_detalhadas?.map(r => r.link_referencia).join('; ') || 'Referência não disponível'
+      plant.referencia || plant.referencias_detalhadas?.map(r => r.titulo_referencia || r.link_referencia).join('; ') || 'Referência não disponível'
     }</p>
   `
 
@@ -310,8 +412,6 @@ export function PlantDetails({ plant }: PlantDetailsProps) {
               <p className={styles.plantScientific}>
                 <em>{plant.nomeCientifico}</em>
               </p>
-
-
             </div>
           </div>
         </div>
@@ -357,7 +457,8 @@ export function PlantDetails({ plant }: PlantDetailsProps) {
                 <ParteUsadaCorrelacao plant={plant} />
                 <AutoresDetalhados plant={plant} />
                 
-                <DetailRow label={translate("plant.reference")} value={plant.referencia} />
+                {/* Nova seção de referências detalhadas */}
+                <ReferenciasDetalhadas plant={plant} />
               </div>
             </div>
           )}

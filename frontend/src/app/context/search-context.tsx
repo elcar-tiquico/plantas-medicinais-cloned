@@ -74,6 +74,17 @@ export interface ProvinciaDetalhada {
 export interface ReferenciaDetalhada {
   id_referencia: number
   link_referencia: string
+  tipo_referencia?: 'URL' | 'Artigo' | 'Livro' | 'Tese'
+  titulo_referencia?: string
+  ano?: string
+  autores?: Array<{
+    id_autor: number
+    nome_autor: string
+    afiliacao?: string
+    sigla_afiliacao?: string
+    ordem_autor: number
+    papel: 'primeiro' | 'correspondente' | 'coautor'
+  }>
 }
 
 // Interface da API Flask
@@ -104,7 +115,21 @@ interface ApiPlant {
   }>
   propriedades?: Array<{ id_propriedade: number; descricao?: string }>
   compostos?: Array<{ id_composto: number; nome_composto?: string }>
-  referencias?: Array<{ id_referencia: number; link_referencia?: string }>
+  referencias?: Array<{ 
+    id_referencia: number
+    link_referencia?: string
+    tipo_referencia?: 'URL' | 'Artigo' | 'Livro' | 'Tese'
+    titulo_referencia?: string
+    ano?: string
+    autores?: Array<{
+      id_autor: number
+      nome_autor: string
+      afiliacao?: string
+      sigla_afiliacao?: string
+      ordem_autor: number
+      papel: 'primeiro' | 'correspondente' | 'coautor'
+    }>
+  }>
 }
 
 // Tipo para o contexto
@@ -181,10 +206,14 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       nome_provincia: p.nome_provincia || ''
     })) || []
 
-    // Processar referências
+    // Processar referências com novos campos e autores
     const referencias_detalhadas: ReferenciaDetalhada[] = apiPlant.referencias?.map(r => ({
       id_referencia: r.id_referencia,
-      link_referencia: r.link_referencia || ''
+      link_referencia: r.link_referencia || '',
+      tipo_referencia: r.tipo_referencia,
+      titulo_referencia: r.titulo_referencia,
+      ano: r.ano,
+      autores: r.autores || []
     })) || []
 
     // Criar strings resumidas para compatibilidade com interface antiga
@@ -228,7 +257,46 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     const compostosStr = apiPlant.compostos?.map(c => c.nome_composto).filter(Boolean).join(', ') || ''
     
     const nomesComunsStr = apiPlant.nomes_comuns?.join(', ') || ''
-    const referenciasStr = referencias_detalhadas.map(r => r.link_referencia).filter(Boolean).join('; ')
+    
+    // Criar string de referências melhorada com autores
+    const referenciasStr = referencias_detalhadas.map(r => {
+      let referenceText = ''
+      
+      // Adicionar autores se existirem
+      if (r.autores && r.autores.length > 0) {
+        const autoresTexto = r.autores
+          .sort((a, b) => a.ordem_autor - b.ordem_autor)
+          .map(autor => {
+            let nomeCompleto = autor.nome_autor
+            if (autor.sigla_afiliacao) {
+              nomeCompleto += ` (${autor.sigla_afiliacao})`
+            }
+            return nomeCompleto
+          })
+          .join('; ')
+        
+        referenceText = autoresTexto + '. '
+      }
+      
+      // Adicionar título ou link
+      if (r.titulo_referencia && r.titulo_referencia !== r.link_referencia) {
+        referenceText += r.titulo_referencia
+      } else {
+        referenceText += r.link_referencia
+      }
+      
+      // Adicionar ano
+      if (r.ano) {
+        referenceText += ` (${r.ano})`
+      }
+      
+      // Adicionar tipo se não for URL
+      if (r.tipo_referencia && r.tipo_referencia !== 'URL') {
+        referenceText += ` [${r.tipo_referencia}]`
+      }
+      
+      return referenceText
+    }).filter(Boolean).join('; ')
     
     // Primeira afiliação para compatibilidade
     const afiliacaoStr = autores_detalhados[0]?.afiliacao || ''

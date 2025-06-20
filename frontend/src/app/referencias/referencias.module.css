@@ -1,40 +1,43 @@
-/* referencias.module.css */
+/* referencias.module.css - VERSÃO ATUALIZADA COM DESIGN CONSISTENTE */
 
 .referenciasContainer {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: var(--spacing-8) var(--spacing-4);
   min-height: 70vh;
 }
 
 .referenciasHeader {
   text-align: center;
-  margin-bottom: 2rem;
-  padding: 2rem 0;
+  margin-bottom: var(--spacing-8);
+  padding: var(--spacing-4) 0;
 }
 
 .referenciasTitle {
-  font-size: 2.5rem;
+  font-size: var(--font-size-4xl);
   font-weight: 700;
-  color: #1a202c;
-  margin-bottom: 1rem;
+  background: var(--gradient-primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: var(--spacing-2);
 }
 
 .referenciasSubtitle {
-  font-size: 1.2rem;
-  color: #666;
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-600);
   max-width: 600px;
   margin: 0 auto;
 }
 
 .searchSection {
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-6);
 }
 
 .searchControls {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-4);
   align-items: center;
 }
 
@@ -44,114 +47,131 @@
   width: 100%;
 }
 
+.searchInput {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-3) var(--spacing-3) calc(var(--spacing-3) + 2rem);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-lg);
+  font-size: var(--font-size-base);
+  background: var(--color-white);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-purple-500);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1), var(--shadow-md);
+}
+
+.searchIcon {
+  position: absolute;
+  left: var(--spacing-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-gray-400);
+}
+
 .filterButtons {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .filterButton {
-  padding: 0.5rem 1rem;
-  border: 2px solid #e2e8f0;
-  background: white;
-  border-radius: 25px;
-  font-size: 0.9rem;
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  color: #666;
+  transition: all 0.2s ease;
+  color: var(--color-gray-700);
+  box-shadow: var(--shadow-sm);
 }
 
 .filterButton:hover {
-  border-color: #4caf50;
-  color: #4caf50;
+  border-color: var(--color-purple-500);
+  color: var(--color-purple-700);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .filterButton.active {
-  background: #4caf50;
-  border-color: #4caf50;
-  color: white;
-}
-
-.searchInput {
-  width: 100%;
-  padding: 1rem 1rem 1rem 3rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 50px;
-  font-size: 1rem;
-  background: white;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.searchInput:focus {
-  outline: none;
-  border-color: #4caf50;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-}
-
-.searchIcon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1.25rem;
-  height: 1.25rem;
-  color: #666;
+  background: var(--gradient-primary);
+  border-color: var(--color-purple-500);
+  color: var(--color-white);
+  box-shadow: var(--shadow-lg);
 }
 
 .statsSection {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-6);
 }
 
 .statCard {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
+  background: var(--color-white);
+  padding: var(--spacing-4);
+  border-radius: var(--border-radius-xl);
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-purple-100);
+  transition: all 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
 }
 
 .statNumber {
-  font-size: 2rem;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #4caf50;
-  margin-bottom: 0.5rem;
+  background: var(--gradient-primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: var(--spacing-1);
 }
 
 .statLabel {
-  font-size: 0.9rem;
-  color: #666;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
   font-weight: 500;
 }
 
 .errorMessage {
-  background: #fed7d7;
-  border: 1px solid #feb2b2;
-  color: #c53030;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
+  background: var(--color-red-50);
+  border: 1px solid var(--color-red-200);
+  color: var(--color-red-700);
+  padding: var(--spacing-4);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: var(--spacing-6);
   text-align: center;
 }
 
 .retryButton {
-  background: #4caf50;
-  color: white;
+  background: var(--color-red-600);
+  color: var(--color-white);
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--border-radius);
   cursor: pointer;
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
+  margin-top: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .retryButton:hover {
-  background: #45a049;
+  background: var(--color-red-700);
+  transform: translateY(-1px);
 }
 
 .loadingContainer {
@@ -159,14 +179,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: var(--spacing-8);
 }
 
 .loadingSpinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #4caf50;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-purple-100);
+  border-top: 3px solid var(--color-purple-500);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -177,281 +197,561 @@
 }
 
 .loadingText {
-  margin-top: 1rem;
-  color: #666;
-  font-size: 1.1rem;
-}
-
-.referenciasContent {
-  margin-bottom: 3rem;
+  margin-top: var(--spacing-3);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-base);
 }
 
 .noResults {
   text-align: center;
-  padding: 3rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: var(--spacing-8);
+  background: var(--color-white);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-purple-100);
 }
 
 .noResultsIcon {
-  width: 4rem;
-  height: 4rem;
-  color: #ccc;
-  margin-bottom: 1rem;
+  width: 3rem;
+  height: 3rem;
+  color: var(--color-gray-300);
+  margin-bottom: var(--spacing-3);
 }
 
 .noResultsTitle {
-  font-size: 1.5rem;
-  color: #666;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-size-xl);
+  color: var(--color-gray-700);
+  margin-bottom: var(--spacing-2);
+  font-weight: 600;
 }
 
 .noResultsText {
-  color: #999;
-  font-size: 1rem;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-base);
+}
+
+/* ===== PLANTAS E REFERÊNCIAS - DESIGN ATUALIZADO ===== */
+
+.plantasList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.plantaCard {
+  background: var(--color-white);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-purple-100);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.plantaCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+.plantaHeader {
+  background: var(--gradient-primary);
+  padding: var(--spacing-4);
+  color: var(--color-white);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.plantaInfo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.plantaNumber {
+  background: var(--color-white);
+  color: var(--color-purple-700);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.plantaNomes {
+  flex: 1;
+}
+
+.plantaCientifico {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-white);
+  margin-bottom: var(--spacing-1);
+  font-style: italic;
+}
+
+.plantaComuns {
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: var(--spacing-1);
+}
+
+.plantaFamilia {
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.plantaExsicata {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: monospace;
+}
+
+.plantaStats {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.statBadge {
+  background: var(--color-white);
+  padding: var(--spacing-2);
+  border-radius: var(--border-radius);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  min-width: 50px;
+}
+
+.statValue {
+  display: block;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-purple-700);
+  margin-bottom: var(--spacing-1);
+}
+
+.statText {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+.plantaContent {
+  padding: var(--spacing-4);
+}
+
+/* AUTORES - DESIGN ATUALIZADO */
+.autoresSection {
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-3);
+  background: var(--color-purple-50);
+  border-radius: var(--border-radius-lg);
+  border-left: 3px solid var(--color-purple-500);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-gray-800);
+  margin-bottom: var(--spacing-3);
+}
+
+.sectionIcon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-purple-500);
+}
+
+.autoresList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.autorItem {
+  background: var(--color-white);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-purple-100);
+  transition: all 0.2s ease;
+}
+
+.autorItem:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.autorNome {
+  font-weight: 600;
+  color: var(--color-gray-800);
+}
+
+.autorAfiliacao {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+  font-style: italic;
+}
+
+/* REFERÊNCIAS - DESIGN ATUALIZADO */
+.referenciasSection {
+  padding: var(--spacing-3);
+  background: var(--color-green-50);
+  border-radius: var(--border-radius-lg);
+  border-left: 3px solid var(--color-green-500);
 }
 
 .referenciasList {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-2);
 }
 
-.referenciaCard {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.referenciaCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-}
-
-.referenciaHeader {
-  background: #f8f9fa;
-  padding: 0.75rem 1.5rem;
+.referenciaItem {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e2e8f0;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-green-100);
+  font-size: var(--font-size-sm);
 }
 
-.referenciaNumber {
-  font-weight: 600;
-  color: #666;
-  font-size: 0.9rem;
+.referenciaItem:last-child {
+  border-bottom: none;
 }
 
-.referenciaType {
-  background: #4caf50;
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
+.referenciaIcon {
+  font-size: var(--font-size-base);
+  margin-top: var(--spacing-1);
+  flex-shrink: 0;
+  color: var(--color-green-600);
 }
 
 .referenciaContent {
-  padding: 1.5rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .referenciaTitle {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 1rem;
-  line-height: 1.5;
-}
-
-.associacaoSection {
-  margin: 1rem 0;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border-left: 3px solid #4caf50;
-}
-
-.associacaoTitle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0.8rem;
-}
-
-.associacaoIcon {
-  width: 1rem;
-  height: 1rem;
-  color: #4caf50;
-}
-
-.autoresList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.autorItem {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.autorNome {
+  color: var(--color-gray-800);
+  line-height: 1.4;
+  margin-bottom: var(--spacing-1);
+  word-break: break-word;
   font-weight: 500;
-  color: #2d3748;
-  font-size: 0.9rem;
-}
-
-.autorAfiliacao {
-  font-size: 0.8rem;
-  color: #666;
-  font-style: italic;
-}
-
-.plantasList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.plantaItem {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.plantaCientifica {
-  font-weight: 500;
-  color: #2d3748;
-  font-size: 0.9rem;
-  font-style: italic;
-}
-
-.plantaComuns {
-  font-size: 0.8rem;
-  color: #666;
 }
 
 .referenciaLink {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.linkButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: #4caf50;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  color: var(--color-green-600);
   text-decoration: none;
-  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.referenciaLink:hover {
+  color: var(--color-green-700);
+  text-decoration: underline;
+}
+
+.referenciaAutoresInfo {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+  margin-bottom: var(--spacing-1);
+}
+
+.referenciaYear {
+  background: var(--color-green-500);
+  color: var(--color-white);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-xs);
   font-weight: 500;
-  transition: background-color 0.2s;
+  margin-left: var(--spacing-2);
+  flex-shrink: 0;
 }
 
-.linkButton:hover {
-  background: #45a049;
+.referenciaOriginal {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  margin-top: var(--spacing-1);
 }
 
-.linkIcon {
-  width: 1rem;
-  height: 1rem;
+.originalLabel {
+  font-weight: 500;
+  margin-right: var(--spacing-1);
 }
 
-.textReference {
-  font-family: monospace;
-  background: #f8f9fa;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  color: #666;
+.originalValue {
   word-break: break-all;
 }
 
 .infoSection {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-top: 3rem;
+  background: var(--color-white);
+  padding: var(--spacing-6);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-purple-100);
+  margin-top: var(--spacing-8);
 }
 
 .infoTitle {
-  font-size: 1.8rem;
+  font-size: var(--font-size-2xl);
   font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 1.5rem;
+  background: var(--gradient-primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: var(--spacing-4);
   text-align: center;
 }
 
 .infoGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
 }
 
 .infoCard {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 8px;
-  border-left: 4px solid #4caf50;
+  background: var(--color-purple-50);
+  padding: var(--spacing-4);
+  border-radius: var(--border-radius-lg);
+  border-left: 3px solid var(--color-purple-500);
+  transition: all 0.2s ease;
+}
+
+.infoCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .infoCardTitle {
-  font-size: 1.2rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0.8rem;
+  color: var(--color-gray-800);
+  margin-bottom: var(--spacing-2);
 }
 
 .infoCardText {
-  font-size: 0.95rem;
-  color: #666;
-  line-height: 1.6;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  line-height: 1.5;
+}
+
+/* ===== PAGINAÇÃO - DESIGN ATUALIZADO ===== */
+
+.paginationInfo {
+  text-align: center;
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-3);
+  background: var(--color-purple-50);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--color-purple-100);
+}
+
+.paginationText {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  margin: 0;
+  font-weight: 500;
+}
+
+.paginationControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-8);
+  padding: var(--spacing-4) 0;
+}
+
+.paginationButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-purple-700);
+  box-shadow: var(--shadow-sm);
+}
+
+.paginationButton:hover:not(.disabled) {
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  border-color: var(--color-purple-500);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.paginationButton.disabled {
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+  border-color: var(--color-gray-200);
+  background: var(--color-gray-50);
+}
+
+.paginationNumbers {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.paginationNumber {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-gray-700);
+  min-width: 40px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.paginationNumber:hover:not(.disabled):not(.dots) {
+  background: var(--color-purple-50);
+  border-color: var(--color-purple-300);
+  transform: translateY(-1px);
+}
+
+.paginationNumber.active {
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  border-color: var(--color-purple-500);
+  box-shadow: var(--shadow-lg);
+}
+
+.paginationNumber.dots {
+  border: none;
+  background: transparent;
+  cursor: default;
+  color: var(--color-gray-400);
+  box-shadow: none;
+}
+
+.paginationNumber.dots:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
 }
 
 /* Responsividade */
 @media (max-width: 768px) {
   .referenciasContainer {
-    padding: 1rem;
+    padding: var(--spacing-4) var(--spacing-4);
   }
   
   .referenciasTitle {
-    font-size: 2rem;
+    font-size: var(--font-size-3xl);
+  }
+  
+  .referenciasSubtitle {
+    font-size: var(--font-size-base);
   }
   
   .statsSection {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+    grid-template-columns: repeat(2, 1fr);
   }
   
-  .referenciaHeader {
+  .plantaHeader {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--spacing-3);
     align-items: flex-start;
   }
   
-  .referenciaContent {
-    padding: 1rem;
+  .plantaInfo {
+    width: 100%;
+  }
+  
+  .plantaStats {
+    width: 100%;
+    justify-content: space-around;
+  }
+  
+  .autoresList {
+    flex-direction: column;
+    gap: var(--spacing-1);
   }
   
   .infoGrid {
     grid-template-columns: 1fr;
   }
   
-  .linkButton {
+  .plantaCientifico {
+    font-size: var(--font-size-base);
+  }
+  
+  .filterButtons {
+    flex-direction: column;
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .filterButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .plantaHeader {
+    padding: var(--spacing-3);
+  }
+  
+  .plantaContent {
+    padding: var(--spacing-3);
+  }
+  
+  .plantaStats {
+    flex-direction: column;
+    gap: var(--spacing-1);
+  }
+  
+  .paginationControls {
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+  
+  .paginationButton {
+    width: 100%;
+    order: 1;
+  }
+  
+  .paginationNumbers {
+    order: 0;
     width: 100%;
     justify-content: center;
+  }
+  
+  .paginationNumber {
+    min-width: 32px;
+    padding: var(--spacing-2) var(--spacing-2);
+    font-size: var(--font-size-xs);
+  }
+}
+
+@media (max-width: 640px) {
+  .paginationControls {
+    flex-wrap: wrap;
+    gap: var(--spacing-1);
+  }
+  
+  .paginationButton {
+    flex: 1;
+    min-width: 100px;
+  }
+  
+  .paginationNumbers {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: var(--spacing-2);
   }
 }

@@ -23,7 +23,7 @@ CORS(app)
 # MODELOS ATUALIZADOS PARA A NOVA ESTRUTURA
 
 class Familia(db.Model):
-    __tablename__ = 'Familia'
+    __tablename__ = 'familia'
     id_familia = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome_familia = db.Column(db.String(100), nullable=False)
     
@@ -36,9 +36,9 @@ class Familia(db.Model):
         }
 
 class Planta(db.Model):
-    __tablename__ = 'Planta'
+    __tablename__ = 'planta'
     id_planta = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_familia = db.Column(db.Integer, db.ForeignKey('Familia.id_familia'), nullable=False)
+    id_familia = db.Column(db.Integer, db.ForeignKey('familia.id_familia'), nullable=False)
     nome_cientifico = db.Column(db.String(150), nullable=False)
     numero_exsicata = db.Column(db.String(50))
     
@@ -73,21 +73,27 @@ class Planta(db.Model):
                 }
                 partes_com_indicacoes.append(parte_data)
             
+            referencias_com_autores = []
+            for ref in self.referencias:
+                ref_data = ref.to_dict(include_autores=True)
+                referencias_com_autores.append(ref_data)
+
+
             data.update({
                 'autores': [autor.to_dict() for autor in self.autores],
                 'provincias': [provincia.to_dict() for provincia in self.provincias],
                 'partes_usadas': partes_com_indicacoes,  # ← CORRIGIDO: agora usa estrutura específica
                 'propriedades': [prop.to_dict() for prop in self.propriedades],
                 'compostos': [comp.to_dict() for comp in self.compostos],
-                'referencias': [ref.to_dict() for ref in self.referencias]
+                'referencias': referencias_com_autores 
             })
         
         return data
 
 class NomeComum(db.Model):
-    __tablename__ = 'Nome_comum'
+    __tablename__ = 'nome_comum'
     id_nome = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), nullable=False)
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), nullable=False)
     nome_comum_planta = db.Column(db.String(150), nullable=False)
     
     def to_dict(self):
@@ -97,24 +103,67 @@ class NomeComum(db.Model):
             'nome_comum_planta': self.nome_comum_planta
         }
 
+class AutorReferencia(db.Model):
+    __tablename__ = 'autor_referencia'
+    id_autor = db.Column(db.Integer, db.ForeignKey('autor.id_autor'), primary_key=True)  # Should be 'autor.id_autor'
+    id_referencia = db.Column(db.Integer, db.ForeignKey('referencia.id_referencia'), primary_key=True)
+    ordem_autor = db.Column(db.Integer, default=1)
+    papel = db.Column(db.Enum('primeiro', 'correspondente', 'coautor'), default='coautor')
+    
+    # Relacionamentos
+    autor = db.relationship('Autor', backref='autor_referencias')
+    referencia = db.relationship('Referencia', backref='referencia_autores')
+
 class Referencia(db.Model):
-    __tablename__ = 'Referencia'
+    __tablename__ = 'referencia'
     id_referencia = db.Column(db.Integer, primary_key=True, autoincrement=True)
     link_referencia = db.Column(db.Text, nullable=False)
+    tipo_referencia = db.Column(db.Enum('URL', 'Artigo', 'Livro', 'Tese'), nullable=True)
+    titulo_referencia = db.Column(db.Text, nullable=True)
+    ano = db.Column(db.String(4), nullable=True)
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_autores=False):
+        data = {
             'id_referencia': self.id_referencia,
-            'link_referencia': self.link_referencia
+            'link_referencia': self.link_referencia,
+            'tipo_referencia': self.tipo_referencia,
+            'titulo_referencia': self.titulo_referencia,
+            'ano': self.ano
         }
+        
+        if include_autores:
+            # Buscar autores desta referência ordenados
+            autores_ref = db.session.query(
+                Autor.id_autor,
+                Autor.nome_autor,
+                Autor.afiliacao,
+                Autor.sigla_afiliacao,
+                AutorReferencia.ordem_autor,
+                AutorReferencia.papel
+            ).join(
+                AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+            ).filter(
+                AutorReferencia.id_referencia == self.id_referencia
+            ).order_by(AutorReferencia.ordem_autor).all()
+            
+            data['autores'] = [{
+                'id_autor': ar.id_autor,
+                'nome_autor': ar.nome_autor,
+                'afiliacao': ar.afiliacao,
+                'sigla_afiliacao': ar.sigla_afiliacao,
+                'ordem_autor': ar.ordem_autor,
+                'papel': ar.papel
+            } for ar in autores_ref]
+        
+        return data
 
 class PlantaReferencia(db.Model):
-    __tablename__ = 'Planta_Referencia'
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-    id_referencia = db.Column(db.Integer, db.ForeignKey('Referencia.id_referencia'), primary_key=True)
+    __tablename__ = 'planta_referencia'
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), primary_key=True)
+    id_referencia = db.Column(db.Integer, db.ForeignKey('referencia.id_referencia'), primary_key=True)
 
 class PropriedadeFarmacologica(db.Model):
-    __tablename__ = 'Propriedade_farmacologica'
+    __tablename__ = 'propriedade_farmacologica'
     id_propriedade = db.Column(db.Integer, primary_key=True, autoincrement=True)
     descricao = db.Column(db.Text)
     
@@ -125,12 +174,12 @@ class PropriedadeFarmacologica(db.Model):
         }
 
 class PlantaPropriedade(db.Model):
-    __tablename__ = 'Planta_Propriedade'
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-    id_propriedade = db.Column(db.Integer, db.ForeignKey('Propriedade_farmacologica.id_propriedade'), primary_key=True)
+    __tablename__ = 'planta_propriedade'
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), primary_key=True)
+    id_propriedade = db.Column(db.Integer, db.ForeignKey('propriedade_farmacologica.id_propriedade'), primary_key=True)
 
 class Autor(db.Model):
-    __tablename__ = 'Autor'
+    __tablename__ = 'autor'
     id_autor = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome_autor = db.Column(db.String(150))
     afiliacao = db.Column(db.String(150))
@@ -145,12 +194,12 @@ class Autor(db.Model):
         }
 
 class AutorPlanta(db.Model):
-    __tablename__ = 'Autor_Planta'
-    id_autor = db.Column(db.Integer, db.ForeignKey('Autor.id_autor'), primary_key=True)
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
+    __tablename__ = 'autor_planta'
+    id_autor = db.Column(db.Integer, db.ForeignKey('autor.id_autor'), primary_key=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), primary_key=True)
 
 class ComposicaoQuimica(db.Model):
-    __tablename__ = 'Composicao_quimica'
+    __tablename__ = 'composicao_quimica'
     id_composto = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome_composto = db.Column(db.String(150))
     
@@ -161,12 +210,12 @@ class ComposicaoQuimica(db.Model):
         }
 
 class PlantaComposicao(db.Model):
-    __tablename__ = 'Planta_Composicao'
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-    id_composto = db.Column(db.Integer, db.ForeignKey('Composicao_quimica.id_composto'), primary_key=True)
+    __tablename__ = 'planta_composicao'
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), primary_key=True)
+    id_composto = db.Column(db.Integer, db.ForeignKey('composicao_quimica.id_composto'), primary_key=True)
 
 class Provincia(db.Model):
-    __tablename__ = 'Provincia'
+    __tablename__ = 'provincia'
     id_provincia = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome_provincia = db.Column(db.String(100), nullable=False)
     
@@ -179,10 +228,10 @@ class Provincia(db.Model):
         }
 
 class Regiao(db.Model):
-    __tablename__ = 'Regiao'
+    __tablename__ = 'regiao'
     id_regiao = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome_regiao = db.Column(db.String(100))
-    id_provincia = db.Column(db.Integer, db.ForeignKey('Provincia.id_provincia'))
+    id_provincia = db.Column(db.Integer, db.ForeignKey('provincia.id_provincia'))
     
     def to_dict(self):
         return {
@@ -193,12 +242,12 @@ class Regiao(db.Model):
         }
 
 class PlantaProvincia(db.Model):
-    __tablename__ = 'Planta_Provincia'
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), primary_key=True)
-    id_provincia = db.Column(db.Integer, db.ForeignKey('Provincia.id_provincia'), primary_key=True)
+    __tablename__ = 'planta_provincia'
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), primary_key=True)
+    id_provincia = db.Column(db.Integer, db.ForeignKey('provincia.id_provincia'), primary_key=True)
 
 class ParteUsada(db.Model):
-    __tablename__ = 'Parte_usada'
+    __tablename__ = 'parte_usada'
     id_uso = db.Column(db.Integer, primary_key=True, autoincrement=True)
     parte_usada = db.Column(db.String(100))
     
@@ -209,7 +258,7 @@ class ParteUsada(db.Model):
         }
 
 class MetodoExtracao(db.Model):
-    __tablename__ = 'Metodo_extraccao'
+    __tablename__ = 'metodo_extraccao'
     id_extraccao = db.Column(db.Integer, primary_key=True, autoincrement=True)
     descricao = db.Column(db.Text)
     
@@ -220,7 +269,7 @@ class MetodoExtracao(db.Model):
         }
 
 class MetodoPreparacaoTradicional(db.Model):
-    __tablename__ = 'Metodo_preparacao_tradicional'
+    __tablename__ = 'metodo_preparacao_tradicional'
     id_preparacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
     descricao = db.Column(db.Text)
     
@@ -231,7 +280,7 @@ class MetodoPreparacaoTradicional(db.Model):
         }
 
 class Indicacao(db.Model):
-    __tablename__ = 'Indicacao'
+    __tablename__ = 'indicacao'
     id_indicacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
     descricao = db.Column(db.Text)
     
@@ -246,10 +295,10 @@ class Indicacao(db.Model):
 # =====================================================
 
 class UsoPlanta(db.Model):
-    __tablename__ = 'Uso_Planta'
+    __tablename__ = 'uso_planta'
     id_uso_planta = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_planta = db.Column(db.Integer, db.ForeignKey('Planta.id_planta'), nullable=False)
-    id_parte = db.Column(db.Integer, db.ForeignKey('Parte_usada.id_uso'), nullable=False)
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), nullable=False)
+    id_parte = db.Column(db.Integer, db.ForeignKey('parte_usada.id_uso'), nullable=False)
     observacoes = db.Column(db.Text)
     
     # Relacionamentos
@@ -265,34 +314,34 @@ class UsoPlanta(db.Model):
         }
 
 class UsoPlantaIndicacao(db.Model):
-    __tablename__ = 'Uso_Planta_Indicacao'
-    id_uso_planta = db.Column(db.Integer, db.ForeignKey('Uso_Planta.id_uso_planta'), primary_key=True)
-    id_indicacao = db.Column(db.Integer, db.ForeignKey('Indicacao.id_indicacao'), primary_key=True)
+    __tablename__ = 'uso_planta_indicacao'
+    id_uso_planta = db.Column(db.Integer, db.ForeignKey('uso_planta.id_uso_planta'), primary_key=True)
+    id_indicacao = db.Column(db.Integer, db.ForeignKey('indicacao.id_indicacao'), primary_key=True)
 
 class UsoPlantaPreparacao(db.Model):
-    __tablename__ = 'Uso_Planta_Preparacao'
-    id_uso_planta = db.Column(db.Integer, db.ForeignKey('Uso_Planta.id_uso_planta'), primary_key=True)
-    id_preparacao = db.Column(db.Integer, db.ForeignKey('Metodo_preparacao_tradicional.id_preparacao'), primary_key=True)
+    __tablename__ = 'uso_planta_preparacao'
+    id_uso_planta = db.Column(db.Integer, db.ForeignKey('uso_planta.id_uso_planta'), primary_key=True)
+    id_preparacao = db.Column(db.Integer, db.ForeignKey('metodo_preparacao_tradicional.id_preparacao'), primary_key=True)
 
 class UsoPlantaExtracao(db.Model):
-    __tablename__ = 'Uso_Planta_Extracao'
-    id_uso_planta = db.Column(db.Integer, db.ForeignKey('Uso_Planta.id_uso_planta'), primary_key=True)
-    id_extraccao = db.Column(db.Integer, db.ForeignKey('Metodo_extraccao.id_extraccao'), primary_key=True)
+    __tablename__ = 'uso_planta_extracao'
+    id_uso_planta = db.Column(db.Integer, db.ForeignKey('uso_planta.id_uso_planta'), primary_key=True)
+    id_extraccao = db.Column(db.Integer, db.ForeignKey('metodo_extraccao.id_extraccao'), primary_key=True)
 
 # =====================================================
 # RELACIONAMENTOS MANY-TO-MANY ATUALIZADOS
 # =====================================================
 
-Planta.autores = db.relationship('Autor', secondary='Autor_Planta', backref='plantas', lazy='select')
-Planta.provincias = db.relationship('Provincia', secondary='Planta_Provincia', backref='plantas', lazy='select')
-Planta.propriedades = db.relationship('PropriedadeFarmacologica', secondary='Planta_Propriedade', backref='plantas', lazy='select')
-Planta.compostos = db.relationship('ComposicaoQuimica', secondary='Planta_Composicao', backref='plantas', lazy='select')
-Planta.referencias = db.relationship('Referencia', secondary='Planta_Referencia', backref='plantas', lazy='select')
+Planta.autores = db.relationship('Autor', secondary='autor_planta', backref='plantas', lazy='select')  # CORRIGIDO
+Planta.provincias = db.relationship('Provincia', secondary='planta_provincia', backref='plantas', lazy='select')  # CORRIGIDO
+Planta.propriedades = db.relationship('PropriedadeFarmacologica', secondary='planta_propriedade', backref='plantas', lazy='select')  # CORRIGIDO
+Planta.compostos = db.relationship('ComposicaoQuimica', secondary='planta_composicao', backref='plantas', lazy='select')  # CORRIGIDO
+Planta.referencias = db.relationship('Referencia', secondary='planta_referencia', backref='plantas', lazy='select')  # CORRIGIDO
 
-# NOVOS RELACIONAMENTOS PARA USO ESPECÍFICO
-UsoPlanta.indicacoes = db.relationship('Indicacao', secondary='Uso_Planta_Indicacao', backref='usos_planta', lazy='select')
-UsoPlanta.metodos_preparacao = db.relationship('MetodoPreparacaoTradicional', secondary='Uso_Planta_Preparacao', backref='usos_planta', lazy='select')
-UsoPlanta.metodos_extracao = db.relationship('MetodoExtracao', secondary='Uso_Planta_Extracao', backref='usos_planta', lazy='select')
+# NOVOS RELACIONAMENTOS PARA USO ESPECÍFICO (CORRIGIDOS):
+UsoPlanta.indicacoes = db.relationship('Indicacao', secondary='uso_planta_indicacao', backref='usos_planta', lazy='select')  # CORRIGIDO
+UsoPlanta.metodos_preparacao = db.relationship('MetodoPreparacaoTradicional', secondary='uso_planta_preparacao', backref='usos_planta', lazy='select')  # CORRIGIDO
+UsoPlanta.metodos_extracao = db.relationship('MetodoExtracao', secondary='uso_planta_extracao', backref='usos_planta', lazy='select')  # CORRIGIDO
 
 # Função auxiliar para tratamento de erros
 def handle_error(e, message="Erro interno do servidor"):
@@ -869,8 +918,51 @@ def create_uso_planta(id_planta):
 @app.route('/api/referencias', methods=['GET'])
 def get_referencias():
     try:
-        referencias = Referencia.query.all()
-        return jsonify([ref.to_dict() for ref in referencias])
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        tipo = request.args.get('tipo', '')
+        ano = request.args.get('ano', '')
+        search = request.args.get('search', '')
+        include_autores = request.args.get('include_autores', 'false').lower() == 'true'
+        
+        query = Referencia.query
+        
+        # Filtros existentes
+        if tipo and tipo != 'all':
+            query = query.filter(Referencia.tipo_referencia == tipo)
+        
+        if ano:
+            query = query.filter(Referencia.ano == ano)
+        
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    Referencia.titulo_referencia.ilike(search_term),
+                    Referencia.link_referencia.ilike(search_term)
+                )
+            )
+        
+        query = query.order_by(
+            Referencia.ano.desc().nullslast(),
+            Referencia.titulo_referencia.asc().nullslast()
+        )
+        
+        referencias = query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            'referencias': [ref.to_dict(include_autores=include_autores) for ref in referencias.items],
+            'pagination': {
+                'total': referencias.total,
+                'pages': referencias.pages,
+                'current_page': page,
+                'per_page': per_page,
+                'has_next': referencias.has_next,
+                'has_prev': referencias.has_prev
+            }
+        })
     except Exception as e:
         return handle_error(e)
 
@@ -881,12 +973,145 @@ def create_referencia():
         if not data or 'link_referencia' not in data:
             return jsonify({'error': 'Link da referência é obrigatório'}), 400
         
-        referencia = Referencia(link_referencia=data['link_referencia'])
+        # Validar tipo se fornecido
+        tipos_validos = ['URL', 'Artigo', 'Livro', 'Tese']
+        tipo = data.get('tipo_referencia')
+        if tipo and tipo not in tipos_validos:
+            return jsonify({'error': f'Tipo deve ser um dos: {", ".join(tipos_validos)}'}), 400
+        
+        # Validar ano se fornecido
+        ano = data.get('ano')
+        if ano:
+            try:
+                ano_int = int(ano)
+                if ano_int < 1900 or ano_int > 2030:
+                    return jsonify({'error': 'Ano deve estar entre 1900 e 2030'}), 400
+            except ValueError:
+                return jsonify({'error': 'Ano deve ser um número válido'}), 400
+        
+        referencia = Referencia(
+            link_referencia=data['link_referencia'],
+            tipo_referencia=tipo,
+            titulo_referencia=data.get('titulo_referencia'),
+            ano=ano
+        )
         db.session.add(referencia)
         db.session.commit()
         return jsonify(referencia.to_dict()), 201
     except Exception as e:
         db.session.rollback()
+        return handle_error(e)
+
+@app.route('/api/referencias/<int:id_referencia>/autores', methods=['POST'])
+def associar_autor_referencia(id_referencia):
+    try:
+        referencia = Referencia.query.get_or_404(id_referencia)
+        data = request.get_json()
+        
+        if not data or 'id_autor' not in data:
+            return jsonify({'error': 'ID do autor é obrigatório'}), 400
+        
+        autor = Autor.query.get_or_404(data['id_autor'])
+        
+        # Verificar se já existe
+        existente = AutorReferencia.query.filter_by(
+            id_autor=data['id_autor'],
+            id_referencia=id_referencia
+        ).first()
+        
+        if existente:
+            return jsonify({'error': 'Autor já associado a esta referência'}), 409
+        
+        # Determinar ordem automaticamente se não fornecida
+        ordem = data.get('ordem_autor')
+        if not ordem:
+            max_ordem = db.session.query(
+                db.func.max(AutorReferencia.ordem_autor)
+            ).filter(
+                AutorReferencia.id_referencia == id_referencia
+            ).scalar() or 0
+            ordem = max_ordem + 1
+        
+        autor_ref = AutorReferencia(
+            id_autor=data['id_autor'],
+            id_referencia=id_referencia,
+            ordem_autor=ordem,
+            papel=data.get('papel', 'coautor')
+        )
+        
+        db.session.add(autor_ref)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Autor associado à referência com sucesso',
+            'autor_referencia': {
+                'id_autor': autor_ref.id_autor,
+                'id_referencia': autor_ref.id_referencia,
+                'ordem_autor': autor_ref.ordem_autor,
+                'papel': autor_ref.papel,
+                'nome_autor': autor.nome_autor
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# =====================================================
+# NOVA ROTA - REMOVER AUTOR DE REFERÊNCIA
+# =====================================================
+
+@app.route('/api/referencias/<int:id_referencia>/autores/<int:id_autor>', methods=['DELETE'])
+def remover_autor_referencia(id_referencia, id_autor):
+    try:
+        autor_ref = AutorReferencia.query.filter_by(
+            id_autor=id_autor,
+            id_referencia=id_referencia
+        ).first()
+        
+        if not autor_ref:
+            return jsonify({'error': 'Associação não encontrada'}), 404
+        
+        db.session.delete(autor_ref)
+        db.session.commit()
+        
+        return jsonify({'message': 'Autor removido da referência com sucesso'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+@app.route('/api/referencias/<int:id_referencia>/autores', methods=['GET'])
+def get_autores_referencia(id_referencia):
+    try:
+        referencia = Referencia.query.get_or_404(id_referencia)
+        
+        autores = db.session.query(
+            Autor.id_autor,
+            Autor.nome_autor,
+            Autor.afiliacao,
+            Autor.sigla_afiliacao,
+            AutorReferencia.ordem_autor,
+            AutorReferencia.papel
+        ).join(
+            AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+        ).filter(
+            AutorReferencia.id_referencia == id_referencia
+        ).order_by(AutorReferencia.ordem_autor).all()
+        
+        return jsonify({
+            'referencia': referencia.to_dict(),
+            'autores': [{
+                'id_autor': a.id_autor,
+                'nome_autor': a.nome_autor,
+                'afiliacao': a.afiliacao,
+                'sigla_afiliacao': a.sigla_afiliacao,
+                'ordem_autor': a.ordem_autor,
+                'papel': a.papel
+            } for a in autores]
+        })
+        
+    except Exception as e:
         return handle_error(e)
 
 @app.route('/api/autores', methods=['GET'])
@@ -1488,6 +1713,320 @@ def get_autores_por_referencia(id_referencia):
         
     except Exception as e:
         return handle_error(e, "Erro ao buscar autores por referência")
+
+# Adicione esta nova rota ao seu arquivo Flask para otimizar a busca
+
+@app.route('/api/referencias/<int:id_referencia>', methods=['PUT'])
+def update_referencia(id_referencia):
+    try:
+        referencia = Referencia.query.get_or_404(id_referencia)
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        # Atualizar campos
+        if 'link_referencia' in data:
+            referencia.link_referencia = data['link_referencia']
+        
+        if 'tipo_referencia' in data:
+            tipos_validos = ['URL', 'Artigo', 'Livro', 'Tese']
+            if data['tipo_referencia'] and data['tipo_referencia'] not in tipos_validos:
+                return jsonify({'error': f'Tipo deve ser um dos: {", ".join(tipos_validos)}'}), 400
+            referencia.tipo_referencia = data['tipo_referencia']
+        
+        if 'titulo_referencia' in data:
+            referencia.titulo_referencia = data['titulo_referencia']
+        
+        if 'ano' in data:
+            ano = data['ano']
+            if ano:
+                try:
+                    ano_int = int(ano)
+                    if ano_int < 1900 or ano_int > 2030:
+                        return jsonify({'error': 'Ano deve estar entre 1900 e 2030'}), 400
+                except ValueError:
+                    return jsonify({'error': 'Ano deve ser um número válido'}), 400
+            referencia.ano = ano
+        
+        db.session.commit()
+        return jsonify(referencia.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e)
+
+# =====================================================
+# ROTA ATUALIZADA - PLANTAS COM REFERÊNCIAS DETALHADAS
+# =====================================================
+@app.route('/api/plantas-com-referencias', methods=['GET'])
+def get_plantas_com_referencias_atualizada():
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        search = request.args.get('search', '')
+        
+        # Query base mantém igual
+        query = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            Planta.numero_exsicata,
+            Familia.nome_familia.label('familia')
+        ).join(
+            Familia, Planta.id_familia == Familia.id_familia
+        ).join(
+            PlantaReferencia, Planta.id_planta == PlantaReferencia.id_planta
+        ).join(
+            Referencia, PlantaReferencia.id_referencia == Referencia.id_referencia
+        ).distinct()
+        
+        if search:
+            search_term = f'%{search}%'
+            query = query.outerjoin(
+                NomeComum, Planta.id_planta == NomeComum.id_planta
+            ).filter(
+                db.or_(
+                    Planta.nome_cientifico.ilike(search_term),
+                    NomeComum.nome_comum_planta.ilike(search_term),
+                    Familia.nome_familia.ilike(search_term),
+                    Referencia.titulo_referencia.ilike(search_term)
+                )
+            )
+        
+        query = query.order_by(Planta.nome_cientifico)
+        plantas_paginadas = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        plantas_completas = []
+        
+        for planta_row in plantas_paginadas.items:
+            # Nomes comuns
+            nomes_comuns = db.session.query(
+                NomeComum.nome_comum_planta
+            ).filter(NomeComum.id_planta == planta_row.id_planta).all()
+            
+            # REFERÊNCIAS COM AUTORES ESPECÍFICOS
+            referencias_query = db.session.query(
+                Referencia.id_referencia,
+                Referencia.link_referencia,
+                Referencia.tipo_referencia,
+                Referencia.titulo_referencia,
+                Referencia.ano
+            ).join(
+                PlantaReferencia, Referencia.id_referencia == PlantaReferencia.id_referencia
+            ).filter(
+                PlantaReferencia.id_planta == planta_row.id_planta
+            ).order_by(
+                Referencia.ano.desc().nullslast(),
+                Referencia.titulo_referencia.asc()
+            ).all()
+            
+            # Para cada referência, buscar seus autores
+            referencias_com_autores = []
+            for ref in referencias_query:
+                autores_ref = db.session.query(
+                    Autor.id_autor,
+                    Autor.nome_autor,
+                    Autor.afiliacao,
+                    Autor.sigla_afiliacao,
+                    AutorReferencia.ordem_autor,
+                    AutorReferencia.papel
+                ).join(
+                    AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+                ).filter(
+                    AutorReferencia.id_referencia == ref.id_referencia
+                ).order_by(AutorReferencia.ordem_autor).all()
+                
+                ref_data = {
+                    'id_referencia': ref.id_referencia,
+                    'link_referencia': ref.link_referencia,
+                    'tipo_referencia': ref.tipo_referencia,
+                    'titulo_referencia': ref.titulo_referencia,
+                    'ano': ref.ano,
+                    'autores': [{
+                        'id_autor': ar.id_autor,
+                        'nome_autor': ar.nome_autor,
+                        'afiliacao': ar.afiliacao,
+                        'sigla_afiliacao': ar.sigla_afiliacao,
+                        'ordem_autor': ar.ordem_autor,
+                        'papel': ar.papel
+                    } for ar in autores_ref]
+                }
+                referencias_com_autores.append(ref_data)
+            
+            # Autores da planta (mantém para compatibilidade)
+            autores_planta = db.session.query(
+                Autor.id_autor,
+                Autor.nome_autor,
+                Autor.afiliacao,
+                Autor.sigla_afiliacao
+            ).join(
+                AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+            ).filter(
+                AutorPlanta.id_planta == planta_row.id_planta
+            ).all()
+            
+            planta_completa = {
+                'id_planta': planta_row.id_planta,
+                'nome_cientifico': planta_row.nome_cientifico,
+                'numero_exsicata': planta_row.numero_exsicata,
+                'familia': planta_row.familia,
+                'nomes_comuns': [nc.nome_comum_planta for nc in nomes_comuns],
+                'referencias': referencias_com_autores,  # NOVO: com autores específicos
+                'autores': [{  # Autores da planta (mantido para compatibilidade)
+                    'id_autor': autor.id_autor,
+                    'nome_autor': autor.nome_autor,
+                    'afiliacao': autor.afiliacao,
+                    'sigla_afiliacao': autor.sigla_afiliacao
+                } for autor in autores_planta]
+            }
+            plantas_completas.append(planta_completa)
+        
+        return jsonify({
+            'plantas': plantas_completas,
+            'pagination': {
+                'total': plantas_paginadas.total,
+                'pages': plantas_paginadas.pages,
+                'current_page': page,
+                'per_page': per_page,
+                'has_next': plantas_paginadas.has_next,
+                'has_prev': plantas_paginadas.has_prev
+            }
+        })
+        
+    except Exception as e:
+        return handle_error(e)
+
+
+@app.route('/api/referencias/stats', methods=['GET'])
+def get_referencias_stats():
+    try:
+        stats = get_referencias_statistics()
+        return jsonify(stats)
+    except Exception as e:
+        return handle_error(e, "Erro ao buscar estatísticas de referências")
+
+@app.route('/api/referencias/tipos', methods=['GET'])
+def get_tipos_referencia():
+    """Retorna os tipos de referência disponíveis"""
+    try:
+        tipos = ['URL', 'Artigo', 'Livro', 'Tese']
+        
+        # Contar quantas referências existem de cada tipo
+        counts = db.session.query(
+            Referencia.tipo_referencia,
+            db.func.count(Referencia.id_referencia).label('total')
+        ).group_by(Referencia.tipo_referencia).all()
+        
+        tipos_com_count = []
+        for tipo in tipos:
+            count = next((c.total for c in counts if c.tipo_referencia == tipo), 0)
+            tipos_com_count.append({
+                'tipo': tipo,
+                'total': count
+            })
+        
+        return jsonify(tipos_com_count)
+    except Exception as e:
+        return handle_error(e)
+
+# =====================================================
+# ROTA - ANOS DISPONÍVEIS
+# =====================================================
+
+@app.route('/api/referencias/anos', methods=['GET'])
+def get_anos_referencia():
+    """Retorna os anos disponíveis nas referências"""
+    try:
+        anos = db.session.query(
+            Referencia.ano,
+            db.func.count(Referencia.id_referencia).label('total')
+        ).filter(
+            Referencia.ano.isnot(None)
+        ).group_by(Referencia.ano).order_by(
+            Referencia.ano.desc()
+        ).all()
+        
+        return jsonify([
+            {
+                'ano': ano.ano,
+                'total': ano.total
+            } for ano in anos
+        ])
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/plantas-com-referencias/stats', methods=['GET'])
+def get_stats_plantas_referencias():
+    """Estatísticas rápidas sobre plantas com referências"""
+    try:
+        # Top 10 plantas com mais referências
+        top_plantas = db.session.query(
+            Planta.nome_cientifico,
+            db.func.count(PlantaReferencia.id_referencia).label('total_referencias')
+        ).join(
+            PlantaReferencia, Planta.id_planta == PlantaReferencia.id_planta
+        ).group_by(
+            Planta.id_planta, Planta.nome_cientifico
+        ).order_by(
+            db.desc('total_referencias')
+        ).limit(10).all()
+        
+        # Top 10 autores com mais plantas
+        top_autores = db.session.query(
+            Autor.nome_autor,
+            db.func.count(db.distinct(AutorPlanta.id_planta)).label('total_plantas')
+        ).join(
+            AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+        ).join(
+            PlantaReferencia, AutorPlanta.id_planta == PlantaReferencia.id_planta
+        ).group_by(
+            Autor.id_autor, Autor.nome_autor
+        ).order_by(
+            db.desc('total_plantas')
+        ).limit(10).all()
+        
+        # Distribuição por tipo de referência (baseado no link)
+        todas_referencias = db.session.query(
+            Referencia.link_referencia
+        ).join(
+            PlantaReferencia, Referencia.id_referencia == PlantaReferencia.id_referencia
+        ).all()
+        
+        tipos_referencias = {}
+        for ref in todas_referencias:
+            link = ref.link_referencia.lower()
+            if 'doi.org' in link:
+                tipo = 'DOI'
+            elif 'pubmed' in link or 'ncbi' in link:
+                tipo = 'PubMed'
+            elif 'scielo' in link:
+                tipo = 'SciELO'
+            elif 'researchgate' in link:
+                tipo = 'ResearchGate'
+            elif '.pdf' in link:
+                tipo = 'PDF'
+            else:
+                tipo = 'Outros'
+            
+            tipos_referencias[tipo] = tipos_referencias.get(tipo, 0) + 1
+        
+        return jsonify({
+            'top_plantas_com_referencias': [
+                {
+                    'nome_cientifico': planta.nome_cientifico,
+                    'total_referencias': planta.total_referencias
+                } for planta in top_plantas
+            ],
+            'top_autores_com_plantas': [
+                {
+                    'nome_autor': autor.nome_autor,
+                    'total_plantas': autor.total_plantas
+                } for autor in top_autores
+            ],
+            'distribuicao_tipos_referencias': tipos_referencias
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao buscar estatísticas")
 
 # ROTA DE SAÚDE DA API
 @app.route('/api/health', methods=['GET'])

@@ -602,3 +602,146 @@
 .dark .afiliacaoSimples::before {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
 }
+
+/* ===============================================
+   REFERÊNCIAS SIMPLES - APENAS TEXTO + EMOJIS
+   =============================================== */
+
+/* Seção de Referências - igual às outras seções */
+.referenciasSection {
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.referenciasRow {
+  padding: var(--spacing-4) var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+}
+
+.referenciasLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-500);
+  margin-bottom: var(--spacing-3);
+}
+
+.referenciasContent {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-900);
+  line-height: 1.6;
+}
+
+.dark .referenciasContent {
+  color: var(--color-gray-200);
+}
+
+/* Referência simples (fallback) */
+.referenciaSimples {
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.6;
+  color: var(--color-gray-800);
+}
+
+.dark .referenciaSimples {
+  color: var(--color-gray-200);
+}
+
+/* Lista simples de referências */
+.referenciasList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* Item de referência - só uma linha simples */
+.referenciaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.referenciaItem:last-child {
+  border-bottom: none;
+}
+
+.dark .referenciaItem {
+  border-bottom-color: #4b5563;
+}
+
+/* Ícone do tipo - pequeno e simples */
+.referenciaIcon {
+  font-size: var(--font-size-sm);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* Conteúdo da referência */
+.referenciaTexto {
+  flex: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-gray-800);
+}
+
+.dark .referenciaTexto {
+  color: var(--color-gray-200);
+}
+
+/* Ano pequeno no final */
+.referenciaAno {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  font-weight: 500;
+  margin-left: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.dark .referenciaAno {
+  color: var(--color-gray-400);
+}
+
+/* Link simples quando é URL */
+.referenciaLink {
+  color: #007acc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 122, 204, 0.3);
+  transition: all 0.2s ease;
+}
+
+.referenciaLink:hover {
+  color: #0056b3;
+  text-decoration-color: rgba(0, 86, 179, 0.6);
+}
+
+.dark .referenciaLink {
+  color: #3b82f6;
+  text-decoration-color: rgba(59, 130, 246, 0.3);
+}
+
+.dark .referenciaLink:hover {
+  color: #2563eb;
+  text-decoration-color: rgba(37, 99, 235, 0.6);
+}
+
+/* Responsividade simples */
+@media (min-width: 768px) {
+  .referenciasRow {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .referenciasLabel {
+    width: 10rem;
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding-top: 2px;
+  }
+
+  .referenciasContent {
+    margin-left: var(--spacing-6);
+    flex: 1;
+  }
+}
