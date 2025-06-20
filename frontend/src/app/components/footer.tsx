@@ -58,7 +58,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/about" className={styles.footerLink}>
+                <Link href="/sobre" className={styles.footerLink}>
                   Sobre o Projecto
                 </Link>
               </li>
@@ -81,7 +81,7 @@ export function Footer() {
         </div>
 
         <div className={styles.footerBottom}>
-          <p className={styles.copyright}>©{new Date().getFullYear()} PhytoMoz. Todos os direitos reservados.</p>
+          <p className={styles.copyright}>©{new Date().getFullYear()} Desenvolvido por: Elcar Macuácua.</p>
         </div>
       </div>
     </footer>

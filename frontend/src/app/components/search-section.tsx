@@ -8,7 +8,7 @@ import styles from "./search-section.module.css"
 export function SearchSection() {
   return (
     <div className="container">
-      <div className={styles.searchSection}>
+      <div className={styles.searchSection} data-search-form>
         <SearchProvider>
           <div className={styles.searchGrid}>
             <div className={styles.searchFormContainer}>

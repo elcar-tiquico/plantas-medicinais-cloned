@@ -1279,6 +1279,216 @@ def debug_plant_correlations(id_planta):
     except Exception as e:
         return handle_error(e)
 
+# Adicione esta rota ao seu arquivo Flask
+
+@app.route('/api/referencias-com-associacoes', methods=['GET'])
+def get_referencias_com_associacoes():
+    """Buscar todas as referências com suas plantas e autores associados"""
+    try:
+        # Buscar todas as referências
+        referencias = Referencia.query.all()
+        referencias_enriquecidas = []
+        
+        for referencia in referencias:
+            # Buscar plantas associadas através da tabela planta_referencia
+            plantas_query = db.session.query(
+                Planta.id_planta,
+                Planta.nome_cientifico,
+                Planta.numero_exsicata
+            ).join(
+                PlantaReferencia, Planta.id_planta == PlantaReferencia.id_planta
+            ).filter(
+                PlantaReferencia.id_referencia == referencia.id_referencia
+            ).all()
+            
+            plantas_associadas = []
+            autores_associados = []
+            autores_map = {}
+            
+            # Para cada planta associada, buscar seus nomes comuns e autores
+            for planta_row in plantas_query:
+                # Buscar nomes comuns da planta
+                nomes_comuns = db.session.query(
+                    NomeComum.nome_comum_planta
+                ).filter(
+                    NomeComum.id_planta == planta_row.id_planta
+                ).all()
+                
+                planta_info = {
+                    'id_planta': planta_row.id_planta,
+                    'nome_cientifico': planta_row.nome_cientifico,
+                    'numero_exsicata': planta_row.numero_exsicata,
+                    'nomes_comuns': [nome.nome_comum_planta for nome in nomes_comuns]
+                }
+                plantas_associadas.append(planta_info)
+                
+                # Buscar autores desta planta através da tabela autor_planta
+                autores_query = db.session.query(
+                    Autor.id_autor,
+                    Autor.nome_autor,
+                    Autor.afiliacao,
+                    Autor.sigla_afiliacao
+                ).join(
+                    AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+                ).filter(
+                    AutorPlanta.id_planta == planta_row.id_planta
+                ).all()
+                
+                # Adicionar autores únicos
+                for autor_row in autores_query:
+                    if autor_row.id_autor not in autores_map:
+                        autores_map[autor_row.id_autor] = {
+                            'id_autor': autor_row.id_autor,
+                            'nome_autor': autor_row.nome_autor,
+                            'afiliacao': autor_row.afiliacao,
+                            'sigla_afiliacao': autor_row.sigla_afiliacao
+                        }
+            
+            autores_associados = list(autores_map.values())
+            
+            referencia_enriquecida = {
+                'id_referencia': referencia.id_referencia,
+                'link_referencia': referencia.link_referencia,
+                'plantas_associadas': plantas_associadas,
+                'autores_associados': autores_associados,
+                'total_plantas': len(plantas_associadas),
+                'total_autores': len(autores_associados)
+            }
+            referencias_enriquecidas.append(referencia_enriquecida)
+        
+        return jsonify({
+            'referencias': referencias_enriquecidas,
+            'total': len(referencias_enriquecidas)
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao buscar referências com associações")
+
+@app.route('/api/referencias/<int:id_referencia>/plantas', methods=['GET'])
+def get_plantas_por_referencia(id_referencia):
+    """Buscar plantas associadas a uma referência específica"""
+    try:
+        # Verificar se a referência existe
+        referencia = Referencia.query.get_or_404(id_referencia)
+        
+        # Buscar plantas através da tabela planta_referencia
+        plantas_query = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            Planta.numero_exsicata,
+            Familia.nome_familia
+        ).join(
+            PlantaReferencia, Planta.id_planta == PlantaReferencia.id_planta
+        ).join(
+            Familia, Planta.id_familia == Familia.id_familia
+        ).filter(
+            PlantaReferencia.id_referencia == id_referencia
+        ).all()
+        
+        plantas_detalhadas = []
+        
+        for planta_row in plantas_query:
+            # Buscar nomes comuns
+            nomes_comuns = db.session.query(
+                NomeComum.nome_comum_planta
+            ).filter(
+                NomeComum.id_planta == planta_row.id_planta
+            ).all()
+            
+            # Buscar autores
+            autores_query = db.session.query(
+                Autor.id_autor,
+                Autor.nome_autor,
+                Autor.afiliacao,
+                Autor.sigla_afiliacao
+            ).join(
+                AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+            ).filter(
+                AutorPlanta.id_planta == planta_row.id_planta
+            ).all()
+            
+            planta_info = {
+                'id_planta': planta_row.id_planta,
+                'nome_cientifico': planta_row.nome_cientifico,
+                'numero_exsicata': planta_row.numero_exsicata,
+                'familia': planta_row.nome_familia,
+                'nomes_comuns': [nome.nome_comum_planta for nome in nomes_comuns],
+                'autores': [{
+                    'id_autor': autor.id_autor,
+                    'nome_autor': autor.nome_autor,
+                    'afiliacao': autor.afiliacao,
+                    'sigla_afiliacao': autor.sigla_afiliacao
+                } for autor in autores_query]
+            }
+            plantas_detalhadas.append(planta_info)
+        
+        return jsonify({
+            'referencia': referencia.to_dict(),
+            'plantas': plantas_detalhadas,
+            'total_plantas': len(plantas_detalhadas)
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao buscar plantas por referência")
+
+@app.route('/api/referencias/<int:id_referencia>/autores', methods=['GET'])
+def get_autores_por_referencia(id_referencia):
+    """Buscar autores associados a uma referência através das plantas"""
+    try:
+        # Verificar se a referência existe
+        referencia = Referencia.query.get_or_404(id_referencia)
+        
+        # Buscar autores através das plantas que usam esta referência
+        autores_query = db.session.query(
+            Autor.id_autor,
+            Autor.nome_autor,
+            Autor.afiliacao,
+            Autor.sigla_afiliacao
+        ).join(
+            AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+        ).join(
+            PlantaReferencia, AutorPlanta.id_planta == PlantaReferencia.id_planta
+        ).filter(
+            PlantaReferencia.id_referencia == id_referencia
+        ).distinct().all()
+        
+        autores_detalhados = []
+        
+        for autor_row in autores_query:
+            # Buscar plantas deste autor que usam esta referência
+            plantas_autor = db.session.query(
+                Planta.id_planta,
+                Planta.nome_cientifico
+            ).join(
+                AutorPlanta, Planta.id_planta == AutorPlanta.id_planta
+            ).join(
+                PlantaReferencia, Planta.id_planta == PlantaReferencia.id_planta
+            ).filter(
+                AutorPlanta.id_autor == autor_row.id_autor,
+                PlantaReferencia.id_referencia == id_referencia
+            ).all()
+            
+            autor_info = {
+                'id_autor': autor_row.id_autor,
+                'nome_autor': autor_row.nome_autor,
+                'afiliacao': autor_row.afiliacao,
+                'sigla_afiliacao': autor_row.sigla_afiliacao,
+                'plantas_nesta_referencia': [{
+                    'id_planta': planta.id_planta,
+                    'nome_cientifico': planta.nome_cientifico
+                } for planta in plantas_autor]
+            }
+            autores_detalhados.append(autor_info)
+        
+        return jsonify({
+            'referencia': referencia.to_dict(),
+            'autores': autores_detalhados,
+            'total_autores': len(autores_detalhados)
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao buscar autores por referência")
+
 # ROTA DE SAÚDE DA API
 @app.route('/api/health', methods=['GET'])
 def health_check():
