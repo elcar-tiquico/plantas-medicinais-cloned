@@ -115,6 +115,11 @@ const AdminDashboard: React.FC = () => {
 
   const API_BASE_URL = process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:5001/api/admin/dashboard';
 
+  // ===== FUNÇÃO PARA FORMATAR NOMES DE FAMÍLIAS =====
+  const formatarNomeFamilia = (nomeFamilia: string): string => {
+    return nomeFamilia.toUpperCase();
+  };
+
   // Função para fazer fetch dos dados REAIS da API
   const fetchData = async (): Promise<void> => {
     try {
@@ -184,9 +189,55 @@ const AdminDashboard: React.FC = () => {
 
       // Atualizar todos os estados com dados REAIS
       setStats(statsData);
-      setPlantasPorFamilia(familiasData.familias || []);
-      setPlantasPorProvincia(provinciasData.provincias || []);
-      setPlantasRecentes(recentesData.plantas_recentes || []);
+      
+      // ===== APLICAR FORMATAÇÃO DE MAIÚSCULAS NAS FAMÍLIAS =====
+      if (familiasData.familias) {
+        const familiasFormatadas = familiasData.familias.map((familia: { name: string; }) => ({
+          ...familia,
+          name: formatarNomeFamilia(familia.name)
+        }));
+        setPlantasPorFamilia(familiasFormatadas);
+      } else {
+        setPlantasPorFamilia([]);
+      }
+      
+      // ===== CORREÇÃO: Recalcular percentual baseado em plantas únicas =====
+      if (provinciasData.provincias && statsData.total_plantas) {
+        const totalPlantasNoSistema = statsData.total_plantas.value;
+        
+        // Para cada província, recalcular o percentual baseado no total de plantas do sistema
+        const provinciasCorrigidas = provinciasData.provincias.map((provincia: { total_plantas_unicas: any; count: any; name: any; }) => {
+          // Se a API retorna 'total_plantas_unicas', usar esse valor
+          // Senão, assumir que 'count' representa plantas únicas (não associações)
+          const plantasUnicas = provincia.total_plantas_unicas || provincia.count;
+          const percentualCorreto = totalPlantasNoSistema > 0 
+            ? (plantasUnicas / totalPlantasNoSistema * 100) 
+            : 0;
+          
+          return {
+            name: provincia.name,
+            count: plantasUnicas,
+            percentage: Math.round(percentualCorreto * 10) / 10 // Arredondar para 1 casa decimal
+          };
+        });
+        
+        // Ordenar por número de plantas (decrescente)
+        provinciasCorrigidas.sort((a: { count: number; }, b: { count: number; }) => b.count - a.count);
+        setPlantasPorProvincia(provinciasCorrigidas);
+      } else {
+        setPlantasPorProvincia([]);
+      }
+      
+      // ===== APLICAR FORMATAÇÃO DE MAIÚSCULAS NAS PLANTAS RECENTES =====
+      if (recentesData.plantas_recentes) {
+        const plantasRecentesFormatadas = recentesData.plantas_recentes.map((planta: { family: string; }) => ({
+          ...planta,
+          family: formatarNomeFamilia(planta.family)
+        }));
+        setPlantasRecentes(plantasRecentesFormatadas);
+      } else {
+        setPlantasRecentes([]);
+      }
       setPlantasPorIdioma(idiomasData.idiomas || []);
       setReferenciaStats(referenciaStatsData);
       setAutorStats(autorStatsData);
@@ -373,7 +424,7 @@ const AdminDashboard: React.FC = () => {
               style={{ backgroundColor: colors[index % colors.length] }}
             ></div>
             <span className={styles.legendText}>
-              {item.name} ({item.percentage}%)
+              {formatarNomeFamilia(item.name)} ({item.percentage}%)
             </span>
           </div>
         ))}
@@ -637,7 +688,7 @@ const AdminDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* ===== ABA FAMÍLIAS MELHORADA COM TABELA ===== */}
+            {/* ===== ABA FAMÍLIAS COM TABELA ATUALIZADA (SEM EMOJIS E COLUNA DIVERSIDADE) ===== */}
             {activeTab === 'categories' && (
               <div>
                 <h3 className={styles.tabTitle}>Plantas por Família</h3>
@@ -667,7 +718,7 @@ const AdminDashboard: React.FC = () => {
                             <div className={styles.progressInfo}>
                               <span className={styles.progressLabel}>Família Mais Rica</span>
                               <span className={styles.progressValue}>
-                                {plantasPorFamilia[0]?.name || 'N/A'}
+                                {plantasPorFamilia[0]?.name ? formatarNomeFamilia(plantasPorFamilia[0].name) : 'N/A'}
                               </span>
                             </div>
                             <div className={styles.progressBar}>
@@ -716,7 +767,7 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* ===== NOVA TABELA DE FAMÍLIAS (substituindo o ranking) ===== */}
+                    {/* ===== NOVA TABELA DE FAMÍLIAS (SEM EMOJIS E SEM COLUNA DIVERSIDADE) ===== */}
                     <div className={styles.section}>
                       <h4 className={styles.sectionTitle}>Famílias Cadastradas</h4>
                       <div className={styles.tableContainer}>
@@ -727,7 +778,6 @@ const AdminDashboard: React.FC = () => {
                               <th className={styles.tableHeader}>Nome da Família</th>
                               <th className={styles.tableHeader}>Total de Plantas</th>
                               <th className={styles.tableHeader}>Percentual</th>
-                              <th className={styles.tableHeader}>Diversidade</th>
                               <th className={styles.tableHeader}>
                                 <span className={styles.srOnly}>Gerir</span>
                               </th>
@@ -737,16 +787,11 @@ const AdminDashboard: React.FC = () => {
                             {plantasPorFamilia.map((familia, index) => (
                               <tr key={index} className={styles.tableRow}>
                                 <td className={styles.tableCell}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{ fontWeight: '600', color: '#9333ea' }}>#{index + 1}</span>
-                                    {index === 0 && <span>👑</span>}
-                                    {index === 1 && <span>🥈</span>}
-                                    {index === 2 && <span>🥉</span>}
-                                  </div>
+                                  <span style={{ fontWeight: '600', color: '#9333ea' }}>#{index + 1}</span>
                                 </td>
                                 <td className={styles.tableCell}>
                                   <div className={styles.tableCellTitle}>
-                                    {familia.name}
+                                    {formatarNomeFamilia(familia.name)}
                                   </div>
                                 </td>
                                 <td className={styles.tableCell}>
@@ -779,12 +824,6 @@ const AdminDashboard: React.FC = () => {
                                       ></div>
                                     </div>
                                   </div>
-                                </td>
-                                <td className={styles.tableCell}>
-                                  <span className={styles.badge}>
-                                    {familia.percentage > 15 ? 'ALTA' : 
-                                     familia.percentage > 5 ? 'MÉDIA' : 'BAIXA'}
-                                  </span>
                                 </td>
                                 <td className={styles.tableCellAction}>
                                   <a href="#" className={styles.editLink}>Gerir</a>
@@ -873,7 +912,7 @@ const AdminDashboard: React.FC = () => {
                         <div key={index} className={styles.progressItem}>
                           <div className={styles.progressInfo}>
                             <span className={styles.progressLabel}>{provincia.name}</span>
-                            <span className={styles.progressValue}>{provincia.count} associações</span>
+                            <span className={styles.progressValue}>{provincia.count} plantas</span>
                           </div>
                           <div className={styles.progressBar}>
                             <div 

@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import styles from "./sidebar.module.css"
-import path from "path"
 
 export function AdminSidebar() {
   const pathname = usePathname()
@@ -240,24 +239,27 @@ export function AdminSidebar() {
         </ul>
       </nav>
 
-      <div className={styles.sidebarFooter}>
+      {/* ===== FOOTER CORRIGIDO ===== */}
+      <div className={`${styles.sidebarFooter} ${collapsed ? styles.collapsedFooter : ""}`}>
         <Link href="/" className={`${styles.logoutLink} ${collapsed ? styles.collapsedLink : ""}`}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span className={collapsed ? styles.hidden : ""}>Sair</span>
+          <span className={styles.navIcon}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </span>
+          <span className={`${styles.navText} ${collapsed ? styles.hidden : ""}`}>Sair</span>
         </Link>
       </div>
     </div>

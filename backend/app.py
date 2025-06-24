@@ -4,6 +4,7 @@ from flask_cors import CORS
 from sqlalchemy.exc import IntegrityError
 import os
 from datetime import datetime
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -328,6 +329,15 @@ class UsoPlantaExtracao(db.Model):
     id_uso_planta = db.Column(db.Integer, db.ForeignKey('uso_planta.id_uso_planta'), primary_key=True)
     id_extraccao = db.Column(db.Integer, db.ForeignKey('metodo_extraccao.id_extraccao'), primary_key=True)
 
+class LogPesquisas(db.Model):
+    __tablename__ = 'log_pesquisas'
+    id_pesquisa = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    termo_pesquisa = db.Column(db.String(255))
+    tipo_pesquisa = db.Column(db.Enum('nome_comum', 'cientifico', 'familia', 'indicacao'), default='nome_comum')
+    ip_usuario = db.Column(db.String(45))
+    user_agent = db.Column(db.Text)
+    data_pesquisa = db.Column(db.DateTime, default=datetime.utcnow)
+    resultados_encontrados = db.Column(db.Integer, default=0)
 # =====================================================
 # RELACIONAMENTOS MANY-TO-MANY ATUALIZADOS
 # =====================================================
@@ -347,6 +357,48 @@ UsoPlanta.metodos_extracao = db.relationship('MetodoExtracao', secondary='uso_pl
 def handle_error(e, message="Erro interno do servidor"):
     print(f"Erro: {str(e)}")
     return jsonify({'error': message, 'details': str(e)}), 500
+
+def registar_pesquisa_segura(termo, tipo='nome_comum', resultados=0, request_obj=None):
+    """
+    Função SEGURA para registar pesquisas - com try/catch completo
+    Se der erro, não afeta o funcionamento normal da API
+    """
+    try:
+        if not termo or len(termo.strip()) == 0:
+            return False  # Não registar pesquisas vazias
+            
+        ip_usuario = None
+        user_agent = None
+        
+        if request_obj:
+            try:
+                ip_usuario = request_obj.remote_addr
+                user_agent = request_obj.headers.get('User-Agent', '')
+            except:
+                pass  # Se der erro ao obter dados do request, continua
+        
+        nova_pesquisa = LogPesquisas(
+            termo_pesquisa=termo[:255] if termo else None,  # Limitar tamanho
+            tipo_pesquisa=tipo,
+            resultados_encontrados=resultados,
+            ip_usuario=ip_usuario[:45] if ip_usuario else None,  # Limitar tamanho
+            user_agent=user_agent[:500] if user_agent else None  # Limitar tamanho
+        )
+        
+        db.session.add(nova_pesquisa)
+        db.session.commit()
+        
+        print(f"✅ Pesquisa registada: '{termo}' ({tipo}) -> {resultados} resultados")
+        return True
+        
+    except Exception as e:
+        # CRÍTICO: Se der erro no tracking, fazer rollback mas NÃO afetar a API principal
+        try:
+            db.session.rollback()
+        except:
+            pass
+        print(f"⚠️ Erro ao registar pesquisa (não afeta funcionamento): {e}")
+        return False
 
 # ROTAS - FAMÍLIAS
 @app.route('/api/familias', methods=['GET'])
@@ -377,21 +429,23 @@ def create_familia():
 # ROTA ATUALIZADA - PLANTAS (com suporte a busca por indicação)
 @app.route('/api/plantas', methods=['GET'])
 def get_plantas():
+    """VERSÃO SEM TRACKING - Só busca e retorna resultados"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         
-        # Parâmetros de busca simplificados
+        # ===== PARÂMETROS ORIGINAIS (mantidos iguais) =====
         search_popular = request.args.get('search_popular', '')
         search_cientifico = request.args.get('search_cientifico', '')
         search = request.args.get('search', '')
         
-        # Filtros específicos
+        # Filtros específicos (mantidos iguais)
         autor_id = request.args.get('autor_id', type=int)
         provincia_id = request.args.get('provincia_id', type=int)
         parte_usada = request.args.get('parte_usada', '')
-        indicacao_id = request.args.get('indicacao_id', type=int)  # NOVO: filtro por indicação
+        indicacao_id = request.args.get('indicacao_id', type=int)
         
+        # ===== LÓGICA ORIGINAL MANTIDA 100% =====
         query = Planta.query
         
         # Filtro por nome popular (buscar nos nomes comuns)
@@ -427,7 +481,7 @@ def get_plantas():
                 ParteUsada.parte_usada.ilike(f'%{parte_usada}%')
             )
         
-        # NOVO: Filtro por indicação (uso tradicional)
+        # Filtro por indicação (uso tradicional)
         if indicacao_id:
             query = query.join(Planta.usos_planta).join(UsoPlanta.indicacoes).filter(
                 Indicacao.id_indicacao == indicacao_id
@@ -436,10 +490,15 @@ def get_plantas():
         # Remover duplicatas
         query = query.distinct()
         
+        # EXECUTAR QUERY (lógica original)
         plantas = query.paginate(
             page=page, per_page=per_page, error_out=False
         )
         
+        # ✅ SEM TRACKING AQUI - só retorna resultados
+        print(f"🔍 Busca executada: {plantas.total} resultados (tracking será no clique)")
+        
+        # ===== RESPOSTA ORIGINAL (mantida igual) =====
         return jsonify({
             'plantas': [planta.to_dict() for planta in plantas.items],
             'total': plantas.total,
@@ -447,7 +506,9 @@ def get_plantas():
             'current_page': page,
             'per_page': per_page
         })
+        
     except Exception as e:
+        # Tratamento de erro original mantido
         return handle_error(e)
 
 # NOVA ROTA - Buscar plantas por indicação específica
@@ -723,10 +784,60 @@ def get_correlacoes_planta_indicacao():
 
 @app.route('/api/plantas/<int:id_planta>', methods=['GET'])
 def get_planta(id_planta):
+    """VERSÃO COM TRACKING POR CLIQUE - Mede interesse real"""
     try:
+        # Lógica original mantida
         planta = Planta.query.get_or_404(id_planta)
+        
+        # ✅ TRACKING INTELIGENTE POR CLIQUE
+        try:
+            # Analisar os parâmetros de query para entender como chegou aqui
+            referrer = request.headers.get('Referer', '')
+            search_source = request.args.get('search_source', '')  # Parâmetro opcional do frontend
+            search_term = request.args.get('search_term', '')      # Parâmetro opcional do frontend
+            search_type = request.args.get('search_type', '')      # Parâmetro opcional do frontend
+            
+            # Determinar termo e tipo da pesquisa original
+            termo_pesquisa = None
+            tipo_pesquisa = 'nome_cientifico'  # Padrão: assume interesse no nome científico
+            
+            # ===== LÓGICA INTELIGENTE DE DETECÇÃO =====
+            
+            # OPÇÃO 1: Frontend passa parâmetros (recomendado)
+            if search_term and search_type:
+                termo_pesquisa = search_term.strip()
+                tipo_pesquisa = search_type
+                print(f"🎯 Tracking via parâmetros: {termo_pesquisa} ({tipo_pesquisa})")
+            
+            # OPÇÃO 2: Usar nome da planta (fallback)
+            else:
+                # Prioridade: nome comum se existir, senão científico
+                if planta.nomes_comuns and len(planta.nomes_comuns) > 0:
+                    termo_pesquisa = planta.nomes_comuns[0].nome_comum_planta
+                    tipo_pesquisa = 'nome_popular'
+                else:
+                    termo_pesquisa = planta.nome_cientifico
+                    tipo_pesquisa = 'nome_cientifico'
+                print(f"🎯 Tracking via nome da planta: {termo_pesquisa} ({tipo_pesquisa})")
+            
+            # ===== REGISTAR CLIQUE COMO INTERESSE REAL =====
+            if termo_pesquisa:
+                registar_pesquisa_segura(
+                    termo=termo_pesquisa,
+                    tipo=tipo_pesquisa,
+                    resultados=1,  # Sempre 1 porque clicou numa planta específica
+                    request_obj=request
+                )
+                
+        except Exception as tracking_error:
+            # Se o tracking falhar, apenas log - NÃO afetar a resposta
+            print(f"⚠️ Erro no tracking de clique (ignorado): {tracking_error}")
+        
+        # Resposta original mantida
         return jsonify(planta.to_dict(include_relations=True))
+        
     except Exception as e:
+        # Tratamento de erro original mantido
         return handle_error(e)
 
 @app.route('/api/plantas', methods=['POST'])
@@ -1896,13 +2007,13 @@ def get_plantas_com_referencias_atualizada():
         return handle_error(e)
 
 
-@app.route('/api/referencias/stats', methods=['GET'])
-def get_referencias_stats():
-    try:
-        stats = get_referencias_statistics()
-        return jsonify(stats)
-    except Exception as e:
-        return handle_error(e, "Erro ao buscar estatísticas de referências")
+# @app.route('/api/referencias/stats', methods=['GET'])
+# def get_referencias_stats():
+#     try:
+#         stats = get_referencias_statistics()
+#         return jsonify(stats)
+#     except Exception as e:
+#         return handle_error(e, "Erro ao buscar estatísticas de referências")
 
 @app.route('/api/referencias/tipos', methods=['GET'])
 def get_tipos_referencia():
@@ -2037,6 +2148,169 @@ def health_check():
         'version': '4.0.0',
         'estrutura': 'corrigida_com_uso_especifico_por_planta'
     })
+
+@app.route('/api/plantas/<int:id_planta>/track', methods=['GET'])
+def get_planta_with_tracking(id_planta):
+    """
+    VERSÃO MELHORADA - Frontend pode passar dados da pesquisa original
+    Uso: /api/plantas/123/track?search_term=moringa&search_type=nome_popular
+    """
+    try:
+        # Lógica original mantida
+        planta = Planta.query.get_or_404(id_planta)
+        
+        # ✅ TRACKING PRECISO COM DADOS DO FRONTEND
+        try:
+            search_term = request.args.get('search_term', '').strip()
+            search_type = request.args.get('search_type', 'nome_popular')
+            
+            # Se frontend passou dados da pesquisa original, usar esses
+            if search_term:
+                termo_pesquisa = search_term
+                tipo_pesquisa = search_type
+                print(f"🎯 Tracking preciso: '{termo_pesquisa}' ({tipo_pesquisa}) → clique em '{planta.nome_cientifico}'")
+            else:
+                # Fallback: usar dados da planta
+                if planta.nomes_comuns and len(planta.nomes_comuns) > 0:
+                    termo_pesquisa = planta.nomes_comuns[0].nome_comum_planta
+                    tipo_pesquisa = 'nome_popular'
+                else:
+                    termo_pesquisa = planta.nome_cientifico
+                    tipo_pesquisa = 'nome_cientifico'
+                print(f"🎯 Tracking fallback: '{termo_pesquisa}' ({tipo_pesquisa})")
+            
+            # Registar clique como interesse real
+            registar_pesquisa_segura(
+                termo=termo_pesquisa,
+                tipo=tipo_pesquisa,
+                resultados=1,
+                request_obj=request
+            )
+                
+        except Exception as tracking_error:
+            print(f"⚠️ Erro no tracking de clique (ignorado): {tracking_error}")
+        
+        # Resposta original mantida
+        return jsonify(planta.to_dict(include_relations=True))
+        
+    except Exception as e:
+        return handle_error(e)
+
+@app.route('/api/pesquisas/stats', methods=['GET'])
+def get_pesquisas_stats_api_principal():
+    """Estatísticas de CLIQUES (interesse real) - não buscas vazias"""
+    try:
+        total_cliques = LogPesquisas.query.count()
+        
+        if total_cliques == 0:
+            return jsonify({
+                'total_cliques': 0,
+                'mensagem': 'Nenhum clique registado ainda.',
+                'dados_disponiveis': False,
+                'metrica': 'cliques_em_plantas'
+            })
+        
+        # Top 10 plantas mais clicadas (interesse real)
+        top_termos = db.session.query(
+            LogPesquisas.termo_pesquisa,
+            LogPesquisas.tipo_pesquisa,
+            db.func.count(LogPesquisas.id_pesquisa).label('total_cliques')
+        ).filter(
+            LogPesquisas.termo_pesquisa.isnot(None)
+        ).group_by(
+            LogPesquisas.termo_pesquisa,
+            LogPesquisas.tipo_pesquisa
+        ).order_by(
+            db.desc('total_cliques')
+        ).limit(10).all()
+        
+        # Distribuição por tipo de interesse
+        por_tipo = db.session.query(
+            LogPesquisas.tipo_pesquisa,
+            db.func.count(LogPesquisas.id_pesquisa).label('total_cliques')
+        ).group_by(
+            LogPesquisas.tipo_pesquisa
+        ).order_by(
+            db.desc('total_cliques')
+        ).all()
+        
+        # Cliques hoje
+        hoje = datetime.utcnow().date()
+        cliques_hoje = LogPesquisas.query.filter(
+            db.func.date(LogPesquisas.data_pesquisa) == hoje
+        ).count()
+        
+        # Plantas únicas clicadas
+        plantas_unicas = db.session.query(
+            db.func.count(db.func.distinct(LogPesquisas.termo_pesquisa))
+        ).scalar()
+        
+        return jsonify({
+            'total_cliques': total_cliques,
+            'cliques_hoje': cliques_hoje,
+            'plantas_unicas_clicadas': plantas_unicas,
+            'dados_disponiveis': True,
+            'metrica': 'interesse_real_por_cliques',
+            'top_plantas_clicadas': [
+                {
+                    'termo': termo.termo_pesquisa,
+                    'tipo_busca': termo.tipo_pesquisa,
+                    'total_cliques': termo.total_cliques
+                } for termo in top_termos
+            ],
+            'interesse_por_tipo': [
+                {
+                    'tipo_busca': tipo.tipo_pesquisa,
+                    'total_cliques': tipo.total_cliques,
+                    'percentual': round((tipo.total_cliques / total_cliques * 100), 1)
+                } for tipo in por_tipo
+            ],
+            'primeiro_clique': LogPesquisas.query.order_by(LogPesquisas.data_pesquisa.asc()).first().data_pesquisa.isoformat() if total_cliques > 0 else None,
+            'ultimo_clique': LogPesquisas.query.order_by(LogPesquisas.data_pesquisa.desc()).first().data_pesquisa.isoformat() if total_cliques > 0 else None
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'erro': 'Erro ao obter estatísticas de cliques',
+            'detalhes': str(e),
+            'total_cliques': 0,
+            'dados_disponiveis': False
+        }), 500
+
+@app.route('/api/pesquisas/debug', methods=['GET'])
+def debug_pesquisas_api_principal():
+    """Debug das pesquisas - NOVA ROTA"""
+    try:
+        total = LogPesquisas.query.count()
+        
+        # Últimas 5 pesquisas
+        ultimas = LogPesquisas.query.order_by(
+            db.desc(LogPesquisas.data_pesquisa)
+        ).limit(5).all()
+        
+        return jsonify({
+            'status': 'OK',
+            'total_pesquisas': total,
+            'tabela_existe': True,
+            'ultimas_pesquisas': [
+                {
+                    'id': p.id_pesquisa,
+                    'termo': p.termo_pesquisa,
+                    'tipo': p.tipo_pesquisa,
+                    'resultados': p.resultados_encontrados,
+                    'data': p.data_pesquisa.isoformat() if p.data_pesquisa else None,
+                    'ip': p.ip_usuario
+                } for p in ultimas
+            ],
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'ERRO',
+            'erro': str(e),
+            'tabela_existe': False
+        }), 500
 
 # Tratamento de erros globais
 @app.errorhandler(404)

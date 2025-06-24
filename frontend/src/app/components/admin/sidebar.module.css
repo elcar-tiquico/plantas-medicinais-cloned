@@ -1,9 +1,14 @@
+/* ===== SIDEBAR CSS CORRIGIDO ===== */
+
 .sidebar {
   background-color: white;
   border-right: 1px solid #e5e7eb;
   height: 100vh;
-  transition: width 0.3s;
+  transition: width 0.3s ease;
   width: 16rem;
+  position: relative; /* ✅ CORREÇÃO: Posicionamento relativo para o footer */
+  display: flex;
+  flex-direction: column; /* ✅ CORREÇÃO: Layout flexbox para organizar os elementos */
 }
 
 .collapsed {
@@ -16,6 +21,7 @@
   justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0; /* ✅ CORREÇÃO: Não encolher o header */
 }
 
 .logoContainer {
@@ -47,6 +53,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .collapseButton:hover {
@@ -54,9 +61,12 @@
   color: #111827;
 }
 
+/* ===== NAVEGAÇÃO PRINCIPAL ===== */
 .sidebarNav {
+  flex: 1; /* ✅ CORREÇÃO: Ocupar todo o espaço disponível */
   margin-top: 1rem;
   padding: 0 0.5rem;
+  overflow-y: auto; /* ✅ CORREÇÃO: Scroll quando necessário */
 }
 
 .navList {
@@ -81,7 +91,9 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #6b7280;
-  transition: background-color 0.2s, color 0.2s;
+  transition: all 0.2s ease;
+  width: 100%; /* ✅ CORREÇÃO: Largura total */
+  box-sizing: border-box; /* ✅ CORREÇÃO: Incluir padding na largura */
 }
 
 .navLink:hover {
@@ -96,26 +108,35 @@
 
 .collapsedLink {
   justify-content: center;
+  padding: 0.75rem 0.5rem; /* ✅ CORREÇÃO: Padding ajustado para sidebar colapsada */
 }
 
 .navIcon {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .navText {
   margin-left: 0.75rem;
+  white-space: nowrap; /* ✅ CORREÇÃO: Evitar quebra de linha */
 }
 
 .hidden {
   display: none;
 }
 
+/* ===== FOOTER CORRIGIDO ===== */
 .sidebarFooter {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  padding: 1rem;
   border-top: 1px solid #e5e7eb;
+  padding: 1rem 0.5rem; /* ✅ CORREÇÃO: Padding consistente com a navegação */
+  flex-shrink: 0; /* ✅ CORREÇÃO: Não encolher o footer */
+  margin-top: auto; /* ✅ CORREÇÃO: Empurrar para baixo */
+}
+
+.collapsedFooter {
+  padding: 1rem 0.25rem; /* ✅ CORREÇÃO: Padding menor quando colapsado */
 }
 
 .logoutLink {
@@ -127,10 +148,93 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #6b7280;
-  transition: background-color 0.2s, color 0.2s;
+  transition: all 0.2s ease;
+  width: 100%; /* ✅ CORREÇÃO: Largura total */
+  box-sizing: border-box; /* ✅ CORREÇÃO: Incluir padding na largura */
 }
 
 .logoutLink:hover {
   background-color: #f3f4f6;
   color: #111827;
+}
+
+/* ✅ CORREÇÃO: Estilo específico para o link de logout quando colapsado */
+.logoutLink.collapsedLink {
+  justify-content: center;
+  padding: 0.75rem 0.5rem; /* ✅ CORREÇÃO: Padding ajustado */
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .collapsed {
+    width: 5rem;
+    transform: translateX(-100%);
+  }
+  
+  .collapsed.open {
+    transform: translateX(0);
+  }
+}
+
+/* ===== ESTADOS DE HOVER MELHORADOS ===== */
+.navLink:focus,
+.logoutLink:focus {
+  outline: 2px solid #9333ea;
+  outline-offset: 2px;
+}
+
+.navLink:active,
+.logoutLink:active {
+  transform: translateY(1px);
+}
+
+/* ===== ANIMAÇÕES SUAVES ===== */
+.sidebar * {
+  transition: all 0.2s ease;
+}
+
+.logoContainer,
+.navText {
+  transition: opacity 0.2s ease, display 0.2s ease;
+}
+
+/* ===== CORREÇÕES ESPECÍFICAS PARA LARGURA ===== */
+.sidebar.collapsed .sidebarFooter {
+  width: 5rem; /* ✅ CORREÇÃO: Largura fixa quando colapsado */
+}
+
+.sidebar.collapsed .logoutLink {
+  width: auto; /* ✅ CORREÇÃO: Largura automática quando colapsado */
+  margin: 0 auto; /* ✅ CORREÇÃO: Centralizar */
+}
+
+/* ===== SCROLLBAR CUSTOMIZADA ===== */
+.sidebarNav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebarNav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebarNav::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 2px;
+}
+
+.sidebarNav::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
 }
