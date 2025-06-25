@@ -440,10 +440,6 @@ const AdminDashboard: React.FC = () => {
         <div className={styles.header}>
           <h1 className={styles.title}>Dashboard</h1>
           <div className={styles.buttonGroup}>
-            <button className={styles.buttonPurple}>
-              <DownloadIcon />
-              <span>Exportar Relatório</span>
-            </button>
             <button className={styles.buttonGreen}>
               <PlusIcon />
               <span>Adicionar Planta</span>
