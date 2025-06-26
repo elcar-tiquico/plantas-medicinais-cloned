@@ -1,4 +1,4 @@
-/* ===== SIDEBAR CSS CORRIGIDO ===== */
+/* ===== SIDEBAR CSS CORRIGIDO COM POSIÇÃO FIXA ===== */
 
 .sidebar {
   background-color: white;
@@ -6,9 +6,12 @@
   height: 100vh;
   transition: width 0.3s ease;
   width: 16rem;
-  position: relative; /* ✅ CORREÇÃO: Posicionamento relativo para o footer */
+  position: fixed; /* ✅ MUDANÇA: Posição fixa para não mover com scroll */
+  top: 0; /* ✅ ADICIONADO: Fixar no topo */
+  left: 0; /* ✅ ADICIONADO: Fixar na esquerda */
+  z-index: 40; /* ✅ ADICIONADO: Z-index para ficar acima do conteúdo */
   display: flex;
-  flex-direction: column; /* ✅ CORREÇÃO: Layout flexbox para organizar os elementos */
+  flex-direction: column;
 }
 
 .collapsed {
@@ -21,7 +24,7 @@
   justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0; /* ✅ CORREÇÃO: Não encolher o header */
+  flex-shrink: 0;
 }
 
 .logoContainer {
@@ -63,10 +66,10 @@
 
 /* ===== NAVEGAÇÃO PRINCIPAL ===== */
 .sidebarNav {
-  flex: 1; /* ✅ CORREÇÃO: Ocupar todo o espaço disponível */
+  flex: 1;
   margin-top: 1rem;
   padding: 0 0.5rem;
-  overflow-y: auto; /* ✅ CORREÇÃO: Scroll quando necessário */
+  overflow-y: auto;
 }
 
 .navList {
@@ -92,8 +95,8 @@
   font-weight: 500;
   color: #6b7280;
   transition: all 0.2s ease;
-  width: 100%; /* ✅ CORREÇÃO: Largura total */
-  box-sizing: border-box; /* ✅ CORREÇÃO: Incluir padding na largura */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .navLink:hover {
@@ -108,7 +111,7 @@
 
 .collapsedLink {
   justify-content: center;
-  padding: 0.75rem 0.5rem; /* ✅ CORREÇÃO: Padding ajustado para sidebar colapsada */
+  padding: 0.75rem 0.5rem;
 }
 
 .navIcon {
@@ -120,7 +123,7 @@
 
 .navText {
   margin-left: 0.75rem;
-  white-space: nowrap; /* ✅ CORREÇÃO: Evitar quebra de linha */
+  white-space: nowrap;
 }
 
 .hidden {
@@ -130,13 +133,13 @@
 /* ===== FOOTER CORRIGIDO ===== */
 .sidebarFooter {
   border-top: 1px solid #e5e7eb;
-  padding: 1rem 0.5rem; /* ✅ CORREÇÃO: Padding consistente com a navegação */
-  flex-shrink: 0; /* ✅ CORREÇÃO: Não encolher o footer */
-  margin-top: auto; /* ✅ CORREÇÃO: Empurrar para baixo */
+  padding: 1rem 0.5rem;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .collapsedFooter {
-  padding: 1rem 0.25rem; /* ✅ CORREÇÃO: Padding menor quando colapsado */
+  padding: 1rem 0.25rem;
 }
 
 .logoutLink {
@@ -149,8 +152,8 @@
   font-weight: 500;
   color: #6b7280;
   transition: all 0.2s ease;
-  width: 100%; /* ✅ CORREÇÃO: Largura total */
-  box-sizing: border-box; /* ✅ CORREÇÃO: Incluir padding na largura */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .logoutLink:hover {
@@ -158,34 +161,45 @@
   color: #111827;
 }
 
-/* ✅ CORREÇÃO: Estilo específico para o link de logout quando colapsado */
 .logoutLink.collapsedLink {
   justify-content: center;
-  padding: 0.75rem 0.5rem; /* ✅ CORREÇÃO: Padding ajustado */
+  padding: 0.75rem 0.5rem;
 }
 
-/* ===== RESPONSIVIDADE ===== */
+/* ===== RESPONSIVIDADE ATUALIZADA ===== */
 @media (max-width: 768px) {
   .sidebar {
+    /* ✅ MANTIDO: Position fixed para mobile também */
     position: fixed;
     top: 0;
     left: 0;
     z-index: 50;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, width 0.3s ease;
+    width: 16rem; /* ✅ FORÇAR: Largura total no mobile */
   }
   
-  .sidebar.open {
-    transform: translateX(0);
+  .sidebar.mobileOpen {
+    transform: translateX(0); /* ✅ MUDANÇA: Nova classe para mobile */
   }
   
-  .collapsed {
-    width: 5rem;
+  .sidebar.collapsed {
+    width: 16rem; /* ✅ MUDANÇA: No mobile, mesmo colapsada mantém largura total */
     transform: translateX(-100%);
   }
   
-  .collapsed.open {
+  .sidebar.collapsed.mobileOpen {
     transform: translateX(0);
+  }
+}
+
+/* ✅ ADICIONADO: Media query para desktop garantindo posição fixa */
+@media (min-width: 769px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
   }
 }
 
@@ -213,12 +227,12 @@
 
 /* ===== CORREÇÕES ESPECÍFICAS PARA LARGURA ===== */
 .sidebar.collapsed .sidebarFooter {
-  width: 5rem; /* ✅ CORREÇÃO: Largura fixa quando colapsado */
+  width: 5rem;
 }
 
 .sidebar.collapsed .logoutLink {
-  width: auto; /* ✅ CORREÇÃO: Largura automática quando colapsado */
-  margin: 0 auto; /* ✅ CORREÇÃO: Centralizar */
+  width: auto;
+  margin: 0 auto;
 }
 
 /* ===== SCROLLBAR CUSTOMIZADA ===== */

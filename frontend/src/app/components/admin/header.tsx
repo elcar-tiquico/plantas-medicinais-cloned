@@ -1,28 +1,229 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import styles from "./header.module.css"
 
-export function AdminHeader() {
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+interface AdminHeaderProps {
+  onToggleMobileMenu?: () => void
+}
+
+interface SearchResult {
+  id: number
+  tipo: 'planta' | 'familia' | 'autor'
+  nome_cientifico?: string
+  nome_comum?: string
+  familia?: string
+  nome?: string
+  afiliacao?: string
+  total_nomes_comuns?: number
+}
+
+interface SearchResponse {
+  plantas: SearchResult[]
+  familias: SearchResult[]
+  autores: SearchResult[]
+  total_encontrado: number
+}
+
+export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [activeSearchFilter, setActiveSearchFilter] = useState("Plantas")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState("")
+
+  // Refs para detectar cliques fora
+  const searchRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  // API base URL
+  const API_BASE_URL = process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:5001'
+
+  // ✅ NOVA: Hook para detectar tamanho da tela
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [])
+
+  // Função para fechar dropdowns ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false)
+      }
+      
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false)
+      }
+    }
+
+    if (isSearchOpen || isProfileOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isSearchOpen, isProfileOpen])
+
+  // Função para alterar filtro de pesquisa
+  const handleSearchFilterChange = (filter: string) => {
+    setActiveSearchFilter(filter)
+    if (searchTerm.trim()) {
+      performSearch(searchTerm, filter)
+    }
+  }
+
+  // Função para realizar pesquisa
+  const performSearch = async (term: string, filter: string = activeSearchFilter) => {
+    if (!term.trim()) {
+      setSearchResults(null)
+      return
+    }
+
+    setIsSearching(true)
+    setSearchError("")
+
+    try {
+      // Mapear filtros para tipos da API
+      const filterMap: { [key: string]: string } = {
+        "Plantas": "plantas",
+        "Famílias": "familias", 
+        "Autores": "autores"
+      }
+
+      const apiFilter = filter === "Todos" ? "todos" : filterMap[filter] || "plantas"
+      
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/dashboard/busca?q=${encodeURIComponent(term)}&tipo=${apiFilter}&limit=10`
+      )
+
+      if (!response.ok) {
+        throw new Error(`Erro na pesquisa: ${response.status}`)
+      }
+
+      const data: SearchResponse = await response.json()
+      setSearchResults(data)
+
+    } catch (error) {
+      console.error("Erro na pesquisa:", error)
+      setSearchError("Erro ao pesquisar. Tente novamente.")
+      setSearchResults(null)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Debounce para pesquisa em tempo real
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim() && isSearchOpen) {
+        performSearch(searchTerm)
+      } else if (!searchTerm.trim()) {
+        setSearchResults(null)
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, activeSearchFilter, isSearchOpen])
+
+  // Função para lidar com clique em resultado
+  const handleResultClick = (result: SearchResult) => {
+    let url = ""
+    
+    switch (result.tipo) {
+      case 'planta':
+        url = `/admin/plantas/${result.id}?search_term=${encodeURIComponent(searchTerm)}&search_type=${activeSearchFilter.toLowerCase()}`
+        break
+      case 'familia':
+        url = `/admin/familias/${result.id}`
+        break
+      case 'autor':
+        url = `/admin/autores/${result.id}`
+        break
+    }
+
+    // Fechar pesquisa e navegar
+    setIsSearchOpen(false)
+    setSearchTerm("")
+    setSearchResults(null)
+    
+    if (url) {
+      window.location.href = url
+    }
+  }
+
+  // Função para lidar com Enter na pesquisa
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && searchResults && searchResults.total_encontrado > 0) {
+      const firstResult = searchResults.plantas[0] || searchResults.familias[0] || searchResults.autores[0]
+      if (firstResult) {
+        handleResultClick(firstResult)
+      }
+    } else if (e.key === 'Escape') {
+      setIsSearchOpen(false)
+    }
+  }
+
+  // ✅ NOVA FUNÇÃO: Formatação inteligente dos nomes comuns
+  const formatarNomesComuns = (nomesComuns: string | null | undefined, maxLength: number = 45) => {
+    if (!nomesComuns) return { texto: null, contador: null }
+
+    const nomes = nomesComuns.split(', ').map(nome => nome.trim()).filter(nome => nome.length > 0)
+    
+    if (nomes.length === 0) return { texto: null, contador: null }
+    if (nomes.length === 1) return { texto: nomes[0], contador: null }
+
+    // Começar com o primeiro nome
+    let textoExibido = nomes[0]
+    let nomesIncluidos = 1
+
+    // Adicionar nomes até atingir o limite de caracteres
+    for (let i = 1; i < nomes.length; i++) {
+      const proximoTexto = textoExibido + ', ' + nomes[i]
+      
+      // Reservar espaço para " +X nomes" (aproximadamente 8-10 caracteres)
+      if (proximoTexto.length > maxLength - 10) {
+        break
+      }
+      
+      textoExibido = proximoTexto
+      nomesIncluidos++
+    }
+
+    const nomesRestantes = nomes.length - nomesIncluidos
+
+    return {
+      texto: textoExibido,
+      contador: nomesRestantes > 0 ? `+${nomesRestantes}` : null
+    }
+  }
 
   return (
     <header className={styles.header}>
       <div className={styles.container}>
         <div className={styles.headerContent}>
           <div className={styles.titleContainer}>
-            <h1 className={styles.title}>Painel Administrativo</h1>
-          </div>
-
-          <div className={styles.actions}>
-            {/* Botão de pesquisa */}
-            <button className={styles.actionButton}>
+            <button 
+              className={styles.mobileMenuButton}
+              onClick={onToggleMobileMenu}
+              aria-label="Abrir menu"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
+                width="24"
+                height="24"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -30,19 +231,21 @@ export function AdminHeader() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
+            
+            <h1 className={styles.title}>Painel Administrativo</h1>
+          </div>
 
-            {/* Botão de notificações */}
-            <div className={styles.notificationsContainer}>
-              <button
+          <div className={styles.actions}>
+            <div className={styles.searchContainer} ref={searchRef}>
+              <button 
                 className={styles.actionButton}
-                onClick={() => {
-                  setIsNotificationsOpen(!isNotificationsOpen)
-                  setIsProfileOpen(false)
-                }}
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                aria-label="Pesquisar"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -55,86 +258,295 @@ export function AdminHeader() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
-                <span className={styles.notificationBadge}></span>
               </button>
 
-              {isNotificationsOpen && (
-                <div className={styles.notificationsDropdown}>
-                  <div className={styles.notificationsHeader}>
-                    <h3 className={styles.notificationsTitle}>Notificações</h3>
+              {/* ✅ OVERLAY para mobile */}
+              {isSearchOpen && isMobile && (
+                <div 
+                  className={styles.searchOverlay}
+                  onClick={() => setIsSearchOpen(false)}
+                />
+              )}
+
+              {isSearchOpen && (
+                <div 
+                  className={styles.searchDropdown}
+                  style={{
+                    // ✅ POSICIONAMENTO DINÂMICO: Ajustar baseado no tamanho da tela
+                    ...(isMobile && {
+                      position: 'fixed',
+                      top: '4rem',
+                      left: '0.5rem',
+                      right: '0.5rem',
+                      width: 'auto',
+                      zIndex: 9999
+                    })
+                  }}
+                >
+                  <div className={styles.searchInputContainer}>
+                    <input
+                      type="text"
+                      placeholder="Pesquisar plantas, famílias, autores..."
+                      className={styles.searchInput}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      autoFocus
+                    />
                   </div>
-                  <div className={styles.notificationsList}>
-                    <div className={styles.notificationItem}>
-                      <div className={styles.notificationIconGreen}>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className={styles.notificationSvg}
-                        >
-                          <path d="M6 3v12"></path>
-                          <path d="M18 9a3 3 0 0 0-3-3H7"></path>
-                          <path d="M3 9a3 3 0 0 0 3 3h11"></path>
-                          <path d="M18 21a3 3 0 0 1-3-3H7"></path>
-                          <path d="M3 15a3 3 0 0 1 3-3h11"></path>
-                        </svg>
-                      </div>
-                      <div className={styles.notificationContent}>
-                        <p className={styles.notificationTitle}>Nova planta adicionada</p>
-                        <p className={styles.notificationDesc}>Carqueja foi adicionada ao banco de dados</p>
-                        <p className={styles.notificationTime}>Há 2 horas</p>
-                      </div>
-                    </div>
-                    <div className={styles.notificationItem}>
-                      <div className={styles.notificationIconBlue}>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className={styles.notificationSvg}
-                        >
-                          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                        </svg>
-                      </div>
-                      <div className={styles.notificationContent}>
-                        <p className={styles.notificationTitle}>Aumento nas pesquisas</p>
-                        <p className={styles.notificationDesc}>As pesquisas aumentaram 25% esta semana</p>
-                        <p className={styles.notificationTime}>Há 1 dia</p>
+                  
+                  <div className={styles.searchFilters}>
+                    <div className={styles.searchFilterGroup}>
+                      <span className={styles.searchFilterLabel}>Buscar em:</span>
+                      <div className={styles.searchFilterButtons}>
+                        {['Plantas', 'Famílias', 'Autores'].map((filter) => (
+                          <button 
+                            key={filter}
+                            className={`${styles.searchFilterButton} ${activeSearchFilter === filter ? styles.active : ''}`}
+                            onClick={() => handleSearchFilterChange(filter)}
+                          >
+                            {filter}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
-                  <div className={styles.notificationsFooter}>
-                    <a href="#" className={styles.notificationsLink}>
-                      Ver todas as notificações
-                    </a>
+
+                  {/* ✅ RESULTADOS - ESTILO ORIGINAL BONITO RESTAURADO */}
+                  {(searchTerm.trim() || searchResults) && (
+                    <div style={{ 
+                      padding: '1rem', 
+                      maxHeight: isMobile ? '60vh' : '20rem',  // ✅ RESPONSIVO: Altura máxima dinâmica
+                      overflowY: 'auto' 
+                    }}>
+                      {isSearching && (
+                        <div style={{ textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                          🔍 Pesquisando...
+                        </div>
+                      )}
+
+                      {searchError && (
+                        <div style={{ color: '#dc2626', fontSize: '0.875rem', textAlign: 'center' }}>
+                          ⚠️ {searchError}
+                        </div>
+                      )}
+
+                      {searchResults && !isSearching && searchResults.total_encontrado === 0 && (
+                        <div style={{ textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                          Nenhum resultado encontrado para "{searchTerm}"
+                        </div>
+                      )}
+
+                      {searchResults && !isSearching && searchResults.total_encontrado > 0 && (
+                        <div>
+                          <div style={{ marginBottom: '0.5rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                            {searchResults.total_encontrado} resultado(s) encontrado(s)
+                          </div>
+
+                          {/* Plantas - Estilo original bonito */}
+                          {searchResults.plantas && searchResults.plantas.length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                              <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+                                🌿 Plantas ({searchResults.plantas.length})
+                              </h4>
+                              {searchResults.plantas.map((planta) => {
+                                // ✅ FORMATAÇÃO: Aplicar formatação inteligente dos nomes comuns
+                                const nomesFormatados = formatarNomesComuns(planta.nome_comum, isMobile ? 30 : 45)  // ✅ RESPONSIVO: Limite menor em mobile
+                                
+                                return (
+                                  <div
+                                    key={`planta-${planta.id}`}
+                                    onClick={() => handleResultClick(planta)}
+                                    style={{
+                                      padding: '0.5rem',
+                                      borderRadius: '0.25rem',
+                                      cursor: 'pointer',
+                                      fontSize: '0.8rem',
+                                      marginBottom: '0.25rem',
+                                      border: '1px solid #e5e7eb',
+                                      transition: 'background-color 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = '#f3f4f6'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = 'transparent'
+                                    }}
+                                  >
+                                    {/* ✅ TAXONOMIA: Nome científico em itálico */}
+                                    <div style={{ fontWeight: '500', color: '#111827', fontStyle: 'italic' }}>
+                                      {planta.nome_cientifico}
+                                    </div>
+                                    
+                                    {/* ✅ NOMES COMUNS: Formatação inteligente com contador */}
+                                    {nomesFormatados.texto && (
+                                      <div style={{ 
+                                        color: '#6b7280', 
+                                        fontSize: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.375rem',
+                                        marginTop: '0.125rem'
+                                      }}>
+                                        <span>{nomesFormatados.texto}</span>
+                                        {nomesFormatados.contador && (
+                                          <span style={{ 
+                                            backgroundColor: '#e0e7ff', 
+                                            color: '#4338ca',
+                                            fontSize: '0.625rem',
+                                            padding: '0.125rem 0.375rem',
+                                            borderRadius: '0.75rem',
+                                            fontWeight: '500'
+                                          }}>
+                                            {nomesFormatados.contador}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    {/* ✅ TAXONOMIA: Família em maiúsculas */}
+                                    {planta.familia && (
+                                      <div style={{ 
+                                        color: '#9333ea', 
+                                        fontSize: '0.7rem',
+                                        fontWeight: '600',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.025em',
+                                        marginTop: '0.125rem'
+                                      }}>
+                                        {planta.familia}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          {/* Famílias - Estilo original bonito */}
+                          {searchResults.familias && searchResults.familias.length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                              <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+                                🌳 Famílias ({searchResults.familias.length})
+                              </h4>
+                              {searchResults.familias.map((familia) => (
+                                <div
+                                  key={`familia-${familia.id}`}
+                                  onClick={() => handleResultClick(familia)}
+                                  style={{
+                                    padding: '0.5rem',
+                                    borderRadius: '0.25rem',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    marginBottom: '0.25rem',
+                                    border: '1px solid #e5e7eb',
+                                    transition: 'background-color 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f3f4f6'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                  }}
+                                >
+                                  {/* ✅ TAXONOMIA: Família em maiúsculas */}
+                                  <div style={{ 
+                                    fontWeight: '500', 
+                                    color: '#111827',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.025em'
+                                  }}>
+                                    {familia.nome}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Autores - Estilo original bonito */}
+                          {searchResults.autores && searchResults.autores.length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                              <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+                                👨‍🔬 Autores ({searchResults.autores.length})
+                              </h4>
+                              {searchResults.autores.map((autor) => (
+                                <div
+                                  key={`autor-${autor.id}`}
+                                  onClick={() => handleResultClick(autor)}
+                                  style={{
+                                    padding: '0.5rem',
+                                    borderRadius: '0.25rem',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    marginBottom: '0.25rem',
+                                    border: '1px solid #e5e7eb',
+                                    transition: 'background-color 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f3f4f6'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                  }}
+                                >
+                                  <div style={{ fontWeight: '500', color: '#111827' }}>
+                                    {autor.nome}
+                                  </div>
+                                  {autor.afiliacao && (
+                                    <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                                      {autor.afiliacao}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className={styles.searchShortcuts}>
+                    <div className={styles.searchShortcutItem}>
+                      <span className={styles.searchShortcutKey}>↵</span>
+                      <span className={styles.searchShortcutText}>Selecionar primeiro resultado</span>
+                    </div>
+                    <div className={styles.searchShortcutItem}>
+                      <span className={styles.searchShortcutKey}>Esc</span>
+                      <span className={styles.searchShortcutText}>Fechar pesquisa</span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Perfil do usuário */}
-            <div className={styles.profileContainer}>
+            <button 
+              className={styles.actionButton}
+              title="Adicionar nova planta"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+
+            <div className={styles.profileContainer} ref={profileRef}>
               <button
                 className={styles.profileButton}
-                onClick={() => {
-                  setIsProfileOpen(!isProfileOpen)
-                  setIsNotificationsOpen(false)
-                }}
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
               >
                 <div className={styles.avatar}>A</div>
                 <span className={styles.profileName}>Admin</span>
@@ -150,7 +562,7 @@ export function AdminHeader() {
                   strokeLinejoin="round"
                   className={styles.profileArrow}
                 >
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                  <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
 
@@ -162,7 +574,7 @@ export function AdminHeader() {
                   <Link href="/admin/settings" className={styles.profileLink}>
                     Configurações
                   </Link>
-                  <div className={styles.profileDivider}></div>
+                  <div className={styles.profileDivider} />
                   <Link href="/" className={styles.profileLink}>
                     Sair
                   </Link>

@@ -30,6 +30,27 @@
 .titleContainer {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
+}
+
+/* ✅ Botão de menu mobile */
+.mobileMenuButton {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobileMenuButton:hover {
+  background-color: #f3f4f6;
+  color: #111827;
 }
 
 .title {
@@ -54,6 +75,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .actionButton:hover {
@@ -65,121 +87,125 @@
   outline: none;
 }
 
-.notificationsContainer {
+/* ✅ SEARCH: Container de pesquisa - DESIGN ORIGINAL RESTAURADO */
+.searchContainer {
   position: relative;
 }
 
-.notificationBadge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: block;
-  height: 0.5rem;
-  width: 0.5rem;
-  border-radius: 9999px;
-  background-color: #ef4444;
-}
-
-.notificationsDropdown {
+.searchDropdown {
   position: absolute;
   right: 0;
   margin-top: 0.5rem;
-  width: 20rem;
+  width: 24rem; /* ✅ RESTAURADO: Largura original bonita */
   background-color: white;
-  border-radius: 0.375rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   z-index: 50;
   border: 1px solid #e5e7eb;
+  overflow: hidden;
 }
 
-.notificationsHeader {
-  padding: 0.5rem 1rem;
+.searchInputContainer {
+  padding: 1rem; /* ✅ RESTAURADO: Padding original bonito */
   border-bottom: 1px solid #e5e7eb;
 }
 
-.notificationsTitle {
+.searchInput {
+  width: 100%;
+  border: none;
+  outline: none;
   font-size: 0.875rem;
-  font-weight: 500;
   color: #111827;
+  background: transparent;
 }
 
-.notificationsList {
-  max-height: 16rem;
-  overflow-y: auto;
-}
-
-.notificationItem {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  align-items: flex-start;
-}
-
-.notificationItem:hover {
-  background-color: #f9fafb;
-}
-
-.notificationIconGreen {
-  flex-shrink: 0;
-  background-color: #ecfdf5;
-  border-radius: 9999px;
-  padding: 0.25rem;
-}
-
-.notificationIconBlue {
-  flex-shrink: 0;
-  background-color: #eff6ff;
-  border-radius: 9999px;
-  padding: 0.25rem;
-}
-
-.notificationSvg {
-  color: #10b981;
-}
-
-.notificationIconBlue .notificationSvg {
-  color: #3b82f6;
-}
-
-.notificationContent {
-  margin-left: 0.75rem;
-  width: 0;
-  flex: 1;
-}
-
-.notificationTitle {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #111827;
-}
-
-.notificationDesc {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.notificationTime {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
+.searchInput::placeholder {
   color: #9ca3af;
 }
 
-.notificationsFooter {
-  padding: 0.5rem 1rem;
-  border-top: 1px solid #e5e7eb;
+.searchFilters {
+  padding: 0.75rem 1rem; /* ✅ RESTAURADO: Padding original */
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.notificationsLink {
-  font-size: 0.875rem;
+.searchFilterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* ✅ RESTAURADO: Gap original */
+}
+
+.searchFilterLabel {
+  font-size: 0.75rem; /* ✅ RESTAURADO: Tamanho original */
   font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.searchFilterButtons {
+  display: flex;
+  gap: 0.5rem; /* ✅ RESTAURADO: Gap original */
+  flex-wrap: wrap;
+}
+
+.searchFilterButton {
+  padding: 0.25rem 0.75rem; /* ✅ RESTAURADO: Padding original */
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  font-size: 0.75rem; /* ✅ RESTAURADO: Tamanho original */
+  font-weight: 500;
+  color: #6b7280;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.searchFilterButton:hover {
+  border-color: #9333ea;
   color: #9333ea;
-  text-decoration: none;
 }
 
-.notificationsLink:hover {
-  color: #7e22ce;
+.searchFilterButton.active {
+  background-color: #9333ea;
+  border-color: #9333ea;
+  color: white;
 }
 
+.searchShortcuts {
+  padding: 0.75rem 1rem; /* ✅ RESTAURADO: Padding original */
+  background-color: #f9fafb;
+}
+
+.searchShortcutItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem; /* ✅ RESTAURADO: Margin original */
+}
+
+.searchShortcutItem:last-child {
+  margin-bottom: 0;
+}
+
+.searchShortcutKey {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem; /* ✅ RESTAURADO: Padding original */
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem; /* ✅ RESTAURADO: Tamanho original */
+  font-weight: 500;
+  color: #6b7280;
+  font-family: ui-monospace, monospace;
+}
+
+.searchShortcutText {
+  font-size: 0.75rem; /* ✅ RESTAURADO: Tamanho original */
+  color: #6b7280;
+}
+
+/* ✅ PROFILE: Perfil do usuário (mantido igual) */
 .profileContainer {
   position: relative;
 }
@@ -249,4 +275,142 @@
 
 .profileDivider {
   border-top: 1px solid #e5e7eb;
+}
+
+/* ✅ Responsividade para mobile - CORRIGIDA PARA EVITAR CORTES */
+@media (max-width: 768px) {
+  .mobileMenuButton {
+    display: flex;
+  }
+  
+  .title {
+    font-size: 1.125rem;
+  }
+  
+  .actions {
+    gap: 0.5rem;
+  }
+  
+  .actionButton {
+    padding: 0.375rem;
+  }
+  
+  /* ✅ MOBILE: Pesquisa responsiva sem cortes */
+  .searchDropdown {
+    width: calc(100vw - 2rem); /* Largura responsiva */
+    right: -1rem; /* Alinhamento correto */
+    left: auto; /* Garantir que não force posição esquerda */
+  }
+}
+
+/* ✅ NOVA: Responsividade para tablets */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .searchDropdown {
+    width: 20rem; /* Menor que desktop mas maior que mobile */
+    right: 0;
+  }
+}
+
+/* ✅ NOVA: Responsividade para telas pequenas */
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.75rem; /* Menos padding em telas muito pequenas */
+  }
+  
+  .headerContent {
+    height: 3.5rem; /* Header ligeiramente menor */
+  }
+  
+  .title {
+    font-size: 1rem; /* Título menor */
+  }
+  
+  .actions {
+    gap: 0.25rem; /* Gap menor entre ações */
+  }
+  
+  .actionButton {
+    padding: 0.25rem; /* Botões menores */
+  }
+  
+  /* ✅ MOBILE PEQUENO: Pesquisa ainda mais ajustada */
+  .searchDropdown {
+    width: calc(100vw - 1.5rem); /* Mais espaço nas laterais */
+    right: -0.75rem; /* Alinhamento ajustado */
+    margin-top: 0.25rem; /* Menos espaço do header */
+  }
+  
+  .searchInputContainer {
+    padding: 0.75rem; /* Menos padding interno */
+  }
+  
+  .searchFilters {
+    padding: 0.625rem 0.75rem; /* Filtros mais compactos */
+  }
+  
+  .searchFilterButtons {
+    gap: 0.25rem; /* Menos espaço entre botões */
+  }
+  
+  .searchFilterButton {
+    padding: 0.1875rem 0.5rem; /* Botões menores */
+    font-size: 0.6875rem; /* Texto menor */
+  }
+}
+
+/* ✅ NOVA: Prevenção de overflow horizontal */
+.searchDropdown {
+  /* Garantir que nunca ultrapasse a tela */
+  max-width: calc(100vw - 1rem);
+  /* Prevenir scroll horizontal */
+  overflow-x: hidden;
+}
+
+/* ✅ NOVA: Overlay para mobile */
+.searchOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .searchOverlay {
+    display: block;
+  }
+}
+
+/* ✅ MELHORIAS: Z-index hierarchy para mobile */
+@media (max-width: 768px) {
+  .searchDropdown {
+    z-index: 9999;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+}
+
+/* ✅ NOVA: Animação suave para mobile */
+@media (max-width: 768px) {
+  .searchDropdown {
+    animation: slideDownMobile 0.2s ease-out;
+  }
+  
+  @keyframes slideDownMobile {
+    from {
+      opacity: 0;
+      transform: translateY(-1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ✅ NOVA: Prevenção de scroll do body quando pesquisa aberta em mobile */
+.bodyNoScroll {
+  overflow: hidden;
 }

@@ -2,12 +2,16 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
 import styles from "./sidebar.module.css"
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  collapsed: boolean
+  mobileOpen: boolean
+  onToggleCollapse: () => void
+}
+
+export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminSidebarProps) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
 
   const menuItems = [
     {
@@ -47,16 +51,14 @@ export function AdminSidebar() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M6 3v12"></path>
-          <path d="M18 9a3 3 0 0 0-3-3H7"></path>
-          <path d="M3 9a3 3 0 0 0 3 3h11"></path>
-          <path d="M18 21a3 3 0 0 1-3-3H7"></path>
-          <path d="M3 15a3 3 0 0 1 3-3h11"></path>
+          {/* ✅ NOVO ÍCONE: Folha orgânica para plantas */}
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
         </svg>
       ),
     },
     {
-      name: "Categorias",
+      name: "Famílias", // ✅ CORRIGIDO: "Categorias" → "Famílias"
       href: "/admin/categories",
       icon: (
         <svg
@@ -70,7 +72,14 @@ export function AdminSidebar() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          {/* ✅ NOVO ÍCONE: Árvore genealógica/taxonomia para famílias */}
+          <circle cx="12" cy="19" r="2"></circle>
+          <circle cx="12" cy="5" r="2"></circle>
+          <circle cx="6" cy="12" r="2"></circle>
+          <circle cx="18" cy="12" r="2"></circle>
+          <path d="M12 7v4"></path>
+          <path d="M12 15v2"></path>
+          <path d="M8 12h8"></path>
         </svg>
       ),
     },
@@ -161,7 +170,7 @@ export function AdminSidebar() {
   ]
 
   return (
-    <div className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""}`}>
+    <div className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""} ${mobileOpen ? styles.mobileOpen : ""}`}>
       <div className={styles.sidebarHeader}>
         <div className={collapsed ? styles.hidden : styles.logoContainer}>
           <div className={styles.logo}>
@@ -177,16 +186,14 @@ export function AdminSidebar() {
               strokeLinejoin="round"
               className={styles.logoIcon}
             >
-              <path d="M6 3v12"></path>
-              <path d="M18 9a3 3 0 0 0-3-3H7"></path>
-              <path d="M3 9a3 3 0 0 0 3 3h11"></path>
-              <path d="M18 21a3 3 0 0 1-3-3H7"></path>
-              <path d="M3 15a3 3 0 0 1 3-3h11"></path>
+              {/* ✅ LOGO: Usando o mesmo ícone de folha para consistência */}
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
             </svg>
           </div>
-          <span className={styles.logoText}>Admin</span>
+          <span className={styles.logoText}>PhytoMoz</span>
         </div>
-        <button onClick={() => setCollapsed(!collapsed)} className={styles.collapseButton}>
+        <button onClick={onToggleCollapse} className={styles.collapseButton}>
           {collapsed ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -230,6 +237,7 @@ export function AdminSidebar() {
                 className={`${styles.navLink} ${
                   pathname === item.href ? styles.activeLink : ""
                 } ${collapsed ? styles.collapsedLink : ""}`}
+                title={collapsed ? item.name : undefined}
               >
                 <span className={styles.navIcon}>{item.icon}</span>
                 <span className={collapsed ? styles.hidden : styles.navText}>{item.name}</span>
@@ -239,27 +247,28 @@ export function AdminSidebar() {
         </ul>
       </nav>
 
-      {/* ===== FOOTER CORRIGIDO ===== */}
-      <div className={`${styles.sidebarFooter} ${collapsed ? styles.collapsedFooter : ""}`}>
-        <Link href="/" className={`${styles.logoutLink} ${collapsed ? styles.collapsedLink : ""}`}>
-          <span className={styles.navIcon}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-          </span>
-          <span className={`${styles.navText} ${collapsed ? styles.hidden : ""}`}>Sair</span>
+      <div className={styles.sidebarFooter}>
+        <Link 
+          href="/" 
+          className={`${styles.logoutLink} ${collapsed ? styles.collapsedLink : ""}`}
+          title={collapsed ? "Sair" : undefined}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span className={collapsed ? styles.hidden : ""}>Sair</span>
         </Link>
       </div>
     </div>

@@ -96,13 +96,54 @@ interface AutorRecente {
   total_referencias: number;
 }
 
+// ===== NOVAS INTERFACES PARA PESQUISAS =====
+interface SearchStats {
+  total_cliques: number;
+  cliques_hoje: number;
+  plantas_unicas_clicadas: number;
+  dados_disponiveis: boolean;
+  metrica: string;
+  top_plantas_clicadas: Array<{
+    termo: string;
+    tipo_busca: string;
+    total_cliques: number;
+  }>;
+  interesse_por_tipo: Array<{
+    tipo_busca: string;
+    total_cliques: number;
+    percentual: number;
+  }>;
+  primeiro_clique: string | null;
+  ultimo_clique: string | null;
+}
+
+interface SearchDetailed {
+  resumo: {
+    total_pesquisas: number;
+    pesquisas_com_resultado: number;
+    pesquisas_sem_resultado: number;
+    taxa_sucesso: number;
+    media_resultados: number;
+  };
+  top_termos: Array<{
+    termo: string;
+    total: number;
+    percentual: number;
+  }>;
+  por_tipo: Array<{
+    tipo: string;
+    total: number;
+    percentual: number;
+  }>;
+}
+
 // Componente principal
-const AdminDashboard: React.FC = () => {
+const AdminDashboardComponent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Estados para dados REAIS da API
+  // Estados existentes para dados REAIS da API
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [plantasPorFamilia, setPlantasPorFamilia] = useState<FamiliaData[]>([]);
   const [plantasPorProvincia, setPlantasPorProvincia] = useState<ProvinciaData[]>([]);
@@ -113,14 +154,58 @@ const AdminDashboard: React.FC = () => {
   const [referenciasRecentes, setReferenciasRecentes] = useState<ReferenciaRecente[]>([]);
   const [autoresRecentes, setAutoresRecentes] = useState<AutorRecente[]>([]);
 
+  // ===== NOVOS ESTADOS PARA PESQUISAS =====
+  const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
+  const [searchDetailed, setSearchDetailed] = useState<SearchDetailed | null>(null);
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
+
   const API_BASE_URL = process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:5001/api/admin/dashboard';
+  const MAIN_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   // ===== FUNÇÃO PARA FORMATAR NOMES DE FAMÍLIAS =====
   const formatarNomeFamilia = (nomeFamilia: string): string => {
     return nomeFamilia.toUpperCase();
   };
 
-  // Função para fazer fetch dos dados REAIS da API
+  // ===== NOVA FUNÇÃO PARA BUSCAR DADOS DE PESQUISA =====
+  const fetchSearchData = async (): Promise<void> => {
+    try {
+      setSearchLoading(true);
+
+      console.log('🔍 Carregando dados de pesquisa...');
+
+      // Fazer chamadas paralelas para dados de pesquisa
+      const [
+        searchStatsResponse,
+        searchDetailedResponse
+      ] = await Promise.all([
+        fetch(`${MAIN_API_URL}/pesquisas/stats`),
+        fetch(`${API_BASE_URL}/pesquisas-detalhadas`)
+      ]);
+
+      // Parse das respostas
+      const [searchStatsData, searchDetailedData] = await Promise.all([
+        searchStatsResponse.ok ? searchStatsResponse.json() : null,
+        searchDetailedResponse.ok ? searchDetailedResponse.json() : null
+      ]);
+
+      setSearchStats(searchStatsData);
+      setSearchDetailed(searchDetailedData);
+
+      console.log('✅ Dados de pesquisa carregados:', {
+        stats: searchStatsData?.total_cliques || 0,
+        detailed: searchDetailedData?.resumo?.total_pesquisas || 0
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados de pesquisa:', error);
+      // Não definir como erro crítico - pesquisas são opcionais
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Função para fazer fetch dos dados REAIS da API (existente)
   const fetchData = async (): Promise<void> => {
     try {
       setLoading(true);
@@ -128,7 +213,7 @@ const AdminDashboard: React.FC = () => {
 
       console.log('🔄 Carregando dados REAIS da API:', API_BASE_URL);
 
-      // Fazer todas as chamadas da API REAL em paralelo
+      // Fazer todas as chamadas da API REAL em paralelo (mantido igual)
       const [
         statsResponse,
         familiasResponse,
@@ -164,7 +249,7 @@ const AdminDashboard: React.FC = () => {
         }
       }
 
-      // Parse das respostas JSON
+      // Parse das respostas JSON (mantido igual)
       const [
         statsData,
         familiasData,
@@ -187,10 +272,10 @@ const AdminDashboard: React.FC = () => {
         autoresRecentesResponse.json()
       ]);
 
-      // Atualizar todos os estados com dados REAIS
+      // Atualizar todos os estados com dados REAIS (mantido igual)
       setStats(statsData);
       
-      // ===== APLICAR FORMATAÇÃO DE MAIÚSCULAS NAS FAMÍLIAS =====
+      // Aplicar formatação de maiúsculas nas famílias
       if (familiasData.familias) {
         const familiasFormatadas = familiasData.familias.map((familia: { name: string; }) => ({
           ...familia,
@@ -201,14 +286,11 @@ const AdminDashboard: React.FC = () => {
         setPlantasPorFamilia([]);
       }
       
-      // ===== CORREÇÃO: Recalcular percentual baseado em plantas únicas =====
+      // Recalcular percentual baseado em plantas únicas (mantido igual)
       if (provinciasData.provincias && statsData.total_plantas) {
         const totalPlantasNoSistema = statsData.total_plantas.value;
         
-        // Para cada província, recalcular o percentual baseado no total de plantas do sistema
         const provinciasCorrigidas = provinciasData.provincias.map((provincia: { total_plantas_unicas: any; count: any; name: any; }) => {
-          // Se a API retorna 'total_plantas_unicas', usar esse valor
-          // Senão, assumir que 'count' representa plantas únicas (não associações)
           const plantasUnicas = provincia.total_plantas_unicas || provincia.count;
           const percentualCorreto = totalPlantasNoSistema > 0 
             ? (plantasUnicas / totalPlantasNoSistema * 100) 
@@ -217,7 +299,7 @@ const AdminDashboard: React.FC = () => {
           return {
             name: provincia.name,
             count: plantasUnicas,
-            percentage: Math.round(percentualCorreto * 10) / 10 // Arredondar para 1 casa decimal
+            percentage: Math.round(percentualCorreto * 10) / 10
           };
         });
         
@@ -228,7 +310,7 @@ const AdminDashboard: React.FC = () => {
         setPlantasPorProvincia([]);
       }
       
-      // ===== APLICAR FORMATAÇÃO DE MAIÚSCULAS NAS PLANTAS RECENTES =====
+      // Aplicar formatação de maiúsculas nas plantas recentes
       if (recentesData.plantas_recentes) {
         const plantasRecentesFormatadas = recentesData.plantas_recentes.map((planta: { family: string; }) => ({
           ...planta,
@@ -254,11 +336,13 @@ const AdminDashboard: React.FC = () => {
         autores: autorStatsData.total_autores || 0
       });
 
+      // ===== CARREGAR DADOS DE PESQUISA APÓS DADOS PRINCIPAIS =====
+      await fetchSearchData();
+
     } catch (error) {
       console.error('❌ Erro ao carregar dados da API:', error);
       setError(`Erro ao conectar com a API: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       
-      // NÃO usar fallback - mostrar erro para que possamos corrigir a API
       setStats(null);
       setPlantasPorFamilia([]);
       setPlantasPorProvincia([]);
@@ -295,26 +379,10 @@ const AdminDashboard: React.FC = () => {
     </svg>
   );
 
-  // Alternativo: Ícone de planta mais realista
-  const PlantIcon: React.FC = () => (
-    <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2C8.5 2 6 4.5 6 8c0 2.5 1.5 4.5 3 6v6c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-6c1.5-1.5 3-3.5 3-6 0-3.5-2.5-6-6-6z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 8c0-2.2 1.8-4 4-4" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 8c0-2.2-1.8-4-4-4" />
-    </svg>
-  );
-
   // Novo ícone para famílias (árvore genealógica/taxonomia)
   const TreeIcon: React.FC = () => (
     <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8a4 4 0 108 0v10a2 2 0 11-4 0V8zM12 8V6a2 2 0 114 0v2m0 0v10a2 2 0 11-4 0V8m0 0a4 4 0 108 0" />
-    </svg>
-  );
-
-  // Alternativo: Ícone de classificação/taxonomia
-  const ClassificationIcon: React.FC = () => (
-    <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
     </svg>
   );
 
@@ -350,7 +418,14 @@ const AdminDashboard: React.FC = () => {
     </svg>
   );
 
-  // Função para criar gráfico de pizza
+  // ===== NOVO ÍCONE PARA PESQUISAS =====
+  const AnalyticsIcon: React.FC = () => (
+    <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  );
+
+  // Função para criar gráfico de pizza (mantida igual)
   const createPieChart = (data: FamiliaData[]) => {
     if (!data || data.length === 0) return null;
     
@@ -369,20 +444,16 @@ const AdminDashboard: React.FC = () => {
           const startAngle = currentAngle;
           const endAngle = currentAngle + angle;
           
-          // Converter ângulos para radianos
           const startAngleRad = (startAngle * Math.PI) / 180;
           const endAngleRad = (endAngle * Math.PI) / 180;
           
-          // Calcular pontos do arco
           const x1 = center + radius * Math.cos(startAngleRad);
           const y1 = center + radius * Math.sin(startAngleRad);
           const x2 = center + radius * Math.cos(endAngleRad);
           const y2 = center + radius * Math.sin(endAngleRad);
           
-          // Flag para arco grande
           const largeArcFlag = angle > 180 ? 1 : 0;
           
-          // Criar path do segmento
           const pathData = [
             `M ${center} ${center}`,
             `L ${x1} ${y1}`,
@@ -409,7 +480,7 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  // Componente de legenda para o gráfico
+  // Componente de legenda para o gráfico (mantido igual)
   const PieChartLegend: React.FC<{ data: FamiliaData[] }> = ({ data }) => {
     if (!data || data.length === 0) return null;
     
@@ -559,7 +630,8 @@ const AdminDashboard: React.FC = () => {
                 { id: 'languages', label: 'Idiomas' },
                 { id: 'locations', label: 'Locais de Colheita' },
                 { id: 'references', label: 'Referências' },
-                { id: 'authors', label: 'Autores' }
+                { id: 'authors', label: 'Autores' },
+                { id: 'searches', label: 'Pesquisas' } // ===== NOVA ABA =====
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -573,7 +645,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <div className={styles.tabContent}>
-            {/* Visão Geral */}
+            {/* Visão Geral (mantida igual) */}
             {activeTab === 'overview' && (
               <div>
                 <h3 className={styles.tabTitle}>Visão Geral do Sistema</h3>
@@ -680,6 +752,194 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===== NOVA ABA PESQUISAS ===== */}
+            {activeTab === 'searches' && (
+              <div>
+                <h3 className={styles.tabTitle}>Análise de Pesquisas</h3>
+                <p className={styles.tabDescription}>
+                  Monitore o interesse dos utilizadores e os padrões de pesquisa no sistema PhytoMoz.
+                </p>
+
+                {searchLoading ? (
+                  <LoadingSpinner />
+                ) : searchStats ? (
+                  <>
+                    {/* Cards de estatísticas de pesquisa */}
+                    <div className={styles.chartsGrid}>
+                      <div className={styles.chartCard}>
+                        <h4 className={styles.chartTitle}>Interesse dos Utilizadores</h4>
+                        <div className={styles.progressList}>
+                          <div className={styles.progressItem}>
+                            <div className={styles.progressInfo}>
+                              <span className={styles.progressLabel}>Total de Cliques</span>
+                              <span className={styles.progressValue}>{searchStats.total_cliques}</span>
+                            </div>
+                          </div>
+                          <div className={styles.progressItem}>
+                            <div className={styles.progressInfo}>
+                              <span className={styles.progressLabel}>Cliques Hoje</span>
+                              <span className={styles.progressValue}>{searchStats.cliques_hoje}</span>
+                            </div>
+                          </div>
+                          <div className={styles.progressItem}>
+                            <div className={styles.progressInfo}>
+                              <span className={styles.progressLabel}>Plantas Únicas Clicadas</span>
+                              <span className={styles.progressValue}>{searchStats.plantas_unicas_clicadas}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={styles.chartCard}>
+                        <h4 className={styles.chartTitle}>Interesse por Tipo de Busca</h4>
+                        <div className={styles.progressList}>
+                          {searchStats.interesse_por_tipo.map((tipo, index) => (
+                            <div key={index} className={styles.progressItem}>
+                              <div className={styles.progressInfo}>
+                                <span className={styles.progressLabel}>
+                                  {tipo.tipo_busca === 'nome_popular' ? 'Nome Popular' : 
+                                   tipo.tipo_busca === 'nome_cientifico' ? 'Nome Científico' : 
+                                   tipo.tipo_busca}
+                                </span>
+                                <span className={styles.progressValue}>{tipo.total_cliques} cliques</span>
+                              </div>
+                              <div className={styles.progressBar}>
+                                <div 
+                                  className={styles.progressFillBlue} 
+                                  style={{ width: `${tipo.percentual}%` }}
+                                ></div>
+                              </div>
+                              <span className={styles.progressPercentage}>{tipo.percentual}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Top plantas mais clicadas */}
+                    {searchStats.top_plantas_clicadas.length > 0 && (
+                      <div className={styles.section}>
+                        <h4 className={styles.sectionTitle}>Plantas Mais Procuradas</h4>
+                        <div className={styles.tableContainer}>
+                          <table className={styles.table}>
+                            <thead className={styles.tableHead}>
+                              <tr>
+                                <th className={styles.tableHeader}>Posição</th>
+                                <th className={styles.tableHeader}>Termo de Busca</th>
+                                <th className={styles.tableHeader}>Tipo</th>
+                                <th className={styles.tableHeader}>Total de Cliques</th>
+                                <th className={styles.tableHeader}>Interesse</th>
+                              </tr>
+                            </thead>
+                            <tbody className={styles.tableBody}>
+                              {searchStats.top_plantas_clicadas.slice(0, 10).map((planta, index) => (
+                                <tr key={index} className={styles.tableRow}>
+                                  <td className={styles.tableCell}>
+                                    <span style={{ fontWeight: '600', color: '#9333ea' }}>#{index + 1}</span>
+                                  </td>
+                                  <td className={styles.tableCell}>
+                                    <div className={styles.tableCellTitle}>{planta.termo}</div>
+                                  </td>
+                                  <td className={styles.tableCell}>
+                                    <span className={styles.badge}>
+                                      {planta.tipo_busca === 'nome_popular' ? 'Nome Popular' : 
+                                       planta.tipo_busca === 'nome_cientifico' ? 'Nome Científico' : 
+                                       planta.tipo_busca}
+                                    </span>
+                                  </td>
+                                  <td className={styles.tableCell}>
+                                    <span style={{ fontWeight: '600', color: '#111827' }}>
+                                      {planta.total_cliques}
+                                    </span>
+                                  </td>
+                                  <td className={styles.tableCell}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      <div style={{ 
+                                        width: '40px', 
+                                        height: '4px', 
+                                        backgroundColor: '#e5e7eb', 
+                                        borderRadius: '2px',
+                                        overflow: 'hidden'
+                                      }}>
+                                        <div 
+                                          style={{ 
+                                            width: `${(planta.total_cliques / Math.max(...searchStats.top_plantas_clicadas.map(p => p.total_cliques))) * 100}%`, 
+                                            height: '100%', 
+                                            backgroundColor: '#22c55e',
+                                            transition: 'width 0.3s ease'
+                                          }}
+                                        ></div>
+                                      </div>
+                                      <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: '500' }}>
+                                        Alto
+                                      </span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Informações adicionais */}
+                    <div className={styles.section}>
+                      <h4 className={styles.sectionTitle}>Informações do Sistema de Tracking</h4>
+                      <div className={styles.progressList}>
+                        <div className={styles.progressItem}>
+                          <div className={styles.progressInfo}>
+                            <span className={styles.progressLabel}>Métrica Utilizada</span>
+                            <span className={styles.progressValue}>{searchStats.metrica}</span>
+                          </div>
+                        </div>
+                        {searchStats.primeiro_clique && (
+                          <div className={styles.progressItem}>
+                            <div className={styles.progressInfo}>
+                              <span className={styles.progressLabel}>Primeiro Clique Registado</span>
+                              <span className={styles.progressValue}>
+                                {new Date(searchStats.primeiro_clique).toLocaleDateString('pt-PT')}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {searchStats.ultimo_clique && (
+                          <div className={styles.progressItem}>
+                            <div className={styles.progressInfo}>
+                              <span className={styles.progressLabel}>Último Clique</span>
+                              <span className={styles.progressValue}>
+                                {new Date(searchStats.ultimo_clique).toLocaleDateString('pt-PT')} às{' '}
+                                {new Date(searchStats.ultimo_clique).toLocaleTimeString('pt-PT')}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.loadingContainer}>
+                    <span className={styles.loadingText}>
+                      {searchStats === null 
+                        ? "Nenhum dado de pesquisa disponível ainda. Os dados aparecerão quando os utilizadores começarem a interagir com o sistema."
+                        : "Carregando dados de pesquisa..."
+                      }
+                    </span>
+                  </div>
+                )}
+
+                <div className={styles.viewAllContainer}>
+                  <button 
+                    className={styles.buttonBlue}
+                    onClick={() => fetchSearchData()}
+                    disabled={searchLoading}
+                  >
+                    {searchLoading ? '🔄 Actualizando...' : '🔄 Actualizar Dados de Pesquisa'}
+                  </button>
                 </div>
               </div>
             )}
@@ -1249,4 +1509,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export default AdminDashboard;
+export default AdminDashboardComponent;

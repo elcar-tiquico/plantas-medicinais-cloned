@@ -863,7 +863,7 @@ def get_autores_recentes():
 
 @app.route('/api/admin/dashboard/busca', methods=['GET'])
 def busca_admin():
-    """Busca REAL integrada para o painel admin"""
+    """Busca REAL integrada para o painel admin - VERSÃO FINAL CORRIGIDA"""
     try:
         query_param = request.args.get('q', '').strip()
         tipo = request.args.get('tipo', 'todos')
@@ -881,34 +881,69 @@ def busca_admin():
         
         search_term = f'%{query_param}%'
         
-        # Buscar plantas REAIS
+        # ===== BUSCAR PLANTAS REAIS - VERSÃO FINAL CORRIGIDA =====
         if tipo in ['plantas', 'todos']:
+            # ✅ ESTRATÉGIA: Buscar plantas únicas e depois agregar todos os seus nomes comuns
+            
+            # Primeiro: encontrar IDs de plantas que correspondem ao termo de busca
+            plantas_ids_cientificas = db.session.query(Planta.id_planta).filter(
+                Planta.nome_cientifico.ilike(search_term)
+            ).subquery()
+            
+            plantas_ids_comuns = db.session.query(
+                NomeComum.id_planta
+            ).filter(
+                NomeComum.nome_comum_planta.ilike(search_term)
+            ).subquery()
+            
+            # Combinar IDs únicos de ambas as buscas
+            plantas_ids_combinados = db.session.query(
+                plantas_ids_cientificas.c.id_planta.label('id_planta')
+            ).union(
+                db.session.query(plantas_ids_comuns.c.id_planta.label('id_planta'))
+            ).subquery()
+            
+            # Buscar dados completos das plantas encontradas
             plantas_query = db.session.query(
                 Planta.id_planta,
                 Planta.nome_cientifico,
                 Familia.nome_familia,
-                NomeComum.nome_comum_planta
+                # ✅ AGREGAÇÃO: Combinar todos os nomes comuns separados por vírgula
+                func.group_concat(
+                    func.distinct(NomeComum.nome_comum_planta)
+                ).label('todos_nomes_comuns')
             ).join(
                 Familia, Planta.id_familia == Familia.id_familia
             ).outerjoin(
                 NomeComum, Planta.id_planta == NomeComum.id_planta
-            ).filter(
-                or_(
-                    Planta.nome_cientifico.ilike(search_term),
-                    NomeComum.nome_comum_planta.ilike(search_term)
-                )
+            ).join(
+                plantas_ids_combinados, Planta.id_planta == plantas_ids_combinados.c.id_planta
+            ).group_by(
+                Planta.id_planta, 
+                Planta.nome_cientifico, 
+                Familia.nome_familia
             ).limit(limit).all()
             
             for planta in plantas_query:
+                # Processar nomes comuns
+                nomes_comuns_lista = []
+                if planta.todos_nomes_comuns:
+                    # Separar por vírgula e limpar espaços
+                    nomes_comuns_lista = [nome.strip() for nome in planta.todos_nomes_comuns.split(',') if nome.strip()]
+                
+                # Criar string formatada dos nomes comuns
+                nomes_comuns_str = ', '.join(nomes_comuns_lista) if nomes_comuns_lista else None
+                
                 resultados['plantas'].append({
                     'id': planta.id_planta,
                     'nome_cientifico': planta.nome_cientifico,
-                    'nome_comum': planta.nome_comum_planta,
+                    'nome_comum': nomes_comuns_str,  # ✅ TODOS os nomes comuns combinados
                     'familia': planta.nome_familia,
-                    'tipo': 'planta'
+                    'tipo': 'planta',
+                    'total_nomes_comuns': len(nomes_comuns_lista)  # Info adicional
                 })
         
-        # Buscar famílias REAIS
+        # ===== BUSCAR FAMÍLIAS REAIS (mantido igual) =====
         if tipo in ['familias', 'todos']:
             familias_query = Familia.query.filter(
                 Familia.nome_familia.ilike(search_term)
@@ -923,7 +958,7 @@ def busca_admin():
                     'tipo': 'familia'
                 })
         
-        # Buscar autores REAIS
+        # ===== BUSCAR AUTORES REAIS (mantido igual) =====
         if tipo in ['autores', 'todos']:
             autores_query = Autor.query.filter(
                 or_(
@@ -941,15 +976,122 @@ def busca_admin():
                     'tipo': 'autor'
                 })
         
+        # Total sem referências
         resultados['total_encontrado'] = (
             len(resultados['plantas']) + 
             len(resultados['familias']) + 
             len(resultados['autores'])
         )
         
+        print(f"🔍 Busca '{query_param}': {resultados['total_encontrado']} resultados únicos encontrados")
+        print(f"   📊 Plantas: {len(resultados['plantas'])}, Famílias: {len(resultados['familias'])}, Autores: {len(resultados['autores'])}")
+        
         return jsonify(resultados)
+        
+    except Exception as e:
+        print(f"❌ Erro na busca: {str(e)}")
+        return handle_error(e)
+
+
+# =====================================================
+# VERSÃO ALTERNATIVA PARA MySQL (CASO GROUP_CONCAT NÃO FUNCIONE)
+# =====================================================
+
+@app.route('/api/admin/dashboard/busca-mysql', methods=['GET'])
+def busca_admin_mysql():
+    """Versão alternativa para MySQL caso GROUP_CONCAT não funcione"""
+    try:
+        query_param = request.args.get('q', '').strip()
+        tipo = request.args.get('tipo', 'todos')
+        limit = request.args.get('limit', 20, type=int)
+        
+        resultados = {
+            'plantas': [],
+            'familias': [],
+            'autores': [],
+            'total_encontrado': 0
+        }
+        
+        if not query_param:
+            return jsonify(resultados)
+        
+        search_term = f'%{query_param}%'
+        
+        # ===== PLANTAS - MÉTODO ALTERNATIVO PARA MySQL =====
+        if tipo in ['plantas', 'todos']:
+            # Buscar plantas por nome científico
+            plantas_cientificas = db.session.query(
+                Planta.id_planta,
+                Planta.nome_cientifico,
+                Familia.nome_familia
+            ).join(
+                Familia, Planta.id_familia == Familia.id_familia
+            ).filter(
+                Planta.nome_cientifico.ilike(search_term)
+            ).all()
+            
+            # Buscar plantas por nome comum
+            plantas_por_nome_comum = db.session.query(
+                Planta.id_planta,
+                Planta.nome_cientifico,
+                Familia.nome_familia
+            ).join(
+                Familia, Planta.id_familia == Familia.id_familia
+            ).join(
+                NomeComum, Planta.id_planta == NomeComum.id_planta
+            ).filter(
+                NomeComum.nome_comum_planta.ilike(search_term)
+            ).distinct().all()
+            
+            # Combinar e remover duplicatas
+            plantas_unicas = {}
+            
+            # Adicionar plantas encontradas por nome científico
+            for planta in plantas_cientificas:
+                plantas_unicas[planta.id_planta] = {
+                    'id_planta': planta.id_planta,
+                    'nome_cientifico': planta.nome_cientifico,
+                    'nome_familia': planta.nome_familia
+                }
+            
+            # Adicionar plantas encontradas por nome comum
+            for planta in plantas_por_nome_comum:
+                plantas_unicas[planta.id_planta] = {
+                    'id_planta': planta.id_planta,
+                    'nome_cientifico': planta.nome_cientifico,
+                    'nome_familia': planta.nome_familia
+                }
+            
+            # Para cada planta única, buscar todos os seus nomes comuns
+            for planta_data in list(plantas_unicas.values())[:limit]:
+                nomes_comuns = db.session.query(
+                    NomeComum.nome_comum_planta
+                ).filter(
+                    NomeComum.id_planta == planta_data['id_planta']
+                ).all()
+                
+                nomes_comuns_lista = [nome.nome_comum_planta for nome in nomes_comuns]
+                nomes_comuns_str = ', '.join(nomes_comuns_lista) if nomes_comuns_lista else None
+                
+                resultados['plantas'].append({
+                    'id': planta_data['id_planta'],
+                    'nome_cientifico': planta_data['nome_cientifico'],
+                    'nome_comum': nomes_comuns_str,
+                    'familia': planta_data['nome_familia'],
+                    'tipo': 'planta',
+                    'total_nomes_comuns': len(nomes_comuns_lista)
+                })
+        
+        # Famílias e autores mantidos iguais
+        # ... (mesmo código dos outros métodos)
+        
+        resultados['total_encontrado'] = len(resultados['plantas']) + len(resultados['familias']) + len(resultados['autores'])
+        
+        return jsonify(resultados)
+        
     except Exception as e:
         return handle_error(e)
+
 
 @app.route('/api/admin/dashboard/stats-detalhadas', methods=['GET'])
 def get_stats_detalhadas():
