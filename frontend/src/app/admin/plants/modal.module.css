@@ -1,0 +1,1139 @@
+/* modal.module.css - VERSÃO CLEAN COM CORES VIBRANTES */
+
+/* ===== OVERLAY E CONTAINER PRINCIPAL ===== */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  overflow-y: auto;
+  backdrop-filter: blur(2px);
+}
+
+.modalContent {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.3s ease-out;
+  position: relative;
+}
+
+.modalLarge {
+  max-width: 900px;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== HEADER DO MODAL ===== */
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.modalCloseButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalCloseButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* ===== BODY DO MODAL ===== */
+.modalBody {
+  padding: 1.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modalLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+  color: #6b7280;
+}
+
+.loadingSpinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ===== SEÇÕES SIMPLIFICADAS MAS COLORIDAS ===== */
+.modalSection {
+  margin-bottom: 2rem;
+}
+
+.modalSection:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1rem 0;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+/* ===== INFORMAÇÕES BÁSICAS - LAYOUT CLEAN ===== */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.infoItem {
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.infoItem label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.infoItem span {
+  font-size: 0.95rem;
+  color: #111827;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ===== BADGES SIMPLIFICADOS SEM COR DE FUNDO ===== */
+.badgesContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.badge:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.badgeGreen,
+.badgeBlue,
+.badgePurple {
+  background-color: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.badgeGreen:hover,
+.badgeBlue:hover,
+.badgePurple:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.noData {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 0.9rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 8px;
+  border: 2px dashed #d1d5db;
+}
+
+/* ===== LISTAS SIMPLES E CLEAN ===== */
+.usosList,
+.autoresList,
+.referenciasList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.usoItem,
+.autorItem,
+.referenciaItem {
+  padding: 1rem;
+  background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.usoItem:hover,
+.autorItem:hover,
+.referenciaItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.usoParte,
+.autorNome,
+.refTitulo {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.usoObservacoes,
+.autorAfiliacao,
+.refDetails {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.refDetails {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+.refTipo,
+.refAno {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #5b21b6;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.refLink {
+  margin-top: 0.5rem;
+}
+
+.refLink a {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.refLink a:hover {
+  color: #5a67d8;
+  text-decoration: underline;
+}
+
+/* ===== FOOTER DO MODAL ===== */
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 0 0 12px 12px;
+}
+
+.btnPrimary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btnSecondary {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== FORMULÁRIOS DE EDIÇÃO ===== */
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formGroup label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.formInput,
+.formSelect {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  background-color: white;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.formSelect {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 3rem;
+}
+
+.btnAddSmall {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.btnAddSmall:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btnRemoveSmall {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  padding: 0.375rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.btnRemoveSmall:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.nomesComumsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nomeComumItem {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.nomeComumItem .formInput {
+  flex: 1;
+  margin: 0;
+}
+
+.provinciasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.checkboxItem:hover {
+  background-color: white;
+}
+
+.checkboxInput {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #667eea;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.checkboxLabel {
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.readonlyInfo {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.infoNote {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+  padding: 1rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 8px;
+}
+
+.readonlyStats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.statNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 768px) {
+  .modalOverlay {
+    padding: 0.5rem;
+  }
+
+  .modalContent {
+    max-height: 95vh;
+  }
+
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
+    padding: 1rem;
+  }
+
+  .modalTitle {
+    font-size: 1rem;
+  }
+
+  .infoGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .provinciasGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .readonlyStats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .modalFooter {
+    flex-direction: column-reverse;
+  }
+
+  .modalFooter button {
+    width: 100%;
+  }
+
+  .refDetails {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* ===== CSS ADICIONAL PARA FORMULÁRIOS - Adicionar ao modal.module.css ===== */
+
+/* ===== MELHORIAS PARA FORMULÁRIOS ===== */
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formGroup label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.formInput,
+.formSelect {
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background-color: white;
+  font-family: inherit;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px);
+}
+
+.formInput::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.formSelect {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 1rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 3rem;
+  cursor: pointer;
+}
+
+.formSelect:hover {
+  border-color: #d1d5db;
+}
+
+/* ===== BOTÕES PEQUENOS MELHORADOS ===== */
+.btnAddSmall {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.btnAddSmall:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btnRemoveSmall {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.btnRemoveSmall:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* ===== LISTA DE NOMES COMUNS MELHORADA ===== */
+.nomesComumsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.nomeComumItem {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #f1f5f9;
+  transition: all 0.2s ease;
+}
+
+.nomeComumItem:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.nomeComumItem .formInput {
+  flex: 1;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+}
+
+.nomeComumItem .formInput:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* ===== GRID DE PROVÍNCIAS MELHORADA ===== */
+.provinciasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 1.5rem;
+  border: 2px solid #f1f5f9;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.provinciasGrid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.provinciasGrid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.provinciasGrid::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.checkboxItem:hover {
+  background-color: #f8fafc;
+  border-color: #667eea;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.checkboxInput {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #667eea;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkboxInput:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.checkboxLabel {
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.checkboxItem:hover .checkboxLabel {
+  color: #667eea;
+}
+
+/* ===== INFORMAÇÕES READONLY MELHORADAS ===== */
+.readonlyInfo {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.infoNote {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0 0 2rem 0;
+  line-height: 1.6;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+}
+
+/* ===== LOADING STATE MELHORADO ===== */
+.modalLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  gap: 1.5rem;
+  color: #6b7280;
+}
+
+.loadingSpinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* ===== ANIMAÇÕES ===== */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalSection {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.modalSection:nth-child(1) { animation-delay: 0.1s; }
+.modalSection:nth-child(2) { animation-delay: 0.2s; }
+.modalSection:nth-child(3) { animation-delay: 0.3s; }
+.modalSection:nth-child(4) { animation-delay: 0.4s; }
+
+/* ===== RESPONSIVIDADE MELHORADA ===== */
+@media (max-width: 768px) {
+  .modalOverlay {
+    padding: 0.5rem;
+  }
+
+  .modalContent {
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
+    padding: 1.5rem;
+  }
+
+  .modalTitle {
+    font-size: 1.1rem;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .provinciasGrid {
+    grid-template-columns: 1fr;
+    max-height: 200px;
+  }
+
+  .readonlyStats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .modalFooter {
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+
+  .modalFooter button {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .nomeComumItem {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nomeComumItem .formInput {
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .modalTitle {
+    font-size: 1rem;
+  }
+
+  .sectionTitle {
+    font-size: 1rem;
+  }
+
+  .modalBody {
+    padding: 1rem;
+  }
+
+  .modalSection {
+    padding: 1rem;
+  }
+
+  .readonlyStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .statItem {
+    padding: 1rem;
+  }
+
+  .statNumber {
+    font-size: 1.5rem;
+  }
+}
+
+/* ===== MELHORIAS DE ACESSIBILIDADE ===== */
+.formInput:invalid {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.formInput:invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.btnPrimary:disabled,
+.btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.checkboxInput:checked {
+  transform: scale(1.1);
+}
+
+/* ===== INDICADORES VISUAIS ===== */
+.formGroup.required label::after {
+  content: " *";
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.checkboxItem.selected {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.checkboxItem.selected .checkboxLabel {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+/* ===== EFEITOS HOVER SUAVES ===== */
+.modalSection:hover {
+  transform: translateY(-2px);
+}
+
+.formInput:hover:not(:focus) {
+  border-color: #d1d5db;
+}
+
+.formSelect:hover:not(:focus) {
+  border-color: #d1d5db;
+}
+
+/* ===== BADGES COM HOVER COLORS DIFERENCIADAS - Adicionar ao modal.module.css ===== */
+
+/* Badges para Nomes Comuns - Verde no hover */
+.badgesContainer .badgeGreen:hover {
+  border-color: #10b981;
+  color: #10b981;
+  background-color: #ecfdf5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+/* Badges para Distribuição Geográfica - Azul no hover */
+.badgesContainer .badgeBlue:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background-color: #eff6ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Badges para Compostos e Métodos de Extração - Roxo no hover */
+.badgesContainer .badgePurple:hover {
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+  background-color: #f5f3ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+}
+
+/* ===== ALTERNATIVAS DE CORES PARA DIFERENTES SEÇÕES ===== */
+
+/* Propriedades Farmacológicas - Verde esmeralda */
+.modalSection:nth-of-type(4) .badge:hover {
+  border-color: #059669 !important;
+  color: #059669 !important;
+  background-color: #ecfdf5 !important;
+}
+
+/* Indicações Medicinais - Azul céu */
+.modalSection:nth-of-type(5) .badge:hover {
+  border-color: #0ea5e9 !important;
+  color: #0ea5e9 !important;
+  background-color: #f0f9ff !important;
+}
+
+/* Métodos de Extração - Roxo índigo */
+.modalSection:nth-of-type(6) .badge:hover {
+  border-color: #6366f1 !important;
+  color: #6366f1 !important;
+  background-color: #eef2ff !important;
+}
+
+/* Métodos de Preparação - Verde lima */
+.modalSection:nth-of-type(7) .badge:hover {
+  border-color: #65a30d !important;
+  color: #65a30d !important;
+  background-color: #f7fee7 !important;
+}
+
+/* ===== MELHORIAS VISUAIS ADICIONAIS ===== */
+
+/* Efeito de pulse para badges importantes */
+.badge.important {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+  }
+}
+
+/* Tamanhos diferentes para diferentes tipos de informação */
+.badge.large {
+  padding: 0.625rem 1rem;
+  font-size: 0.95rem;
+}
+
+.badge.small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Ícones para diferentes tipos de badges */
+.badge.chemical::before {
+  content: "🧪 ";
+  margin-right: 0.25rem;
+}
+
+.badge.medical::before {
+  content: "💊 ";
+  margin-right: 0.25rem;
+}
+
+.badge.location::before {
+  content: "📍 ";
+  margin-right: 0.25rem;
+}
+
+.badge.extraction::before {
+  content: "⚗️ ";
+  margin-right: 0.25rem;
+}
+
+.badge.preparation::before {
+  content: "🌿 ";
+  margin-right: 0.25rem;
+}
+
+/* Estado ativo para badges clicáveis */
+.badge.active {
+  background-color: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.badge.active:hover {
+  background-color: #5a67d8 !important;
+  border-color: #5a67d8 !important;
+  color: white !important;
+}

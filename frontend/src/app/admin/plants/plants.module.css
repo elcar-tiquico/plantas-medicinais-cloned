@@ -438,3 +438,401 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+/* === MELHORIAS CSS SEM CORES AZUIS === */
+/* Adicionar ao plants.module.css existente */
+
+/* Melhorias para ordenação - MANTENDO CORES ORIGINAIS */
+.tableHeaderCell {
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.tableHeaderCell[style*="cursor: pointer"] {
+  user-select: none;
+}
+
+/* Paginação melhorada - CORES ORIGINAIS APENAS */
+.paginationEllipsis {
+  padding: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.paginationNavButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.paginationNavButton:disabled:hover {
+  background-color: white;
+}
+
+/* Melhorias visuais para dados - SEM CORES ADICIONAIS */
+.tableCell em {
+  font-style: italic;
+}
+
+.tableCell strong {
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* Informações adicionais (exsicata) */
+.tableCell div {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Estados vazios */
+.emptyMessage {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Loading animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Placeholder melhorado */
+.input::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Indicador visual para colunas ordenáveis - CINZA APENAS */
+.tableHeaderCell[style*="cursor: pointer"]::after {
+  content: "⇅";
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #d1d5db;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tableHeaderCell[style*="cursor: pointer"]:hover::after {
+  opacity: 1;
+}
+
+/* Animação para carregamento */
+.tableRow {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading spinner - USANDO APENAS COR ORIGINAL (PURPLE) */
+.loadingSpinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #9333ea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+/* Responsividade - mobile */
+@media (max-width: 640px) {
+  .table {
+    font-size: 0.75rem;
+  }
+  
+  .tableHeaderCell,
+  .tableCell,
+  .tableCellName,
+  .tableCellActions {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .tableHeaderCell {
+    font-size: 0.625rem;
+  }
+  
+  /* Ocultar colunas em mobile */
+  .table th:nth-child(4),
+  .table td:nth-child(4),
+  .table th:nth-child(5),
+  .table td:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Telas muito pequenas */
+  .table th:nth-child(3),
+  .table td:nth-child(3) {
+    display: none;
+  }
+  
+  .filterGrid {
+    gap: 0.75rem;
+  }
+  
+  .container {
+    gap: 1rem;
+  }
+  
+  .header {
+    gap: 0.75rem;
+  }
+  
+  .addButton {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+  }
+}
+
+/* Transições suaves */
+.tableRow,
+.paginationNavButton,
+.filterItem select,
+.filterItem input {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Focus states - USANDO APENAS PURPLE ORIGINAL */
+.tableHeaderCell:focus {
+  outline: 2px solid #9333ea;
+  outline-offset: -2px;
+}
+
+.paginationNavButton:focus,
+.paginationButton:focus {
+  outline: 2px solid #9333ea;
+  outline-offset: 2px;
+}
+
+/* Melhorias para filtros avançados */
+.advancedFilters {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filterInfo {
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 0.5rem;
+  background-color: #f9fafb;
+  border-radius: 0.375rem;
+}
+
+.filterInfo ul {
+  margin: 0.5rem 0;
+  padding-left: 1rem;
+}
+
+.filterInfo p {
+  margin: 0.5rem 0 0 0;
+  font-style: italic;
+}
+
+/* Botão filtros avançados */
+.toggleAdvancedButton {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+
+.toggleAdvancedButton .icon {
+  transition: transform 0.2s ease;
+}
+
+.toggleAdvancedButton:hover .icon {
+  transform: scale(1.1);
+}
+
+/* Responsividade para filtros */
+@media (max-width: 768px) {
+  .filterGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .filterActions {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  
+  .toggleAdvancedButton,
+  .clearButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Estados de erro */
+.errorMessage {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  color: #dc2626;
+  margin: 1rem 0;
+}
+
+.errorMessage h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.errorMessage p {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+}
+
+.errorMessage button {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.errorMessage button:hover {
+  background-color: #b91c1c;
+}
+
+/* Informações de resultados */
+.resultsInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 0.5rem;
+}
+
+/* Indicador de filtros ativos - USANDO PURPLE ORIGINAL */
+.filterActive {
+  position: relative;
+}
+
+.filterActive::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #9333ea;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+/* Rotação do ícone limpar */
+.clearButton:hover .icon {
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+}
+
+/* Estados de carregamento */
+.buttonLoading {
+  position: relative;
+  pointer-events: none;
+}
+
+.buttonLoading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Indicadores visuais - USANDO PURPLE ORIGINAL */
+.sortIndicator {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+  color: #9333ea;
+}
+
+/* Tipos de pesquisa */
+.searchTypeSelector {
+  display: flex;
+  flex-direction: column;
+}
+
+.searchTypeInfo {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Indicação do tipo ativo - USANDO PURPLE ORIGINAL */
+.searchTypeActive {
+  position: relative;
+}
+
+.searchTypeActive::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  background-color: #9333ea;
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
+/* === REMOVER COMPLETAMENTE QUALQUER AZUL === */
+/* Override para garantir que não há azul */
+.badgeBlue {
+  background-color: #f3f4f6 !important;
+  color: #374151 !important;
+}
+
+/* Placeholder focus states */
+.input[placeholder*="comum"]:focus::placeholder,
+.input[placeholder*="autor"]:focus::placeholder,
+.input[placeholder*="folha"]:focus::placeholder,
+.input[placeholder*="diabetes"]:focus::placeholder,
+.input[placeholder*="flavonoides"]:focus::placeholder,
+.input[placeholder*="anti-inflamatório"]:focus::placeholder {
+  opacity: 0.7;
+}
