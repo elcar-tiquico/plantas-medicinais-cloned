@@ -59,7 +59,7 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
     },
     {
       name: "Famílias", // ✅ CORRIGIDO: "Categorias" → "Famílias"
-      href: "/admin/categories",
+      href: "/admin/familias",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"

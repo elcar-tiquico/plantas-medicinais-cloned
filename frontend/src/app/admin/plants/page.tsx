@@ -33,6 +33,26 @@ interface PlantaDetalhada {
     id_provincia: number
     nome_provincia: string
   }>
+  // ✅ NOVA ESTRUTURA: Usos específicos por parte
+  usos_especificos?: Array<{
+    id_uso_planta: number
+    id_uso: number
+    parte_usada: string
+    observacoes?: string
+    indicacoes: Array<{
+      id_indicacao: number
+      descricao: string
+    }>
+    metodos_preparacao: Array<{
+      id_preparacao: number
+      descricao: string
+    }>
+    metodos_extracao: Array<{
+      id_extraccao: number
+      descricao: string
+    }>
+  }>
+  // ✅ MANTER COMPATIBILIDADE
   usos_medicinais: Array<{
     id_uso: number
     parte_usada: string
@@ -43,12 +63,49 @@ interface PlantaDetalhada {
     nome_autor: string
     afiliacao?: string
   }>
+  // ✅ NOVA ESTRUTURA: Referencias com autores específicos
+  referencias_especificas?: Array<{
+    id_referencia: number
+    titulo?: string
+    tipo?: string
+    ano?: string
+    link?: string
+    autores_especificos: Array<{
+      id_autor: number
+      nome_autor: string
+      afiliacao?: string
+      sigla_afiliacao?: string
+      ordem_autor: number
+      papel: string
+    }>
+  }>
+  // ✅ MANTER COMPATIBILIDADE
   referencias: Array<{
     id_referencia: number
     titulo?: string
     tipo?: string
     ano?: string
     link?: string
+  }>
+  compostos?: Array<{
+    id_composto: number
+    nome_composto: string
+  }>
+  propriedades?: Array<{
+    id_propriedade: number
+    descricao: string
+  }>
+  indicacoes?: Array<{
+    id_indicacao: number
+    descricao: string
+  }>
+  metodos_extracao?: Array<{
+    id_extraccao: number
+    descricao: string
+  }>
+  metodos_preparacao?: Array<{
+    id_preparacao: number
+    descricao: string
   }>
 }
 
@@ -124,12 +181,10 @@ export default function PlantsPage() {
   const [sortBy, setSortBy] = useState<SortField>('nome_cientifico')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
 
-  // ✅ NOVOS ESTADOS PARA MODALS
+  // ✅ ESTADOS APENAS PARA MODAL DE VISUALIZAÇÃO
   const [showViewModal, setShowViewModal] = useState<boolean>(false)
-  const [showEditModal, setShowEditModal] = useState<boolean>(false)
   const [selectedPlanta, setSelectedPlanta] = useState<PlantaDetalhada | null>(null)
   const [loadingModal, setLoadingModal] = useState<boolean>(false)
-  const [editFormData, setEditFormData] = useState<PlantaDetalhada | null>(null)
 
   // ✅ Hook para debounce do termo de pesquisa
   useEffect(() => {
@@ -157,7 +212,7 @@ export default function PlantsPage() {
 
   // ✅ EFFECT: Prevenir scroll quando modal aberto
   useEffect(() => {
-    if (showViewModal || showEditModal) {
+    if (showViewModal) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
@@ -167,7 +222,7 @@ export default function PlantsPage() {
     return () => {
       document.body.style.overflow = 'unset'
     }
-  }, [showViewModal, showEditModal])
+  }, [showViewModal])
 
   const carregarPlantas = async (): Promise<void> => {
     try {
@@ -315,7 +370,7 @@ export default function PlantsPage() {
     }
   }
 
-  // ✅ NOVA FUNÇÃO: Carregar detalhes da planta
+  // ✅ FUNÇÃO: Carregar detalhes da planta
   const carregarDetalhesPlanta = async (id: number): Promise<PlantaDetalhada | null> => {
     try {
       setLoadingModal(true)
@@ -340,7 +395,7 @@ export default function PlantsPage() {
     }
   }
 
-  // ✅ NOVA FUNÇÃO: Abrir modal de visualização
+  // ✅ FUNÇÃO: Abrir modal de visualização
   const handleViewPlanta = async (id: number): Promise<void> => {
     const detalhes = await carregarDetalhesPlanta(id)
     if (detalhes) {
@@ -349,65 +404,10 @@ export default function PlantsPage() {
     }
   }
 
-  // ✅ NOVA FUNÇÃO: Abrir modal de edição
-  const handleEditPlanta = async (id: number): Promise<void> => {
-    const detalhes = await carregarDetalhesPlanta(id)
-    if (detalhes) {
-      setSelectedPlanta(detalhes)
-      setEditFormData({ ...detalhes }) // Cópia para edição
-      setShowEditModal(true)
-    }
-  }
-
-  // ✅ NOVA FUNÇÃO: Fechar modals
-  const fecharModals = (): void => {
+  // ✅ FUNÇÃO: Fechar modal
+  const fecharModal = (): void => {
     setShowViewModal(false)
-    setShowEditModal(false)
     setSelectedPlanta(null)
-    setEditFormData(null)
-  }
-
-  // ✅ NOVA FUNÇÃO: Salvar edições
-  const salvarEdicoes = async (): Promise<void> => {
-    if (!editFormData) return
-
-    try {
-      setLoadingModal(true)
-      console.log(`💾 Salvando edições da planta ${editFormData.id_planta}`)
-
-      const dataToSend = {
-        nome_cientifico: editFormData.nome_cientifico,
-        id_familia: editFormData.familia.id_familia,
-        numero_exsicata: editFormData.numero_exsicata,
-        nomes_comuns: editFormData.nomes_comuns.map(nome => nome.nome_comum),
-        provincias: editFormData.provincias.map(prov => prov.id_provincia)
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/admin/plantas/${editFormData.id_planta}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(dataToSend)
-      })
-
-      if (!response.ok) {
-        throw new Error('Erro ao salvar alterações')
-      }
-
-      console.log('✅ Planta atualizada com sucesso')
-      alert('Planta atualizada com sucesso!')
-      
-      // Fechar modal e recarregar lista
-      fecharModals()
-      await carregarPlantas()
-
-    } catch (err) {
-      console.error('❌ Erro ao salvar:', err)
-      alert('Erro ao salvar alterações. Tente novamente.')
-    } finally {
-      setLoadingModal(false)
-    }
   }
 
   const handleDelete = async (id: number): Promise<void> => {
@@ -552,370 +552,20 @@ export default function PlantsPage() {
     return pages
   }
 
-  // ✅ COMPONENTE: Modal de Visualização
-// ✅ MODAL DE VISUALIZAÇÃO COMPLETO - COM TODAS AS INFORMAÇÕES
-// ✅ MODAL DE VISUALIZAÇÃO COMPLETO - COM TODAS AS INFORMAÇÕES
-const ModalVisualizacao = () => {
-  if (!showViewModal || !selectedPlanta) return null
-
-  return (
-    <div className={modalStyles.modalOverlay} onClick={fecharModals}>
-      <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
-        <div className={modalStyles.modalHeader}>
-          <h2 className={modalStyles.modalTitle}>
-            <em>{selectedPlanta.nome_cientifico}</em>
-          </h2>
-          <button 
-            className={modalStyles.modalCloseButton}
-            onClick={fecharModals}
-            aria-label="Fechar modal"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-
-        {loadingModal ? (
-          <div className={modalStyles.modalLoading}>
-            <div className={modalStyles.loadingSpinner}></div>
-            <p>Carregando detalhes...</p>
-          </div>
-        ) : (
-          <div className={modalStyles.modalBody}>
-            {/* ===== INFORMAÇÕES BÁSICAS ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Informações Básicas</h3>
-              <div className={modalStyles.infoGrid}>
-                <div className={modalStyles.infoItem}>
-                  <label>Nome Científico:</label>
-                  <span><em>{selectedPlanta.nome_cientifico}</em></span>
-                </div>
-                <div className={modalStyles.infoItem}>
-                  <label>Família:</label>
-                  <span><strong>{selectedPlanta.familia.nome_familia.toUpperCase()}</strong></span>
-                </div>
-                {selectedPlanta.numero_exsicata && (
-                  <div className={modalStyles.infoItem}>
-                    <label>Número de Exsicata:</label>
-                    <span>{selectedPlanta.numero_exsicata}</span>
-                  </div>
-                )}
-                <div className={modalStyles.infoItem}>
-                  <label>Data de Adição:</label>
-                  <span>{formatarData(selectedPlanta.data_adicao)}</span>
-                </div>
-              </div>
-            </section>
-
-            {/* ===== NOMES COMUNS ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Nomes Comuns</h3>
-              <div className={modalStyles.badgesContainer}>
-                {selectedPlanta.nomes_comuns.length > 0 ? (
-                  selectedPlanta.nomes_comuns.map((nome) => (
-                    <span key={nome.id_nome} className={`${modalStyles.badge} ${modalStyles.badgeGreen}`}>
-                      {nome.nome_comum}
-                    </span>
-                  ))
-                ) : (
-                  <span className={modalStyles.noData}>Nenhum nome comum registrado</span>
-                )}
-              </div>
-            </section>
-
-            {/* ===== DISTRIBUIÇÃO GEOGRÁFICA ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Distribuição Geográfica</h3>
-              <div className={modalStyles.badgesContainer}>
-                {selectedPlanta.provincias.length > 0 ? (
-                  selectedPlanta.provincias.map((provincia) => (
-                    <span key={provincia.id_provincia} className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
-                      {provincia.nome_provincia}
-                    </span>
-                  ))
-                ) : (
-                  <span className={modalStyles.noData}>Distribuição não informada</span>
-                )}
-              </div>
-            </section>
-
-            {/* ===== USOS MEDICINAIS ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Usos Medicinais</h3>
-              {selectedPlanta.usos_medicinais.length > 0 ? (
-                <div className={modalStyles.usosList}>
-                  {selectedPlanta.usos_medicinais.map((uso) => (
-                    <div key={uso.id_uso} className={modalStyles.usoItem}>
-                      <div className={modalStyles.usoParte}>
-                        <strong>Parte usada:</strong> {uso.parte_usada}
-                      </div>
-                      {uso.observacoes && (
-                        <div className={modalStyles.usoObservacoes}>
-                          <strong>Observações:</strong> {uso.observacoes}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className={modalStyles.noData}>Nenhum uso medicinal registrado</span>
-              )}
-            </section>
-
-            {/* ===== ✨ NOVA SEÇÃO: COMPOSIÇÃO QUÍMICA ===== */}
-            {selectedPlanta.compostos && selectedPlanta.compostos.length > 0 && (
-              <section className={modalStyles.modalSection}>
-                <h3 className={modalStyles.sectionTitle}>Composição Química</h3>
-                <div className={modalStyles.badgesContainer}>
-                  {selectedPlanta.compostos.map((composto) => (
-                    <span key={composto.id_composto} className={`${modalStyles.badge} ${modalStyles.badgePurple}`}>
-                      {composto.nome_composto}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===== ✨ PROPRIEDADES FARMACOLÓGICAS COMO BADGES ===== */}
-            {selectedPlanta.propriedades && selectedPlanta.propriedades.length > 0 && (
-              <section className={modalStyles.modalSection}>
-                <h3 className={modalStyles.sectionTitle}>Propriedades Farmacológicas</h3>
-                <div className={modalStyles.badgesContainer}>
-                  {selectedPlanta.propriedades.map((propriedade) => (
-                    <span key={propriedade.id_propriedade} className={`${modalStyles.badge} ${modalStyles.badgeGreen}`}>
-                      {propriedade.descricao}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===== ✨ INDICAÇÕES MEDICINAIS COMO BADGES ===== */}
-            {selectedPlanta.indicacoes && selectedPlanta.indicacoes.length > 0 && (
-              <section className={modalStyles.modalSection}>
-                <h3 className={modalStyles.sectionTitle}>Indicações Medicinais</h3>
-                <div className={modalStyles.badgesContainer}>
-                  {selectedPlanta.indicacoes.map((indicacao) => (
-                    <span key={indicacao.id_indicacao} className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
-                      {indicacao.descricao}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===== ✨ MÉTODOS DE EXTRAÇÃO COMO BADGES ===== */}
-            {selectedPlanta.metodos_extracao && selectedPlanta.metodos_extracao.length > 0 && (
-              <section className={modalStyles.modalSection}>
-                <h3 className={modalStyles.sectionTitle}>Métodos de Extração</h3>
-                <div className={modalStyles.badgesContainer}>
-                  {selectedPlanta.metodos_extracao.map((metodo, index) => (
-                    <span key={metodo.id_extraccao || index} className={`${modalStyles.badge} ${modalStyles.badgePurple}`}>
-                      {metodo.descricao}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===== ✨ MÉTODOS DE PREPARAÇÃO TRADICIONAL COMO BADGES ===== */}
-            {selectedPlanta.metodos_preparacao && selectedPlanta.metodos_preparacao.length > 0 && (
-              <section className={modalStyles.modalSection}>
-                <h3 className={modalStyles.sectionTitle}>Métodos de Preparação Tradicional</h3>
-                <div className={modalStyles.badgesContainer}>
-                  {selectedPlanta.metodos_preparacao.map((metodo, index) => (
-                    <span key={metodo.id_preparacao || index} className={`${modalStyles.badge} ${modalStyles.badgeGreen}`}>
-                      {metodo.descricao}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===== AUTORES E PESQUISADORES ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Autores e Pesquisadores</h3>
-              {selectedPlanta.autores.length > 0 ? (
-                <div className={modalStyles.autoresList}>
-                  {selectedPlanta.autores.map((autor) => (
-                    <div key={autor.id_autor} className={modalStyles.autorItem}>
-                      <div className={modalStyles.autorNome}>
-                        <strong>{autor.nome_autor}</strong>
-                      </div>
-                      {autor.afiliacao && (
-                        <div className={modalStyles.autorAfiliacao}>
-                          {autor.afiliacao}
-                        </div>
-                      )}
-                      {autor.sigla_afiliacao && (
-                        <div className={modalStyles.autorAfiliacao}>
-                          <small>({autor.sigla_afiliacao})</small>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className={modalStyles.noData}>Nenhum autor registrado</span>
-              )}
-            </section>
-
-            {/* ===== REFERÊNCIAS BIBLIOGRÁFICAS ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Referências Bibliográficas</h3>
-              {selectedPlanta.referencias.length > 0 ? (
-                <div className={modalStyles.referenciasList}>
-                  {selectedPlanta.referencias.map((ref) => (
-                    <div key={ref.id_referencia} className={modalStyles.referenciaItem}>
-                      <div className={modalStyles.refTitulo}>
-                        <strong>{ref.titulo || 'Título não informado'}</strong>
-                      </div>
-                      <div className={modalStyles.refDetails}>
-                        {ref.tipo && <span className={modalStyles.refTipo}>{ref.tipo}</span>}
-                        {ref.ano && <span className={modalStyles.refAno}>({ref.ano})</span>}
-                      </div>
-                      {ref.link && (
-                        <div className={modalStyles.refLink}>
-                          <a href={ref.link} target="_blank" rel="noopener noreferrer">
-                            Ver referência completa
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className={modalStyles.noData}>Nenhuma referência registrada</span>
-              )}
-            </section>
-
-            {/* ===== ✨ NOVA SEÇÃO: ESTATÍSTICAS DA PLANTA ===== */}
-            <section className={modalStyles.modalSection}>
-              <h3 className={modalStyles.sectionTitle}>Estatísticas da Planta</h3>
-              <div className={modalStyles.readonlyStats}>
-                <div className={modalStyles.statItem}>
-                  <span className={modalStyles.statNumber}>{selectedPlanta.nomes_comuns.length}</span>
-                  <span className={modalStyles.statLabel}>Nomes Comuns</span>
-                </div>
-                <div className={modalStyles.statItem}>
-                  <span className={modalStyles.statNumber}>{selectedPlanta.provincias.length}</span>
-                  <span className={modalStyles.statLabel}>Províncias</span>
-                </div>
-                <div className={modalStyles.statItem}>
-                  <span className={modalStyles.statNumber}>{selectedPlanta.usos_medicinais.length}</span>
-                  <span className={modalStyles.statLabel}>Usos Medicinais</span>
-                </div>
-                <div className={modalStyles.statItem}>
-                  <span className={modalStyles.statNumber}>{selectedPlanta.autores.length}</span>
-                  <span className={modalStyles.statLabel}>Autores</span>
-                </div>
-                <div className={modalStyles.statItem}>
-                  <span className={modalStyles.statNumber}>{selectedPlanta.referencias.length}</span>
-                  <span className={modalStyles.statLabel}>Referências</span>
-                </div>
-                {selectedPlanta.compostos && selectedPlanta.compostos.length > 0 && (
-                  <div className={modalStyles.statItem}>
-                    <span className={modalStyles.statNumber}>{selectedPlanta.compostos.length}</span>
-                    <span className={modalStyles.statLabel}>Compostos</span>
-                  </div>
-                )}
-                {selectedPlanta.propriedades && selectedPlanta.propriedades.length > 0 && (
-                  <div className={modalStyles.statItem}>
-                    <span className={modalStyles.statNumber}>{selectedPlanta.propriedades.length}</span>
-                    <span className={modalStyles.statLabel}>Propriedades</span>
-                  </div>
-                )}
-                {selectedPlanta.indicacoes && selectedPlanta.indicacoes.length > 0 && (
-                  <div className={modalStyles.statItem}>
-                    <span className={modalStyles.statNumber}>{selectedPlanta.indicacoes.length}</span>
-                    <span className={modalStyles.statLabel}>Indicações</span>
-                  </div>
-                )}
-                {selectedPlanta.metodos_extracao && selectedPlanta.metodos_extracao.length > 0 && (
-                  <div className={modalStyles.statItem}>
-                    <span className={modalStyles.statNumber}>{selectedPlanta.metodos_extracao.length}</span>
-                    <span className={modalStyles.statLabel}>Métodos Extração</span>
-                  </div>
-                )}
-                {selectedPlanta.metodos_preparacao && selectedPlanta.metodos_preparacao.length > 0 && (
-                  <div className={modalStyles.statItem}>
-                    <span className={modalStyles.statNumber}>{selectedPlanta.metodos_preparacao.length}</span>
-                    <span className={modalStyles.statLabel}>Métodos Preparação</span>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        <div className={modalStyles.modalFooter}>
-          <button 
-            className={modalStyles.btnSecondary}
-            onClick={fecharModals}
-          >
-            Fechar
-          </button>
-          <button 
-            className={modalStyles.btnPrimary}
-            onClick={() => {
-              fecharModals()
-              handleEditPlanta(selectedPlanta.id_planta)
-            }}
-          >
-            Editar Planta
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-  // ✅ COMPONENTE: Modal de Edição
-  const ModalEdicao = () => {
-    if (!showEditModal || !editFormData) return null
-
-    const adicionarNomeComum = () => {
-      if (!editFormData) return
-      setEditFormData({
-        ...editFormData,
-        nomes_comuns: [
-          ...editFormData.nomes_comuns,
-          { id_nome: Date.now(), nome_comum: '' }
-        ]
-      })
-    }
-
-    const removerNomeComum = (index: number) => {
-      if (!editFormData) return
-      const novosNomes = editFormData.nomes_comuns.filter((_, i) => i !== index)
-      setEditFormData({
-        ...editFormData,
-        nomes_comuns: novosNomes
-      })
-    }
-
-    const atualizarNomeComum = (index: number, valor: string) => {
-      if (!editFormData) return
-      const novosNomes = [...editFormData.nomes_comuns]
-      novosNomes[index] = { ...novosNomes[index], nome_comum: valor }
-      setEditFormData({
-        ...editFormData,
-        nomes_comuns: novosNomes
-      })
-    }
+  // ✅ COMPONENTE: Modal de Visualização APENAS
+  const ModalVisualizacao = () => {
+    if (!showViewModal || !selectedPlanta) return null
 
     return (
-      <div className={modalStyles.modalOverlay} onClick={fecharModals}>
-        <div className={`${modalStyles.modalContent} ${modalStyles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
+      <div className={modalStyles.modalOverlay} onClick={fecharModal}>
+        <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
           <div className={modalStyles.modalHeader}>
             <h2 className={modalStyles.modalTitle}>
-              Editar: <em>{editFormData.nome_cientifico}</em>
+              <em>{selectedPlanta.nome_cientifico}</em>
             </h2>
             <button 
               className={modalStyles.modalCloseButton}
-              onClick={fecharModals}
+              onClick={fecharModal}
               aria-label="Fechar modal"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -928,175 +578,382 @@ const ModalVisualizacao = () => {
           {loadingModal ? (
             <div className={modalStyles.modalLoading}>
               <div className={modalStyles.loadingSpinner}></div>
-              <p>Salvando alterações...</p>
+              <p>Carregando detalhes...</p>
             </div>
           ) : (
             <div className={modalStyles.modalBody}>
-              {/* Informações Básicas */}
+              {/* ===== INFORMAÇÕES BÁSICAS ===== */}
               <section className={modalStyles.modalSection}>
                 <h3 className={modalStyles.sectionTitle}>Informações Básicas</h3>
-                <div className={modalStyles.formGrid}>
-                  <div className={modalStyles.formGroup}>
-                    <label htmlFor="nome_cientifico">Nome Científico *</label>
-                    <input
-                      type="text"
-                      id="nome_cientifico"
-                      value={editFormData.nome_cientifico}
-                      onChange={(e) => setEditFormData({
-                        ...editFormData,
-                        nome_cientifico: e.target.value
-                      })}
-                      className={modalStyles.formInput}
-                      required
-                    />
+                <div className={modalStyles.infoGrid}>
+                  <div className={modalStyles.infoItem}>
+                    <label>Nome Científico:</label>
+                    <span><em>{selectedPlanta.nome_cientifico}</em></span>
                   </div>
-
-                  <div className={modalStyles.formGroup}>
-                    <label htmlFor="familia">Família *</label>
-                    <select
-                      id="familia"
-                      value={editFormData.familia.id_familia}
-                      onChange={(e) => {
-                        const familiaId = parseInt(e.target.value)
-                        const familiaSelecionada = familias.find(f => f.id_familia === familiaId)
-                        if (familiaSelecionada) {
-                          setEditFormData({
-                            ...editFormData,
-                            familia: {
-                              id_familia: familiaId,
-                              nome_familia: familiaSelecionada.nome_familia
-                            }
-                          })
-                        }
-                      }}
-                      className={modalStyles.formSelect}
-                      required
-                    >
-                      {familias.map((familia) => (
-                        <option key={familia.id_familia} value={familia.id_familia}>
-                          {familia.nome_familia.toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
+                  <div className={modalStyles.infoItem}>
+                    <label>Família:</label>
+                    <span><strong>{selectedPlanta.familia.nome_familia.toUpperCase()}</strong></span>
                   </div>
-
-                  <div className={modalStyles.formGroup}>
-                    <label htmlFor="numero_exsicata">Número de Exsicata</label>
-                    <input
-                      type="text"
-                      id="numero_exsicata"
-                      value={editFormData.numero_exsicata || ''}
-                      onChange={(e) => setEditFormData({
-                        ...editFormData,
-                        numero_exsicata: e.target.value
-                      })}
-                      className={modalStyles.formInput}
-                    />
+                  {selectedPlanta.numero_exsicata && (
+                    <div className={modalStyles.infoItem}>
+                      <label>Número de Exsicata:</label>
+                      <span>{selectedPlanta.numero_exsicata}</span>
+                    </div>
+                  )}
+                  <div className={modalStyles.infoItem}>
+                    <label>Data de Adição:</label>
+                    <span>{formatarData(selectedPlanta.data_adicao)}</span>
                   </div>
                 </div>
               </section>
 
-              {/* Nomes Comuns */}
+              {/* ===== NOMES COMUNS ===== */}
               <section className={modalStyles.modalSection}>
-                <div className={modalStyles.sectionHeader}>
-                  <h3 className={modalStyles.sectionTitle}>Nomes Comuns</h3>
-                  <button
-                    type="button"
-                    onClick={adicionarNomeComum}
-                    className={modalStyles.btnAddSmall}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="12" y1="5" x2="12" y2="19"></line>
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Adicionar
-                  </button>
-                </div>
-                <div className={modalStyles.nomesComumsList}>
-                  {editFormData.nomes_comuns.map((nome, index) => (
-                    <div key={nome.id_nome || index} className={modalStyles.nomeComumItem}>
-                      <input
-                        type="text"
-                        value={nome.nome_comum}
-                        onChange={(e) => atualizarNomeComum(index, e.target.value)}
-                        placeholder="Nome comum da planta"
-                        className={modalStyles.formInput}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removerNomeComum(index)}
-                        className={modalStyles.btnRemoveSmall}
-                        aria-label="Remover nome comum"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                  {editFormData.nomes_comuns.length === 0 && (
-                    <p className={modalStyles.noData}>Nenhum nome comum adicionado</p>
+                <h3 className={modalStyles.sectionTitle}>Nomes Comuns</h3>
+                <div className={modalStyles.badgesContainer}>
+                  {selectedPlanta.nomes_comuns.length > 0 ? (
+                    selectedPlanta.nomes_comuns.map((nome) => (
+                      <span key={nome.id_nome} className={`${modalStyles.badge} ${modalStyles.badgeGreen}`}>
+                        {nome.nome_comum}
+                      </span>
+                    ))
+                  ) : (
+                    <span className={modalStyles.noData}>Nenhum nome comum registrado</span>
                   )}
                 </div>
               </section>
 
-              {/* Distribuição Geográfica */}
+              {/* ===== DISTRIBUIÇÃO GEOGRÁFICA ===== */}
               <section className={modalStyles.modalSection}>
                 <h3 className={modalStyles.sectionTitle}>Distribuição Geográfica</h3>
-                <div className={modalStyles.provinciasGrid}>
-                  {provincias.map((provincia) => (
-                    <label key={provincia.id_provincia} className={modalStyles.checkboxItem}>
-                      <input
-                        type="checkbox"
-                        checked={editFormData.provincias.some(p => p.id_provincia === provincia.id_provincia)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setEditFormData({
-                              ...editFormData,
-                              provincias: [...editFormData.provincias, {
-                                id_provincia: provincia.id_provincia,
-                                nome_provincia: provincia.nome_provincia
-                              }]
-                            })
-                          } else {
-                            setEditFormData({
-                              ...editFormData,
-                              provincias: editFormData.provincias.filter(p => p.id_provincia !== provincia.id_provincia)
-                            })
-                          }
-                        }}
-                        className={modalStyles.checkboxInput}
-                      />
-                      <span className={modalStyles.checkboxLabel}>{provincia.nome_provincia}</span>
-                    </label>
-                  ))}
+                <div className={modalStyles.badgesContainer}>
+                  {selectedPlanta.provincias.length > 0 ? (
+                    selectedPlanta.provincias.map((provincia) => (
+                      <span key={provincia.id_provincia} className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
+                        {provincia.nome_provincia}
+                      </span>
+                    ))
+                  ) : (
+                    <span className={modalStyles.noData}>Distribuição não informada</span>
+                  )}
                 </div>
               </section>
 
-              {/* Informações Somente Leitura */}
+              {/* ===== USOS ESPECÍFICOS POR PARTE - VERSÃO SIMPLES ===== */}
               <section className={modalStyles.modalSection}>
-                <h3 className={modalStyles.sectionTitle}>Outras Informações</h3>
-                <div className={modalStyles.readonlyInfo}>
-                  <p className={modalStyles.infoNote}>
-                    <strong>Nota:</strong> As informações sobre usos medicinais, autores e referências 
-                    devem ser editadas através de formulários específicos ou contacte o administrador do sistema.
-                  </p>
-                  
-                  <div className={modalStyles.readonlyStats}>
-                    <div className={modalStyles.statItem}>
-                      <span className={modalStyles.statNumber}>{editFormData.usos_medicinais.length}</span>
-                      <span className={modalStyles.statLabel}>Usos Medicinais</span>
-                    </div>
-                    <div className={modalStyles.statItem}>
-                      <span className={modalStyles.statNumber}>{editFormData.autores.length}</span>
-                      <span className={modalStyles.statLabel}>Autores</span>
-                    </div>
-                    <div className={modalStyles.statItem}>
-                      <span className={modalStyles.statNumber}>{editFormData.referencias.length}</span>
-                      <span className={modalStyles.statLabel}>Referências</span>
-                    </div>
+                <h3 className={modalStyles.sectionTitle}>Usos Medicinais Específicos</h3>
+                {selectedPlanta.usos_especificos && selectedPlanta.usos_especificos.length > 0 ? (
+                  <div className={modalStyles.usosEspecificosList}>
+                    {selectedPlanta.usos_especificos.map((uso) => (
+                      <div key={uso.id_uso_planta} className={modalStyles.usoEspecificoCard}>
+                        <div className={modalStyles.usoHeader}>
+                          <div className={modalStyles.parteUsadaHeader}>
+                            <strong>{uso.parte_usada}</strong>
+                          </div>
+                          {uso.observacoes && (
+                            <div className={modalStyles.observacoes}>
+                              {uso.observacoes}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className={modalStyles.usoDetailsGrid}>
+                          {/* Indicações para esta parte específica */}
+                          {uso.indicacoes && uso.indicacoes.length > 0 && (
+                            <div className={modalStyles.usoDetailSection}>
+                              <h4 className={modalStyles.usoDetailTitle}>Indicações</h4>
+                              <div className={modalStyles.badgesContainer}>
+                                {uso.indicacoes.map((indicacao) => (
+                                  <span key={indicacao.id_indicacao} className={modalStyles.badge}>
+                                    {indicacao.descricao}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Métodos de preparação para esta parte */}
+                          {uso.metodos_preparacao && uso.metodos_preparacao.length > 0 && (
+                            <div className={modalStyles.usoDetailSection}>
+                              <h4 className={modalStyles.usoDetailTitle}>Preparação</h4>
+                              <div className={modalStyles.badgesContainer}>
+                                {uso.metodos_preparacao.map((metodo) => (
+                                  <span key={metodo.id_preparacao} className={modalStyles.badge}>
+                                    {metodo.descricao}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Métodos de extração para esta parte */}
+                          {uso.metodos_extracao && uso.metodos_extracao.length > 0 && (
+                            <div className={modalStyles.usoDetailSection}>
+                              <h4 className={modalStyles.usoDetailTitle}>Extração</h4>
+                              <div className={modalStyles.badgesContainer}>
+                                {uso.metodos_extracao.map((metodo) => (
+                                  <span key={metodo.id_extraccao} className={modalStyles.badge}>
+                                    {metodo.descricao}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                ) : selectedPlanta.usos_medicinais && selectedPlanta.usos_medicinais.length > 0 ? (
+                  // Fallback: Mostrar estrutura antiga se nova não estiver disponível
+                  <div className={modalStyles.usosList}>
+                    {selectedPlanta.usos_medicinais.map((uso) => (
+                      <div key={uso.id_uso} className={modalStyles.usoItem}>
+                        <div className={modalStyles.usoParte}>
+                          <strong>Parte usada:</strong> {uso.parte_usada}
+                        </div>
+                        {uso.observacoes && (
+                          <div className={modalStyles.usoObservacoes}>
+                            <strong>Observações:</strong> {uso.observacoes}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={modalStyles.noData}>Nenhum uso medicinal registrado</span>
+                )}
+              </section>
+
+              {/* ===== COMPOSIÇÃO QUÍMICA ===== */}
+              {selectedPlanta.compostos && selectedPlanta.compostos.length > 0 && (
+                <section className={modalStyles.modalSection}>
+                  <h3 className={modalStyles.sectionTitle}>Composição Química</h3>
+                  <div className={modalStyles.badgesContainer}>
+                    {selectedPlanta.compostos.map((composto) => (
+                      <span key={composto.id_composto} className={`${modalStyles.badge} ${modalStyles.badgePurple}`}>
+                        {composto.nome_composto}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ===== PROPRIEDADES FARMACOLÓGICAS ===== */}
+              {selectedPlanta.propriedades && selectedPlanta.propriedades.length > 0 && (
+                <section className={modalStyles.modalSection}>
+                  <h3 className={modalStyles.sectionTitle}>Propriedades Farmacológicas</h3>
+                  <div className={modalStyles.badgesContainer}>
+                    {selectedPlanta.propriedades.map((propriedade) => (
+                      <span key={propriedade.id_propriedade} className={`${modalStyles.badge} ${modalStyles.badgeGreen}`}>
+                        {propriedade.descricao}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ===== INDICAÇÕES MEDICINAIS ===== */}
+              {selectedPlanta.indicacoes && selectedPlanta.indicacoes.length > 0 && (
+                <section className={modalStyles.modalSection}>
+                  <h3 className={modalStyles.sectionTitle}>Indicações Medicinais</h3>
+                  <div className={modalStyles.badgesContainer}>
+                    {selectedPlanta.indicacoes.map((indicacao) => (
+                      <span key={indicacao.id_indicacao} className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
+                        {indicacao.descricao}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ===== MÉTODOS DE EXTRAÇÃO ===== */}
+              {selectedPlanta.metodos_extracao && selectedPlanta.metodos_extracao.length > 0 && (
+                <section className={modalStyles.modalSection}>
+                  <h3 className={modalStyles.sectionTitle}>Métodos de Extração</h3>
+                  <div className={modalStyles.badgesContainer}>
+                    {selectedPlanta.metodos_extracao.map((metodo, index) => (
+                      <span key={metodo.id_extraccao || index} className={`${modalStyles.badge} ${modalStyles.badgePurple}`}>
+                        {metodo.descricao}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ===== MÉTODOS DE PREPARAÇÃO TRADICIONAL ===== */}
+              {selectedPlanta.metodos_preparacao && selectedPlanta.metodos_preparacao.length > 0 && (
+                <section className={modalStyles.modalSection}>
+                  <h3 className={modalStyles.sectionTitle}>Métodos de Preparação Tradicional</h3>
+                  <div className={modalStyles.badgesContainer}>
+                    {selectedPlanta.metodos_preparacao.map((metodo, index) => (
+                      <span key={metodo.id_preparacao || index} className={`${modalStyles.badge} ${modalStyles.badgeGreen}`}>
+                        {metodo.descricao}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ===== AUTORES E PESQUISADORES ===== */}
+              <section className={modalStyles.modalSection}>
+                <h3 className={modalStyles.sectionTitle}>Autores e Pesquisadores</h3>
+                {selectedPlanta.autores.length > 0 ? (
+                  <div className={modalStyles.autoresList}>
+                    {selectedPlanta.autores.map((autor) => (
+                      <div key={autor.id_autor} className={modalStyles.autorItem}>
+                        <div className={modalStyles.autorNome}>
+                          <strong>{autor.nome_autor}</strong>
+                        </div>
+                        {autor.afiliacao && (
+                          <div className={modalStyles.autorAfiliacao}>
+                            {autor.afiliacao}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={modalStyles.noData}>Nenhum autor registrado</span>
+                )}
+              </section>
+
+              {/* ===== REFERÊNCIAS BIBLIOGRÁFICAS COM AUTORES ESPECÍFICOS ===== */}
+              <section className={modalStyles.modalSection}>
+                <h3 className={modalStyles.sectionTitle}>Referências Bibliográficas</h3>
+                {selectedPlanta.referencias_especificas && selectedPlanta.referencias_especificas.length > 0 ? (
+                  <div className={modalStyles.referenciasEspecificasList}>
+                    {selectedPlanta.referencias_especificas.map((ref) => (
+                      <div key={ref.id_referencia} className={modalStyles.referenciaEspecificaCard}>
+                        <div className={modalStyles.referenciaHeader}>
+                          <div className={modalStyles.refTitulo}>
+                            <strong>{ref.titulo || 'Título não informado'}</strong>
+                          </div>
+                          <div className={modalStyles.refDetails}>
+                            {ref.tipo && <span className={modalStyles.refTipo}>{ref.tipo}</span>}
+                            {ref.ano && <span className={modalStyles.refAno}>({ref.ano})</span>}
+                          </div>
+                          {ref.link && (
+                            <div className={modalStyles.refLink}>
+                              <a href={ref.link} target="_blank" rel="noopener noreferrer">
+                                Ver referência completa
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Autores específicos desta referência */}
+                        {ref.autores_especificos && ref.autores_especificos.length > 0 && (
+                          <div className={modalStyles.autoresReferenciaSection}>
+                            <h4 className={modalStyles.autoresReferenciaTitle}>Autores</h4>
+                            <div className={modalStyles.autoresReferenciaList}>
+                              {ref.autores_especificos.map((autor) => (
+                                <div key={autor.id_autor} className={modalStyles.autorReferenciaItem}>
+                                  <div className={modalStyles.autorNomeOrdem}>
+                                    <span className={modalStyles.ordemAutor}>{autor.ordem_autor}.</span>
+                                    <strong>{autor.nome_autor}</strong>
+                                    {autor.papel !== 'coautor' && (
+                                      <span className={modalStyles.papelAutor}>({autor.papel})</span>
+                                    )}
+                                  </div>
+                                  {autor.afiliacao && (
+                                    <div className={modalStyles.afiliacaoAutor}>
+                                      {autor.afiliacao}
+                                      {autor.sigla_afiliacao && ` (${autor.sigla_afiliacao})`}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : selectedPlanta.referencias && selectedPlanta.referencias.length > 0 ? (
+                  // Fallback: Mostrar estrutura antiga se nova não estiver disponível
+                  <div className={modalStyles.referenciasList}>
+                    {selectedPlanta.referencias.map((ref) => (
+                      <div key={ref.id_referencia} className={modalStyles.referenciaItem}>
+                        <div className={modalStyles.refTitulo}>
+                          <strong>{ref.titulo || 'Título não informado'}</strong>
+                        </div>
+                        <div className={modalStyles.refDetails}>
+                          {ref.tipo && <span className={modalStyles.refTipo}>{ref.tipo}</span>}
+                          {ref.ano && <span className={modalStyles.refAno}>({ref.ano})</span>}
+                        </div>
+                        {ref.link && (
+                          <div className={modalStyles.refLink}>
+                            <a href={ref.link} target="_blank" rel="noopener noreferrer">
+                              Ver referência completa
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={modalStyles.noData}>Nenhuma referência registrada</span>
+                )}
+              </section>
+
+              {/* ===== ESTATÍSTICAS DA PLANTA ===== */}
+              <section className={modalStyles.modalSection}>
+                <h3 className={modalStyles.sectionTitle}>Estatísticas da Planta</h3>
+                <div className={modalStyles.readonlyStats}>
+                  <div className={modalStyles.statItem}>
+                    <span className={modalStyles.statNumber}>{selectedPlanta.nomes_comuns.length}</span>
+                    <span className={modalStyles.statLabel}>Nomes Comuns</span>
+                  </div>
+                  <div className={modalStyles.statItem}>
+                    <span className={modalStyles.statNumber}>{selectedPlanta.provincias.length}</span>
+                    <span className={modalStyles.statLabel}>Províncias</span>
+                  </div>
+                  <div className={modalStyles.statItem}>
+                    <span className={modalStyles.statNumber}>
+                      {selectedPlanta.usos_especificos ? selectedPlanta.usos_especificos.length : selectedPlanta.usos_medicinais.length}
+                    </span>
+                    <span className={modalStyles.statLabel}>Usos Medicinais</span>
+                  </div>
+                  <div className={modalStyles.statItem}>
+                    <span className={modalStyles.statNumber}>{selectedPlanta.autores.length}</span>
+                    <span className={modalStyles.statLabel}>Autores</span>
+                  </div>
+                  <div className={modalStyles.statItem}>
+                    <span className={modalStyles.statNumber}>
+                      {selectedPlanta.referencias_especificas ? selectedPlanta.referencias_especificas.length : selectedPlanta.referencias.length}
+                    </span>
+                    <span className={modalStyles.statLabel}>Referências</span>
+                  </div>
+                  {selectedPlanta.compostos && selectedPlanta.compostos.length > 0 && (
+                    <div className={modalStyles.statItem}>
+                      <span className={modalStyles.statNumber}>{selectedPlanta.compostos.length}</span>
+                      <span className={modalStyles.statLabel}>Compostos</span>
+                    </div>
+                  )}
+                  {selectedPlanta.propriedades && selectedPlanta.propriedades.length > 0 && (
+                    <div className={modalStyles.statItem}>
+                      <span className={modalStyles.statNumber}>{selectedPlanta.propriedades.length}</span>
+                      <span className={modalStyles.statLabel}>Propriedades</span>
+                    </div>
+                  )}
+                  {selectedPlanta.indicacoes && selectedPlanta.indicacoes.length > 0 && (
+                    <div className={modalStyles.statItem}>
+                      <span className={modalStyles.statNumber}>{selectedPlanta.indicacoes.length}</span>
+                      <span className={modalStyles.statLabel}>Indicações</span>
+                    </div>
+                  )}
+                  {selectedPlanta.metodos_extracao && selectedPlanta.metodos_extracao.length > 0 && (
+                    <div className={modalStyles.statItem}>
+                      <span className={modalStyles.statNumber}>{selectedPlanta.metodos_extracao.length}</span>
+                      <span className={modalStyles.statLabel}>Métodos Extração</span>
+                    </div>
+                  )}
+                  {selectedPlanta.metodos_preparacao && selectedPlanta.metodos_preparacao.length > 0 && (
+                    <div className={modalStyles.statItem}>
+                      <span className={modalStyles.statNumber}>{selectedPlanta.metodos_preparacao.length}</span>
+                      <span className={modalStyles.statLabel}>Métodos Preparação</span>
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
@@ -1105,17 +962,9 @@ const ModalVisualizacao = () => {
           <div className={modalStyles.modalFooter}>
             <button 
               className={modalStyles.btnSecondary}
-              onClick={fecharModals}
-              disabled={loadingModal}
+              onClick={fecharModal}
             >
-              Cancelar
-            </button>
-            <button 
-              className={modalStyles.btnPrimary}
-              onClick={salvarEdicoes}
-              disabled={loadingModal || !editFormData?.nome_cientifico.trim()}
-            >
-              {loadingModal ? 'Salvando...' : 'Salvar Alterações'}
+              Fechar
             </button>
           </div>
         </div>
@@ -1578,7 +1427,7 @@ const ModalVisualizacao = () => {
                     </td>
                     <td className={styles.tableCellActions}>
                       <div className={styles.actionButtons}>
-                        {/* ✅ BOTÃO VER - AGORA ABRE MODAL */}
+                        {/* ✅ BOTÃO VER - ABRE MODAL */}
                         <button 
                           onClick={() => handleViewPlanta(planta.id_planta)}
                           className={styles.viewButton}
@@ -1586,14 +1435,14 @@ const ModalVisualizacao = () => {
                         >
                           Ver
                         </button>
-                        {/* ✅ BOTÃO EDITAR - AGORA ABRE MODAL */}
-                        <button 
-                          onClick={() => handleEditPlanta(planta.id_planta)}
+                        {/* ✅ BOTÃO EDITAR - AGORA REDIRECIONA PARA PÁGINA */}
+                        <Link 
+                          href={`/admin/plants/edit/${planta.id_planta}`}
                           className={styles.editButton}
                           title="Editar planta"
                         >
                           Editar
-                        </button>
+                        </Link>
                         <button 
                           onClick={() => handleDelete(planta.id_planta)} 
                           className={styles.deleteButton}
@@ -1694,9 +1543,8 @@ const ModalVisualizacao = () => {
         </div>
       )}
 
-      {/* ✅ MODALS - RENDERIZADOS CONDICIONALMENTE */}
+      {/* ✅ MODAL DE VISUALIZAÇÃO - RENDERIZADO CONDICIONALMENTE */}
       <ModalVisualizacao />
-      <ModalEdicao />
     </div>
   )
 }

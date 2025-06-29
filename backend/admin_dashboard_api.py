@@ -1444,9 +1444,17 @@ def get_plantas_admin():
 
 @app.route('/api/admin/familias', methods=['GET'])
 def get_familias():
-    """Listar todas as famílias para filtros"""
+    """Listar famílias com filtros e paginação - VERSÃO CORRIGIDA"""
     try:
-        familias = db.session.query(
+        # Parâmetros de paginação
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 10, type=int)
+        
+        # ✅ ADICIONAR: Parâmetro de busca
+        search_term = request.args.get('search', '').strip()
+        
+        # Query base
+        query = db.session.query(
             Familia.id_familia,
             Familia.nome_familia,
             func.count(Planta.id_planta).label('total_plantas')
@@ -1454,25 +1462,308 @@ def get_familias():
             Planta, Familia.id_familia == Planta.id_familia
         ).group_by(
             Familia.id_familia, Familia.nome_familia
-        ).order_by(
-            Familia.nome_familia
-        ).all()
+        )
         
+        # ✅ APLICAR FILTRO DE BUSCA
+        if search_term:
+            search_pattern = f'%{search_term}%'
+            query = query.filter(
+                Familia.nome_familia.ilike(search_pattern)
+            )
+            print(f"🔍 Aplicando filtro de busca: '{search_term}'")
+        
+        # Ordenação
+        query = query.order_by(Familia.nome_familia)
+        
+        # ✅ CONTAR TOTAL APÓS FILTROS
+        total_count = query.count()
+        
+        # ✅ APLICAR PAGINAÇÃO
+        offset = (page - 1) * limit
+        familias_query = query.offset(offset).limit(limit).all()
+        
+        # Preparar resultado
         familias_resultado = []
-        for familia in familias:
+        for familia in familias_query:
             familias_resultado.append({
                 'id_familia': familia.id_familia,
                 'nome_familia': familia.nome_familia,
-                'total_plantas': familia.total_plantas
+                'total_plantas': familia.total_plantas or 0
             })
+        
+        print(f"✅ Busca executada: '{search_term}' -> {len(familias_resultado)} resultados de {total_count} total")
         
         return jsonify({
             'familias': familias_resultado,
-            'total': len(familias_resultado)
+            'total': total_count,
+            'page': page,
+            'limit': limit,
+            'total_pages': (total_count + limit - 1) // limit if total_count > 0 else 0,
+            'has_next': page * limit < total_count,
+            'has_prev': page > 1,
+            'search_applied': search_term,  # ✅ Para debug
         })
         
     except Exception as e:
+        print(f"❌ Erro ao carregar famílias: {e}")
         return handle_error(e, "Erro ao carregar famílias")
+
+
+
+# ✅ ADICIONAR: Endpoint para atualizar família
+@app.route('/api/admin/familias/<int:familia_id>', methods=['PUT'])
+def update_familia(familia_id):
+    """Atualizar uma família existente"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        familia = Familia.query.get(familia_id)
+        if not familia:
+            return jsonify({'error': 'Família não encontrada'}), 404
+        
+        nome_familia = data.get('nome_familia', '').strip()
+        
+        if not nome_familia:
+            return jsonify({'error': 'Nome da família é obrigatório'}), 400
+        
+        # Verificar se não há conflito
+        familia_conflito = Familia.query.filter(
+            and_(
+                Familia.nome_familia == nome_familia,
+                Familia.id_familia != familia_id
+            )
+        ).first()
+        
+        if familia_conflito:
+            return jsonify({'error': 'Já existe outra família com este nome'}), 400
+        
+        # Atualizar
+        familia.nome_familia = nome_familia
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Família atualizada com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e, "Erro ao atualizar família")
+
+@app.route('/api/admin/familias/<int:familia_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_familia_by_id(familia_id):
+    """Handler unificado para família por ID - GET, PUT, DELETE"""
+    
+    if request.method == 'GET':
+        # ===== GET: Obter detalhes de uma família =====
+        try:
+            familia = db.session.query(
+                Familia.id_familia,
+                Familia.nome_familia,
+                func.count(Planta.id_planta).label('total_plantas')
+            ).outerjoin(
+                Planta, Familia.id_familia == Planta.id_familia
+            ).filter(
+                Familia.id_familia == familia_id
+            ).group_by(
+                Familia.id_familia, Familia.nome_familia
+            ).first()
+            
+            if not familia:
+                return jsonify({'error': 'Família não encontrada'}), 404
+            
+            return jsonify({
+                'id_familia': familia.id_familia,
+                'nome_familia': familia.nome_familia,
+                'total_plantas': familia.total_plantas or 0
+            })
+            
+        except Exception as e:
+            return handle_error(e, "Erro ao carregar detalhes da família")
+    
+    elif request.method == 'PUT':
+        # ===== PUT: Atualizar uma família =====
+        try:
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+            familia = Familia.query.get(familia_id)
+            if not familia:
+                return jsonify({'error': 'Família não encontrada'}), 404
+            
+            nome_familia = data.get('nome_familia', '').strip()
+            
+            if not nome_familia:
+                return jsonify({'error': 'Nome da família é obrigatório'}), 400
+            
+            # Verificar se não há conflito
+            familia_conflito = Familia.query.filter(
+                and_(
+                    Familia.nome_familia == nome_familia,
+                    Familia.id_familia != familia_id
+                )
+            ).first()
+            
+            if familia_conflito:
+                return jsonify({'error': 'Já existe outra família com este nome'}), 400
+            
+            # Atualizar
+            familia.nome_familia = nome_familia
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Família atualizada com sucesso'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return handle_error(e, "Erro ao atualizar família")
+    
+    elif request.method == 'DELETE':
+        # ===== DELETE: Excluir uma família =====
+        try:
+            print(f"🗑️ Tentando excluir família {familia_id}")
+            
+            familia = Familia.query.get(familia_id)
+            if not familia:
+                return jsonify({'error': 'Família não encontrada'}), 404
+            
+            # Verificar se tem plantas associadas
+            total_plantas = Planta.query.filter_by(id_familia=familia_id).count()
+            
+            print(f"📊 Família '{familia.nome_familia}' tem {total_plantas} plantas associadas")
+            
+            if total_plantas > 0:
+                return jsonify({
+                    'error': f'Não é possível excluir a família "{familia.nome_familia}" porque tem {total_plantas} plantas associadas'
+                }), 400
+            
+            # Excluir família
+            nome_familia_backup = familia.nome_familia
+            db.session.delete(familia)
+            db.session.commit()
+            
+            print(f"✅ Família '{nome_familia_backup}' excluída com sucesso")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Família "{nome_familia_backup}" excluída com sucesso'
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao excluir família {familia_id}: {e}")
+            db.session.rollback()
+            return handle_error(e, "Erro ao excluir família")
+
+# ===== 2. ROTA PARA LISTAGEM E CRIAÇÃO DE FAMÍLIAS =====
+@app.route('/api/admin/familias', methods=['GET', 'POST'])
+def handle_familias():
+    """Handler para listagem (GET) e criação (POST) de famílias"""
+    
+    if request.method == 'GET':
+        # ===== GET: Listar famílias com filtros e paginação =====
+        try:
+            # Parâmetros de paginação
+            page = request.args.get('page', 1, type=int)
+            limit = request.args.get('limit', 10, type=int)
+            
+            # Parâmetro de busca
+            search_term = request.args.get('search', '').strip()
+            
+            # Query base
+            query = db.session.query(
+                Familia.id_familia,
+                Familia.nome_familia,
+                func.count(Planta.id_planta).label('total_plantas')
+            ).outerjoin(
+                Planta, Familia.id_familia == Planta.id_familia
+            ).group_by(
+                Familia.id_familia, Familia.nome_familia
+            )
+            
+            # Aplicar filtro de busca
+            if search_term:
+                search_pattern = f'%{search_term}%'
+                query = query.filter(
+                    Familia.nome_familia.ilike(search_pattern)
+                )
+                print(f"🔍 Aplicando filtro de busca: '{search_term}'")
+            
+            # Ordenação
+            query = query.order_by(Familia.nome_familia)
+            
+            # Contar total após filtros
+            total_count = query.count()
+            
+            # Aplicar paginação
+            offset = (page - 1) * limit
+            familias_query = query.offset(offset).limit(limit).all()
+            
+            # Preparar resultado
+            familias_resultado = []
+            for familia in familias_query:
+                familias_resultado.append({
+                    'id_familia': familia.id_familia,
+                    'nome_familia': familia.nome_familia,
+                    'total_plantas': familia.total_plantas or 0
+                })
+            
+            print(f"✅ Busca executada: '{search_term}' -> {len(familias_resultado)} resultados de {total_count} total")
+            
+            return jsonify({
+                'familias': familias_resultado,
+                'total': total_count,
+                'page': page,
+                'limit': limit,
+                'total_pages': (total_count + limit - 1) // limit if total_count > 0 else 0,
+                'has_next': page * limit < total_count,
+                'has_prev': page > 1,
+                'search_applied': search_term,
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao carregar famílias: {e}")
+            return handle_error(e, "Erro ao carregar famílias")
+    
+    elif request.method == 'POST':
+        # ===== POST: Criar uma nova família =====
+        try:
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+            nome_familia = data.get('nome_familia', '').strip()
+            
+            if not nome_familia:
+                return jsonify({'error': 'Nome da família é obrigatório'}), 400
+            
+            # Verificar se já existe
+            familia_existente = Familia.query.filter_by(nome_familia=nome_familia).first()
+            if familia_existente:
+                return jsonify({'error': 'Já existe uma família com este nome'}), 400
+            
+            # Criar nova família
+            nova_familia = Familia(nome_familia=nome_familia)
+            
+            db.session.add(nova_familia)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'familia_id': nova_familia.id_familia,
+                'message': 'Família criada com sucesso'
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return handle_error(e, "Erro ao criar família")
 
 @app.route('/api/admin/provincias', methods=['GET'])
 def get_provincias():
@@ -1506,10 +1797,11 @@ def get_provincias():
     except Exception as e:
         return handle_error(e, "Erro ao carregar províncias")
 
-# ✅ ENDPOINT CORRIGIDO PARA CARREGAR TODAS AS INFORMAÇÕES DA PLANTA
+# ✅ ADICIONAR AO ENDPOINT EXISTENTE get_planta_detalhes_completos na API Dashboard
+
 @app.route('/api/admin/plantas/<int:planta_id>', methods=['GET'])
 def get_planta_detalhes_completos(planta_id):
-    """Obter detalhes COMPLETOS de uma planta específica - TODAS as informações"""
+    """Obter detalhes COMPLETOS de uma planta específica - VERSÃO ATUALIZADA COM USOS ESPECÍFICOS"""
     try:
         # Buscar planta principal
         planta = db.session.query(
@@ -1546,16 +1838,85 @@ def get_planta_detalhes_completos(planta_id):
             PlantaProvincia.id_planta == planta_id
         ).all()
         
-        # ===== 3. USOS MEDICINAIS =====
-        usos = db.session.query(
-            UsoPlanta.id_uso_planta,
-            UsoPlanta.observacoes,
-            ParteUsada.parte_usada
-        ).join(
-            ParteUsada, UsoPlanta.id_parte == ParteUsada.id_uso
-        ).filter(
+        # ===== ✨ 3. USOS ESPECÍFICOS - NOVA ESTRUTURA COMO NA API PRINCIPAL =====
+        usos_especificos = []
+        
+        # Buscar todos os usos da planta
+        usos_planta = db.session.query(UsoPlanta).filter(
             UsoPlanta.id_planta == planta_id
         ).all()
+        
+        for uso in usos_planta:
+            # Para cada uso, buscar a parte usada
+            parte_usada = db.session.query(ParteUsada).filter(
+                ParteUsada.id_uso == uso.id_parte
+            ).first()
+            
+            # Buscar indicações específicas deste uso
+            indicacoes_uso = db.session.query(
+                Indicacao.id_indicacao,
+                Indicacao.descricao
+            ).join(
+                UsoPlantaIndicacao, Indicacao.id_indicacao == UsoPlantaIndicacao.id_indicacao
+            ).filter(
+                UsoPlantaIndicacao.id_uso_planta == uso.id_uso_planta
+            ).all()
+            
+            # Buscar métodos de preparação específicos deste uso
+            try:
+                metodos_preparacao_uso = db.session.query(
+                    MetodoPreparacaoTradicional.id_preparacao,
+                    MetodoPreparacaoTradicional.descricao
+                ).join(
+                    UsoPlantaPreparacao, MetodoPreparacaoTradicional.id_preparacao == UsoPlantaPreparacao.id_preparacao
+                ).filter(
+                    UsoPlantaPreparacao.id_uso_planta == uso.id_uso_planta
+                ).all()
+            except Exception as e:
+                print(f"Erro ao carregar métodos de preparação: {e}")
+                metodos_preparacao_uso = []
+            
+            # Buscar métodos de extração específicos deste uso
+            try:
+                metodos_extracao_uso = db.session.query(
+                    MetodoExtracacao.id_extraccao,
+                    MetodoExtracacao.descricao
+                ).join(
+                    UsoPlantaExtracao, MetodoExtracacao.id_extraccao == UsoPlantaExtracao.id_extraccao
+                ).filter(
+                    UsoPlantaExtracao.id_uso_planta == uso.id_uso_planta
+                ).all()
+            except Exception as e:
+                print(f"Erro ao carregar métodos de extração: {e}")
+                metodos_extracao_uso = []
+            
+            # ✅ ESTRUTURA IGUAL À API PRINCIPAL
+            uso_especifico = {
+                'id_uso_planta': uso.id_uso_planta,
+                'id_uso': parte_usada.id_uso if parte_usada else None,
+                'parte_usada': parte_usada.parte_usada if parte_usada else 'Não informado',
+                'observacoes': uso.observacoes,
+                'indicacoes': [
+                    {
+                        'id_indicacao': ind.id_indicacao,
+                        'descricao': ind.descricao
+                    } for ind in indicacoes_uso
+                ],
+                'metodos_preparacao': [
+                    {
+                        'id_preparacao': mp.id_preparacao,
+                        'descricao': mp.descricao
+                    } for mp in metodos_preparacao_uso
+                ],
+                'metodos_extracao': [
+                    {
+                        'id_extraccao': me.id_extraccao,
+                        'descricao': me.descricao
+                    } for me in metodos_extracao_uso
+                ]
+            }
+            
+            usos_especificos.append(uso_especifico)
         
         # ===== 4. AUTORES =====
         autores = db.session.query(
@@ -1569,8 +1930,11 @@ def get_planta_detalhes_completos(planta_id):
             AutorPlanta.id_planta == planta_id
         ).all()
         
-        # ===== 5. REFERÊNCIAS =====
-        referencias = db.session.query(
+        # ===== 5. REFERÊNCIAS COM AUTORES ESPECÍFICOS =====
+        referencias_com_autores = []
+        
+        # Buscar referências da planta
+        referencias_planta = db.session.query(
             Referencia.id_referencia,
             Referencia.titulo_referencia,
             Referencia.tipo_referencia,
@@ -1582,7 +1946,55 @@ def get_planta_detalhes_completos(planta_id):
             PlantaReferencia.id_planta == planta_id
         ).all()
         
-        # ===== ✨ 6. COMPOSIÇÃO QUÍMICA (NOVA) =====
+        for ref in referencias_planta:
+            # Para cada referência, buscar seus autores específicos com ordem e papel
+            try:
+                autores_ref = db.session.query(
+                    Autor.id_autor,
+                    Autor.nome_autor,
+                    Autor.afiliacao,
+                    Autor.sigla_afiliacao,
+                    AutorReferencia.ordem_autor,
+                    AutorReferencia.papel
+                ).join(
+                    AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+                ).filter(
+                    AutorReferencia.id_referencia == ref.id_referencia
+                ).order_by(AutorReferencia.ordem_autor).all()
+                
+                ref_com_autores = {
+                    'id_referencia': ref.id_referencia,
+                    'titulo': ref.titulo_referencia,
+                    'tipo': ref.tipo_referencia,
+                    'ano': ref.ano,
+                    'link': ref.link_referencia,
+                    'autores_especificos': [
+                        {
+                            'id_autor': autor.id_autor,
+                            'nome_autor': autor.nome_autor,
+                            'afiliacao': autor.afiliacao,
+                            'sigla_afiliacao': autor.sigla_afiliacao,
+                            'ordem_autor': autor.ordem_autor,
+                            'papel': autor.papel
+                        } for autor in autores_ref
+                    ]
+                }
+                referencias_com_autores.append(ref_com_autores)
+                
+            except Exception as e:
+                print(f"Erro ao carregar autores da referência {ref.id_referencia}: {e}")
+                # Fallback: referência sem autores específicos
+                ref_com_autores = {
+                    'id_referencia': ref.id_referencia,
+                    'titulo': ref.titulo_referencia,
+                    'tipo': ref.tipo_referencia,
+                    'ano': ref.ano,
+                    'link': ref.link_referencia,
+                    'autores_especificos': []
+                }
+                referencias_com_autores.append(ref_com_autores)
+        
+        # ===== 6. COMPOSIÇÃO QUÍMICA =====
         try:
             compostos = db.session.query(
                 ComposicaoQuimica.id_composto,
@@ -1596,7 +2008,7 @@ def get_planta_detalhes_completos(planta_id):
             print(f"Erro ao carregar compostos: {e}")
             compostos = []
         
-        # ===== ✨ 7. PROPRIEDADES FARMACOLÓGICAS (NOVA) =====
+        # ===== 7. PROPRIEDADES FARMACOLÓGICAS =====
         try:
             propriedades = db.session.query(
                 PropriedadeFarmacologica.id_propriedade,
@@ -1609,54 +2021,6 @@ def get_planta_detalhes_completos(planta_id):
         except Exception as e:
             print(f"Erro ao carregar propriedades: {e}")
             propriedades = []
-        
-        # ===== ✨ 8. INDICAÇÕES MEDICINAIS DETALHADAS (NOVA) =====
-        try:
-            indicacoes = db.session.query(
-                Indicacao.id_indicacao,
-                Indicacao.descricao
-            ).join(
-                UsoPlantaIndicacao, Indicacao.id_indicacao == UsoPlantaIndicacao.id_indicacao
-            ).join(
-                UsoPlanta, UsoPlantaIndicacao.id_uso_planta == UsoPlanta.id_uso_planta
-            ).filter(
-                UsoPlanta.id_planta == planta_id
-            ).distinct().all()
-        except Exception as e:
-            print(f"Erro ao carregar indicações: {e}")
-            indicacoes = []
-        
-        # ===== ✨ 9. MÉTODOS DE EXTRAÇÃO (NOVA) =====
-        try:
-            metodos_extracao = db.session.query(
-                MetodoExtracacao.id_extraccao,
-                MetodoExtracacao.descricao
-            ).join(
-                UsoPlantaExtracao, MetodoExtracacao.id_extraccao == UsoPlantaExtracao.id_extraccao
-            ).join(
-                UsoPlanta, UsoPlantaExtracao.id_uso_planta == UsoPlanta.id_uso_planta
-            ).filter(
-                UsoPlanta.id_planta == planta_id
-            ).distinct().all()
-        except Exception as e:
-            print(f"Erro ao carregar métodos de extração: {e}")
-            metodos_extracao = []
-        
-        # ===== ✨ 10. MÉTODOS DE PREPARAÇÃO TRADICIONAL (NOVA) =====
-        try:
-            metodos_preparacao = db.session.query(
-                MetodoPreparacaoTradicional.id_preparacao,
-                MetodoPreparacaoTradicional.descricao
-            ).join(
-                UsoPlantaPreparacao, MetodoPreparacaoTradicional.id_preparacao == UsoPlantaPreparacao.id_preparacao
-            ).join(
-                UsoPlanta, UsoPlantaPreparacao.id_uso_planta == UsoPlanta.id_uso_planta
-            ).filter(
-                UsoPlanta.id_planta == planta_id
-            ).distinct().all()
-        except Exception as e:
-            print(f"Erro ao carregar métodos de preparação: {e}")
-            metodos_preparacao = []
         
         # ===== MONTAR RESULTADO COMPLETO =====
         resultado = {
@@ -1680,13 +2044,18 @@ def get_planta_detalhes_completos(planta_id):
                     'nome_provincia': prov.nome_provincia
                 } for prov in provincias
             ],
+            # ===== ✨ NOVA ESTRUTURA: USOS ESPECÍFICOS =====
+            'usos_especificos': usos_especificos,
+            
+            # ===== MANTER COMPATIBILIDADE COM ESTRUTURA ANTIGA =====
             'usos_medicinais': [
                 {
-                    'id_uso': uso.id_uso_planta,
-                    'parte_usada': uso.parte_usada,
-                    'observacoes': uso.observacoes
-                } for uso in usos
+                    'id_uso': uso['id_uso_planta'],
+                    'parte_usada': uso['parte_usada'],
+                    'observacoes': uso['observacoes']
+                } for uso in usos_especificos
             ],
+            
             'autores': [
                 {
                     'id_autor': autor.id_autor,
@@ -1695,16 +2064,19 @@ def get_planta_detalhes_completos(planta_id):
                     'sigla_afiliacao': autor.sigla_afiliacao
                 } for autor in autores
             ],
+            # ===== NOVA ESTRUTURA: REFERÊNCIAS COM AUTORES ESPECÍFICOS =====
+            'referencias_especificas': referencias_com_autores,
+            
+            # ===== MANTER COMPATIBILIDADE COM ESTRUTURA ANTIGA =====
             'referencias': [
                 {
-                    'id_referencia': ref.id_referencia,
-                    'titulo': ref.titulo_referencia,
-                    'tipo': ref.tipo_referencia,
-                    'ano': ref.ano,
-                    'link': ref.link_referencia
-                } for ref in referencias
+                    'id_referencia': ref['id_referencia'],
+                    'titulo': ref['titulo'],
+                    'tipo': ref['tipo'],
+                    'ano': ref['ano'],
+                    'link': ref['link']
+                } for ref in referencias_com_autores
             ],
-            # ===== ✨ NOVAS SEÇÕES =====
             'compostos': [
                 {
                     'id_composto': comp.id_composto,
@@ -1717,48 +2089,21 @@ def get_planta_detalhes_completos(planta_id):
                     'descricao': prop.descricao
                 } for prop in propriedades
             ],
-            'indicacoes': [
-                {
-                    'id_indicacao': ind.id_indicacao,
-                    'descricao': ind.descricao
-                } for ind in indicacoes
-            ],
-            'metodos_extracao': [
-                {
-                    'id_extraccao': met.id_extraccao,
-                    'descricao': met.descricao
-                } for met in metodos_extracao
-            ],
-            'metodos_preparacao': [
-                {
-                    'id_preparacao': met.id_preparacao,
-                    'descricao': met.descricao
-                } for met in metodos_preparacao
-            ],
+            
             # ===== METADADOS =====
             'metadata': {
                 'total_nomes_comuns': len(nomes_comuns),
                 'total_provincias': len(provincias),
-                'total_usos': len(usos),
+                'total_usos_especificos': len(usos_especificos),
                 'total_autores': len(autores),
-                'total_referencias': len(referencias),
+                'total_referencias': len(referencias_com_autores),
                 'total_compostos': len(compostos),
                 'total_propriedades': len(propriedades),
-                'total_indicacoes': len(indicacoes),
-                'total_metodos_extracao': len(metodos_extracao),
-                'total_metodos_preparacao': len(metodos_preparacao),
-                'completude_percentual': {
-                    'basico': 100,  # Sempre tem nome científico e família
-                    'nomes_comuns': 100 if len(nomes_comuns) > 0 else 0,
-                    'geografia': 100 if len(provincias) > 0 else 0,
-                    'usos': 100 if len(usos) > 0 else 0,
-                    'pesquisa': 100 if len(autores) > 0 or len(referencias) > 0 else 0,
-                    'quimica': 100 if len(compostos) > 0 or len(propriedades) > 0 else 0
-                }
+                'estrutura_usos': 'especifica_por_parte_e_indicacao'
             }
         }
         
-        print(f"✅ Detalhes completos carregados para planta {planta_id}: {len(resultado)} seções")
+        print(f"✅ Detalhes completos carregados para planta {planta_id}: {len(usos_especificos)} usos específicos")
         return jsonify(resultado)
         
     except Exception as e:
