@@ -689,7 +689,7 @@ export default function PlantsPage() {
                           {/* Métodos de extração para esta parte */}
                           {uso.metodos_extracao && uso.metodos_extracao.length > 0 && (
                             <div className={modalStyles.usoDetailSection}>
-                              <h4 className={modalStyles.usoDetailTitle}>Extração</h4>
+                              <h4 className={modalStyles.usoDetailTitle}>Extracção</h4>
                               <div className={modalStyles.badgesContainer}>
                                 {uso.metodos_extracao.map((metodo) => (
                                   <span key={metodo.id_extraccao} className={modalStyles.badge}>
@@ -769,7 +769,7 @@ export default function PlantsPage() {
               {/* ===== MÉTODOS DE EXTRAÇÃO ===== */}
               {selectedPlanta.metodos_extracao && selectedPlanta.metodos_extracao.length > 0 && (
                 <section className={modalStyles.modalSection}>
-                  <h3 className={modalStyles.sectionTitle}>Métodos de Extração</h3>
+                  <h3 className={modalStyles.sectionTitle}>Métodos de Extracção</h3>
                   <div className={modalStyles.badgesContainer}>
                     {selectedPlanta.metodos_extracao.map((metodo, index) => (
                       <span key={metodo.id_extraccao || index} className={`${modalStyles.badge} ${modalStyles.badgePurple}`}>
@@ -945,7 +945,7 @@ export default function PlantsPage() {
                   {selectedPlanta.metodos_extracao && selectedPlanta.metodos_extracao.length > 0 && (
                     <div className={modalStyles.statItem}>
                       <span className={modalStyles.statNumber}>{selectedPlanta.metodos_extracao.length}</span>
-                      <span className={modalStyles.statLabel}>Métodos Extração</span>
+                      <span className={modalStyles.statLabel}>Métodos Extracção</span>
                     </div>
                   )}
                   {selectedPlanta.metodos_preparacao && selectedPlanta.metodos_preparacao.length > 0 && (
@@ -977,7 +977,7 @@ export default function PlantsPage() {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Gerenciar Plantas</h1>
+          <h1 className={styles.title}>Gerir Plantas</h1>
         </div>
         <div style={{ 
           display: 'flex', 
@@ -1011,7 +1011,7 @@ export default function PlantsPage() {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Gerenciar Plantas</h1>
+          <h1 className={styles.title}>Gerir Plantas</h1>
         </div>
         <div style={{
           backgroundColor: '#fef2f2',
@@ -1043,7 +1043,7 @@ export default function PlantsPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Gerenciar Plantas</h1>
+        <h1 className={styles.title}>Gerir Plantas</h1>
         <Link href="/admin/plants/add" className={styles.addButton}>
           <svg
             xmlns="http://www.w3.org/2000/svg"

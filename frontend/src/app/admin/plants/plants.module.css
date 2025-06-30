@@ -277,10 +277,16 @@
 
 .viewButton {
   color: #9333ea;
+  background: none; /* ✅ ADICIONAR ESTA LINHA */
+  border: none;     /* ✅ ADICIONAR ESTA LINHA */
+  padding: 0;       /* ✅ ADICIONAR ESTA LINHA */
+  font: inherit;    /* ✅ ADICIONAR ESTA LINHA */
+  cursor: pointer;
 }
 
 .viewButton:hover {
   color: #7e22ce;
+  background-color: transparent;
 }
 
 .editButton {
