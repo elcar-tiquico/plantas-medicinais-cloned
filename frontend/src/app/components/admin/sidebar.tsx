@@ -128,7 +128,7 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
       ),
     },
     {
-      name: "Usuários",
+      name: "Utilizadores",
       href: "/admin/users",
       icon: (
         <svg

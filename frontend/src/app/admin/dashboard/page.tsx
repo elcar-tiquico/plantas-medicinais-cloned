@@ -31,6 +31,8 @@ interface ProvinciaData {
 interface PlantaRecente {
   id: number;
   name: string;
+  all_names?: string[];  // ✅ NOVO: Lista completa de nomes
+  names_count?: number;  // ✅ NOVO: Número total de nomes
   scientific_name: string;
   family: string;
   exsicata: string;
@@ -425,6 +427,31 @@ const AdminDashboardComponent: React.FC = () => {
     </svg>
   );
 
+const PlantNameDisplay: React.FC<{ planta: PlantaRecente }> = ({ planta }) => {
+  const hasMultipleNames = planta.all_names && planta.all_names.length > 1;
+  
+  return (
+    <div className={styles.plantNameContainer}>
+      <span className={styles.primaryName}>
+        {planta.name}
+      </span>
+      {hasMultipleNames && (
+        <div className={styles.nameTooltip}>
+          <span className={styles.tooltipTrigger}>ℹ️</span>
+          <div className={styles.tooltipContent}>
+            <div className={styles.tooltipTitle}>Todos os nomes comuns:</div>
+            <ul className={styles.namesList}>
+              {planta.all_names?.map((nome, index) => (
+                <li key={index} className={styles.nameItem}>{nome}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
   // Função para criar gráfico de pizza (mantida igual)
   const createPieChart = (data: FamiliaData[]) => {
     if (!data || data.length === 0) return null;
@@ -674,9 +701,11 @@ const AdminDashboardComponent: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className={styles.tableBody}>
-                          {plantasRecentes.map((planta) => (
-                            <tr key={planta.id} className={styles.tableRow}>
-                              <td className={styles.tableCell}>{planta.name}</td>
+                          {plantasRecentes.map((planta, index) => (
+                            <tr key={`planta-${planta.id}-${index}`} className={styles.tableRow}>
+                              <td className={styles.tableCell}>
+                                <PlantNameDisplay planta={planta} />
+                              </td>
                               <td className={styles.tableCell}>
                                 <em>{planta.scientific_name}</em>
                               </td>

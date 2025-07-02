@@ -558,49 +558,76 @@ def get_plantas_por_provincia():
 
 @app.route('/api/admin/dashboard/plantas-recentes', methods=['GET'])
 def get_plantas_recentes():
-    """Plantas REAIS adicionadas recentemente"""
+    """Plantas REAIS adicionadas recentemente - VERSÃO CORRIGIDA COM NOMES COMBINADOS"""
     try:
         default_limit = app.config.get('DASHBOARD_RECENT_PLANTS_LIMIT', 10)
         limit = request.args.get('limit', default_limit, type=int)
         
-        # Query REAL para plantas recentes
-        query = db.session.query(
+        # ✅ ESTRATÉGIA: Buscar plantas únicas primeiro, depois agregar nomes comuns
+        plantas_base = db.session.query(
             Planta.id_planta,
             Planta.nome_cientifico,
             Planta.numero_exsicata,
             Planta.data_adicao,
-            Familia.nome_familia,
-            NomeComum.nome_comum_planta
+            Familia.nome_familia
         ).join(
             Familia, Planta.id_familia == Familia.id_familia
-        ).outerjoin(
-            NomeComum, Planta.id_planta == NomeComum.id_planta
         ).order_by(
             desc(Planta.data_adicao), desc(Planta.id_planta)
-        ).limit(limit)
-        
-        plantas = query.all()
+        ).limit(limit).all()
         
         plantas_resultado = []
-        for planta in plantas:
+        
+        for planta in plantas_base:
+            # ✅ Para cada planta, buscar TODOS os seus nomes comuns
+            nomes_comuns = db.session.query(
+                NomeComum.nome_comum_planta
+            ).filter(
+                NomeComum.id_planta == planta.id_planta
+            ).order_by(
+                NomeComum.nome_comum_planta  # Ordenar alfabeticamente
+            ).all()
+            
+            # ✅ PROCESSAR NOMES COMUNS
+            if nomes_comuns:
+                lista_nomes = [nome.nome_comum_planta for nome in nomes_comuns]
+                
+                if len(lista_nomes) == 1:
+                    # Apenas um nome comum
+                    nome_display = lista_nomes[0]
+                elif len(lista_nomes) == 2:
+                    # Dois nomes: "nome1, nome2"
+                    nome_display = f"{lista_nomes[0]}, {lista_nomes[1]}"
+                else:
+                    # Três ou mais nomes: "primeiro +X"
+                    nome_display = f"{lista_nomes[0]} +{len(lista_nomes) - 1}"
+            else:
+                nome_display = "Sem nome comum"
+            
             # Data de adição formatada
             if planta.data_adicao:
                 data_adicao = planta.data_adicao.strftime('%d/%m/%Y')
             else:
-                data_adicao = '22/06/2025'  # Data padrão para dados sem timestamp
+                data_adicao = '02/07/2025'  # Data padrão
             
             plantas_resultado.append({
-                'id': planta.id_planta,
-                'name': planta.nome_comum_planta or 'Sem nome comum',
+                'id': planta.id_planta,  # ✅ Único por planta
+                'name': nome_display,    # ✅ Nomes combinados ou com +X
+                'all_names': lista_nomes if nomes_comuns else [],  # ✅ Lista completa para tooltip
+                'names_count': len(lista_nomes) if nomes_comuns else 0,
                 'scientific_name': planta.nome_cientifico,
                 'family': planta.nome_familia,
                 'exsicata': planta.numero_exsicata,
                 'added_at': data_adicao
             })
         
+        print(f"✅ Plantas recentes carregadas SEM DUPLICATAS: {len(plantas_resultado)} plantas únicas")
+        print(f"   Exemplo: {plantas_resultado[0]['name'] if plantas_resultado else 'Nenhuma planta'}")
+        
         return jsonify({
             'plantas_recentes': plantas_resultado,
-            'total': len(plantas_resultado)
+            'total': len(plantas_resultado),
+            'metodo': 'nomes_combinados'
         })
     except Exception as e:
         return handle_error(e)
