@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+import { useRouter } from 'next/navigation'  // ✅ ADICIONADO
 import styles from "./header.module.css"
 
 interface AdminHeaderProps {
@@ -27,6 +28,9 @@ interface SearchResponse {
 }
 
 export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
+  // ✅ ADICIONADO ROUTER
+  const router = useRouter()
+  
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [activeSearchFilter, setActiveSearchFilter] = useState("Plantas")
@@ -79,9 +83,12 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
 
   // Função para alterar filtro de pesquisa
   const handleSearchFilterChange = (filter: string) => {
+    console.log(`🔄 Mudando filtro para: ${filter}`)
     setActiveSearchFilter(filter)
+    
+    // Se há termo de busca, realizar nova busca com o filtro alterado
     if (searchTerm.trim()) {
-      performSearch(searchTerm, filter)
+      performSearchWithPages(searchTerm, filter)
     }
   }
 
@@ -129,7 +136,7 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (searchTerm.trim() && isSearchOpen) {
-        performSearch(searchTerm)
+        performSearchWithPages(searchTerm)
       } else if (!searchTerm.trim()) {
         setSearchResults(null)
       }
@@ -138,29 +145,180 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     return () => clearTimeout(timeoutId)
   }, [searchTerm, activeSearchFilter, isSearchOpen])
 
-  // Função para lidar com clique em resultado
-  const handleResultClick = (result: SearchResult) => {
-    let url = ""
-    
-    switch (result.tipo) {
-      case 'planta':
-        url = `/admin/plantas/${result.id}?search_term=${encodeURIComponent(searchTerm)}&search_type=${activeSearchFilter.toLowerCase()}`
-        break
-      case 'familia':
-        url = `/admin/familias/${result.id}`
-        break
-      case 'autor':
-        url = `/admin/autores/${result.id}`
-        break
-    }
+  // ✅ ADICIONAR ESTADO PARA DEBOUNCED SEARCH
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
 
-    // Fechar pesquisa e navegar
+  // ✅ USEEFFECT PARA DEBOUNCED TERM
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const handleResultClick = async (result: SearchResult) => {
+    console.log('🔍 Clicando em resultado:', result)
+    
+    // ✅ IMPORTANTE: Limpar estado ANTES de navegar
     setIsSearchOpen(false)
     setSearchTerm("")
     setSearchResults(null)
+    setSearchError("")
+    setIsSearching(false)
     
-    if (url) {
-      window.location.href = url
+    // ✅ ADICIONAR: Pequeno delay para garantir limpeza do estado
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    let url = ""
+    
+    try {
+      switch (result.tipo) {
+        case 'planta':
+          console.log('📊 Calculando página da planta...', result.id)
+          
+          // ✅ USAR NOME CIENTÍFICO PARA BUSCA PRECISA
+          const plantaParams = new URLSearchParams({
+            limit: '10',
+            search: result.nome_cientifico || '',
+            search_type: 'geral'
+          })
+          
+          console.log('📋 Parâmetros da busca:', Object.fromEntries(plantaParams))
+          
+          const plantaResponse = await fetch(`${API_BASE_URL}/api/admin/plantas/${result.id}/page-info?${plantaParams}`)
+          
+          if (plantaResponse.ok) {
+            const pageInfo = await plantaResponse.json()
+            console.log('✅ Página da planta calculada:', pageInfo)
+            
+            // ✅ CONSTRUIR URL COM TIMESTAMP para forçar recarregamento
+            const timestamp = Date.now()
+            url = `/admin/plants?page=${pageInfo.page}&highlight=${result.id}&search_type=geral&search_term=${encodeURIComponent(result.nome_cientifico || '')}&t=${timestamp}`
+          } else {
+            console.log('⚠️ Falha ao calcular página:', await plantaResponse.text())
+            const timestamp = Date.now()
+            url = `/admin/plants?search_type=geral&search_term=${encodeURIComponent(result.nome_cientifico || '')}&highlight=${result.id}&t=${timestamp}`
+          }
+          break
+          
+        case 'familia':
+          console.log('📊 Calculando página da família...', result.id)
+          
+          const familiaParams = new URLSearchParams({
+            limit: '10',
+            search: result.nome || ''
+          })
+          
+          const familiaResponse = await fetch(`${API_BASE_URL}/api/admin/familias/${result.id}/page-info?${familiaParams}`)
+          
+          if (familiaResponse.ok) {
+            const pageInfo = await familiaResponse.json()
+            console.log('✅ Página da família calculada:', pageInfo)
+            
+            const timestamp = Date.now()
+            url = `/admin/familias?page=${pageInfo.page}&highlight=${result.id}&search=${encodeURIComponent(result.nome || '')}&t=${timestamp}`
+          } else {
+            console.log('⚠️ Falha ao calcular página da família')
+            const timestamp = Date.now()
+            url = `/admin/familias?search=${encodeURIComponent(result.nome || '')}&highlight=${result.id}&t=${timestamp}`
+          }
+          break
+          
+        case 'autor':
+          const timestamp = Date.now()
+          url = `/admin/plants?search_type=autor&search_term=${encodeURIComponent(result.nome || '')}&t=${timestamp}`
+          break
+      }
+
+      console.log('🚀 Navegando para:', url)
+
+      if (url) {
+        // ✅ FORÇAR NAVEGAÇÃO COMPLETA COM LIMPEZA
+        window.location.href = url
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao processar resultado:', error)
+      
+      // ✅ FALLBACK com timestamp
+      const timestamp = Date.now()
+      switch (result.tipo) {
+        case 'planta':
+          window.location.href = `/admin/plants?highlight=${result.id}&t=${timestamp}`
+          break
+        case 'familia':
+          window.location.href = `/admin/familias?highlight=${result.id}&t=${timestamp}`
+          break
+        case 'autor':
+          window.location.href = `/admin/plants?search_type=autor&search_term=${encodeURIComponent(result.nome || '')}&t=${timestamp}`
+          break
+      }
+    }
+  }
+
+  const performSearchWithPages = async (term: string, filter: string = activeSearchFilter) => {
+    if (!term.trim()) {
+      setSearchResults(null)
+      return
+    }
+
+    setIsSearching(true)
+    setSearchError("")
+
+    try {
+      console.log(`🔍 Buscando "${term}" em ${filter}`)
+      
+      const filterMap: { [key: string]: string } = {
+        "Plantas": "plantas",
+        "Famílias": "familias", 
+        "Autores": "autores"
+      }
+
+      const apiFilter = filter === "Todos" ? "todos" : filterMap[filter] || "plantas"
+      
+      // ✅ USAR SEU ENDPOINT DE BUSCA MELHORADO
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/dashboard/busca?q=${encodeURIComponent(term)}&tipo=${apiFilter}&limit=10`
+      )
+
+      if (!response.ok) {
+        throw new Error(`Erro na pesquisa: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Resultados de busca:', data)
+      
+      // ✅ MAPEAR RESULTADOS PARA O FORMATO ESPERADO
+      const searchResults: SearchResponse = {
+        plantas: data.plantas?.map((planta: any) => ({
+          ...planta,
+          tipo: 'planta' as const,
+          nome_cientifico: planta.nome_cientifico,
+          nome_comum: planta.nome_comum,
+          familia: planta.familia
+        })) || [],
+        familias: data.familias?.map((familia: any) => ({
+          ...familia,
+          tipo: 'familia' as const,
+          nome: familia.nome
+        })) || [],
+        autores: data.autores?.map((autor: any) => ({
+          ...autor,
+          tipo: 'autor' as const,
+          nome: autor.nome
+        })) || [],
+        total_encontrado: data.total_encontrado || 0
+      }
+
+      setSearchResults(searchResults)
+
+    } catch (error) {
+      console.error("❌ Erro na pesquisa:", error)
+      setSearchError("Erro ao pesquisar. Tente novamente.")
+      setSearchResults(null)
+    } finally {
+      setIsSearching(false)
     }
   }
 
@@ -523,8 +681,10 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
               )}
             </div>
 
+            {/* ✅ BOTÃO ATUALIZADO: Adicionar nova planta com navegação */}
             <button 
               className={styles.actionButton}
+              onClick={() => router.push('/admin/plants/add')}
               title="Adicionar nova planta"
             >
               <svg

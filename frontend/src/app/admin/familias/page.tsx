@@ -390,6 +390,73 @@ export default function FamiliesPage() {
     totalPlantas?: number
   } | null>(null)
 
+  // ✅ ADICIONAR esta função dentro do componente (antes do return)
+  // ✅ FUNÇÃO showHighlightIndicator com cores ajustadas para a página
+
+  const showHighlightIndicator = (element: Element, tipo: string) => {
+    // Criar notificação
+    const indicator = document.createElement('div')
+    indicator.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #9333ea, #7e22ce);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(147, 51, 234, 0.25);
+        z-index: 10000;
+        font-weight: 600;
+        font-size: 14px;
+        animation: slideInRight 0.3s ease-out;
+        border: 2px solid #a855f7;
+      ">
+        ✨ ${tipo === 'planta' ? 'Planta' : 'Família'} encontrada!
+        <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">
+          📍 Item destacado abaixo
+        </div>
+      </div>
+    `
+    
+    document.body.appendChild(indicator)
+    
+    // Remover após 4 segundos
+    setTimeout(() => {
+      if (indicator.parentNode) {
+        indicator.style.animation = 'slideOutRight 0.3s ease-in'
+        setTimeout(() => {
+          document.body.removeChild(indicator)
+        }, 300)
+      }
+    }, 4000)
+    
+    // Adicionar seta apontando para o elemento
+    const arrow = document.createElement('div')
+    const rect = element.getBoundingClientRect()
+    arrow.innerHTML = `
+      <div style="
+        position: fixed;
+        left: ${rect.left - 30}px;
+        top: ${rect.top + rect.height/2 - 10}px;
+        font-size: 20px;
+        color: #9333ea;
+        z-index: 9999;
+        animation: pulse 1s infinite;
+      ">
+        👉
+      </div>
+    `
+    
+    document.body.appendChild(arrow)
+    
+    setTimeout(() => {
+      if (arrow.parentNode) {
+        document.body.removeChild(arrow)
+      }
+    }, 3000)
+  }
+
   // ✅ Hook para debounce do termo de pesquisa
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -401,7 +468,29 @@ export default function FamiliesPage() {
 
   // ✅ useEffect que carrega famílias COM FILTRO
   useEffect(() => {
-    carregarFamilias()
+    let isCancelled = false
+    
+    const carregarFamiliasComDebounce = async () => {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      if (!isCancelled) {
+        console.log('🔄 Carregando famílias com estados:', {
+          currentPage,
+          itemsPerPage,
+          debouncedSearchTerm,
+          sortBy,
+          sortOrder
+        })
+        
+        await carregarFamilias()
+      }
+    }
+    
+    carregarFamiliasComDebounce()
+    
+    return () => {
+      isCancelled = true
+    }
   }, [currentPage, itemsPerPage, debouncedSearchTerm, sortBy, sortOrder])
 
   // ✅ useEffect para resetar página quando pesquisa muda
@@ -410,6 +499,140 @@ export default function FamiliesPage() {
       setCurrentPage(1)
     }
   }, [debouncedSearchTerm, searchTerm])
+
+  // ✅ NOVO: Hook para highlight vindos da pesquisa do header
+  useEffect(() => {
+    const processUrlParams = async () => {
+      // ✅ DELAY INICIAL para garantir carregamento
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      const urlParams = new URLSearchParams(window.location.search)
+      const highlightId = urlParams.get('highlight')
+      const pageParam = urlParams.get('page')
+      const urlSearch = urlParams.get('search')
+      const timestamp = urlParams.get('t')
+      
+      console.log('🔍 Processando parâmetros da URL (famílias):', {
+        highlight: highlightId,
+        page: pageParam,
+        search: urlSearch,
+        timestamp: timestamp
+      })
+      
+      // ✅ RESETAR ESTADOS ANTES DE APLICAR NOVOS
+      console.log('🧹 Resetando estados antes de aplicar URL...')
+      
+      // ✅ APLICAR FILTRO DE BUSCA PRIMEIRO
+      if (urlSearch) {
+        console.log(`🎯 Aplicando busca da URL: "${urlSearch}"`)
+        const decodedSearch = decodeURIComponent(urlSearch)
+        
+        // ✅ APLICAR ESTADOS COM DELAYS
+        setSearchTerm(decodedSearch)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        setDebouncedSearchTerm(decodedSearch)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        // ✅ RESETAR PÁGINA ANTES DE APLICAR A NOVA
+        setCurrentPage(1)
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
+      // ✅ APLICAR PÁGINA APÓS APLICAR FILTROS
+      if (pageParam) {
+        const pageNumber = parseInt(pageParam, 10)
+        if (!isNaN(pageNumber) && pageNumber > 0) {
+          console.log(`📄 Aplicando página da URL: ${pageNumber}`)
+          setCurrentPage(pageNumber)
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+      
+      // ✅ CONFIGURAR HIGHLIGHT COM DELAY MAIOR
+      if (highlightId) {
+        console.log(`✨ Configurando highlight para família ${highlightId}`)
+        
+        // ✅ PRIMEIRA TENTATIVA
+        const highlightTimeout = setTimeout(() => {
+          console.log('🔍 Tentando encontrar elemento família para highlight...')
+          
+          const element = document.querySelector(`[data-familia-id="${highlightId}"]`)
+          if (element) {
+            console.log('✅ Elemento família encontrado, aplicando highlight')
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.classList.add('highlighted')
+            
+            // ✅ INDICADOR VISUAL
+            if (typeof showHighlightIndicator === 'function') {
+              showHighlightIndicator(element, 'família')
+            }
+            
+            // Remover highlight após 5 segundos
+            setTimeout(() => {
+              element.classList.remove('highlighted')
+            }, 5000)
+          } else {
+            console.log('❌ Elemento família não encontrado na primeira tentativa')
+            
+            // ✅ SEGUNDA TENTATIVA
+            setTimeout(() => {
+              console.log('🔍 Segunda tentativa de encontrar elemento família...')
+              const retryElement = document.querySelector(`[data-familia-id="${highlightId}"]`)
+              if (retryElement) {
+                console.log('✅ Elemento família encontrado na segunda tentativa')
+                retryElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                retryElement.classList.add('highlighted')
+                
+                if (typeof showHighlightIndicator === 'function') {
+                  showHighlightIndicator(retryElement, 'família')
+                }
+                
+                setTimeout(() => {
+                  retryElement.classList.remove('highlighted')
+                }, 5000)
+              } else {
+                console.log('❌ Elemento família ainda não encontrado')
+                
+                // ✅ TERCEIRA TENTATIVA
+                setTimeout(() => {
+                  console.log('🔍 Terceira tentativa família...')
+                  const finalElement = document.querySelector(`[data-familia-id="${highlightId}"]`)
+                  if (finalElement) {
+                    console.log('✅ Elemento família finalmente encontrado!')
+                    finalElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    finalElement.classList.add('highlighted')
+                    
+                    if (typeof showHighlightIndicator === 'function') {
+                      showHighlightIndicator(finalElement, 'família')
+                    }
+                    
+                    setTimeout(() => {
+                      finalElement.classList.remove('highlighted')
+                    }, 5000)
+                  } else {
+                    console.log('❌ Elemento família definitivamente não encontrado')
+                  }
+                }, 3000)
+              }
+            }, 2000)
+          }
+        }, 4000) // ✅ DELAY MAIOR: 4 segundos
+        
+        return () => clearTimeout(highlightTimeout)
+      }
+      
+      // ✅ LIMPAR URL após processar
+      if (highlightId || pageParam || urlSearch) {
+        setTimeout(() => {
+          console.log('🧹 Limpando URL da família...')
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }, 500)
+      }
+    }
+    
+    processUrlParams()
+  }, [])
 
   // ✅ EFFECT: Prevenir scroll quando modal aberto
   useEffect(() => {
@@ -427,6 +650,7 @@ export default function FamiliesPage() {
   // ✅ Função carregarFamilias COM BUSCA
   const carregarFamilias = async (): Promise<void> => {
     try {
+      console.log('🔄 Iniciando carregamento de famílias...')
       setLoading(true)
       setError(null)
       
@@ -435,14 +659,25 @@ export default function FamiliesPage() {
         limit: itemsPerPage.toString()
       })
       
+      // ✅ LOGS DETALHADOS
+      console.log('📋 Estados atuais das famílias:', {
+        currentPage,
+        itemsPerPage,
+        debouncedSearchTerm,
+        sortBy,
+        sortOrder
+      })
+      
+      // ✅ APLICAR FILTRO DE BUSCA
       if (debouncedSearchTerm) {
+        console.log(`🔍 Aplicando busca de família: "${debouncedSearchTerm}"`)
         params.append('search', debouncedSearchTerm)
-        console.log(`🔍 Aplicando busca: "${debouncedSearchTerm}"`)
       }
       
-      console.log(`🔄 Carregando famílias: ${API_BASE_URL}/api/admin/familias?${params}`)
+      const finalUrl = `${API_BASE_URL}/api/admin/familias?${params}`
+      console.log(`🌐 URL final da requisição de famílias: ${finalUrl}`)
       
-      const response = await fetch(`${API_BASE_URL}/api/admin/familias?${params}`)
+      const response = await fetch(finalUrl)
       
       if (!response.ok) {
         throw new Error(`Erro ${response.status}: ${response.statusText}`)
@@ -450,13 +685,19 @@ export default function FamiliesPage() {
       
       const data: FamiliasResponse = await response.json()
       
-      console.log('✅ Dados recebidos:', data)
-      console.log(`🔍 Busca aplicada na API: "${data.search_applied || 'nenhuma'}"`)
+      console.log('✅ Dados de famílias recebidos:', {
+        total: data.total,
+        familias_count: data.familias?.length || 0,
+        first_familia: data.familias?.[0]?.nome_familia || 'nenhuma',
+        search_applied: data.search_applied
+      })
       
+      // ✅ APLICAR ORDENAÇÃO
       let familiasOrdenadas = data.familias || []
       
-      // ✅ Aplicar ordenação apenas no frontend
       if (sortBy && familiasOrdenadas.length > 0) {
+        console.log(`🔄 Aplicando ordenação de famílias: ${sortBy} ${sortOrder}`)
+        
         familiasOrdenadas = [...familiasOrdenadas].sort((a, b) => {
           let aValue: string | number = ''
           let bValue: string | number = ''
@@ -489,11 +730,12 @@ export default function FamiliesPage() {
         })
       }
       
+      // ✅ ATUALIZAR ESTADOS
       setFamilias(familiasOrdenadas)
       setTotalFamilias(data.total || 0)
       setTotalPages(Math.ceil((data.total || 0) / itemsPerPage))
       
-      console.log(`✅ Famílias carregadas: ${familiasOrdenadas.length} de ${data.total} total`)
+      console.log(`✅ Famílias carregadas com sucesso: ${familiasOrdenadas.length} de ${data.total} total`)
       
     } catch (err) {
       console.error('❌ Erro ao carregar famílias:', err)
@@ -1030,7 +1272,7 @@ export default function FamiliesPage() {
                 </tr>
               ) : (
                 familias.map((familia) => (
-                  <tr key={familia.id_familia} className={styles.tableRow}>
+                  <tr key={familia.id_familia} className={styles.tableRow} data-familia-id={familia.id_familia}>                    
                     <td className={styles.tableCellName}>
                       <strong>{familia.nome_familia.toUpperCase()}</strong>
                     </td>

@@ -652,3 +652,60 @@
   outline: none;
   box-shadow: 0 0 0 2px #f9fafb, 0 0 0 4px #9333ea;
 }
+
+/* ===== HIGHLIGHT AJUSTADO PARA CORES DA PÁGINA ===== */
+
+.highlighted {
+  background: linear-gradient(135deg, #a855f7, #9333ea) !important;
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.4) !important;
+  border: 2px solid #9333ea !important;
+  border-radius: 8px !important;
+  animation: highlightPulse 2s infinite !important;
+  transition: all 0.3s ease !important;
+}
+
+@keyframes highlightPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(147, 51, 234, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

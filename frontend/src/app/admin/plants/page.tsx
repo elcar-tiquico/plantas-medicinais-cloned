@@ -186,6 +186,76 @@ export default function PlantsPage() {
   const [selectedPlanta, setSelectedPlanta] = useState<PlantaDetalhada | null>(null)
   const [loadingModal, setLoadingModal] = useState<boolean>(false)
 
+  // ✅ ESTADO PARA CONTROLAR SE JÁ PROCESSOU URL
+  const [urlProcessed, setUrlProcessed] = useState(false)
+
+  // ✅ ADICIONAR esta função dentro do componente (antes do return)
+  // ✅ FUNÇÃO showHighlightIndicator com cores ajustadas para a página
+
+  const showHighlightIndicator = (element: Element, tipo: string) => {
+    // Criar notificação
+    const indicator = document.createElement('div')
+    indicator.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #9333ea, #7e22ce);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(147, 51, 234, 0.25);
+        z-index: 10000;
+        font-weight: 600;
+        font-size: 14px;
+        animation: slideInRight 0.3s ease-out;
+        border: 2px solid #a855f7;
+      ">
+        ✨ ${tipo === 'planta' ? 'Planta' : 'Família'} encontrada!
+        <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">
+          📍 Item destacado abaixo
+        </div>
+      </div>
+    `
+    
+    document.body.appendChild(indicator)
+    
+    // Remover após 4 segundos
+    setTimeout(() => {
+      if (indicator.parentNode) {
+        indicator.style.animation = 'slideOutRight 0.3s ease-in'
+        setTimeout(() => {
+          document.body.removeChild(indicator)
+        }, 300)
+      }
+    }, 4000)
+    
+    // Adicionar seta apontando para o elemento
+    const arrow = document.createElement('div')
+    const rect = element.getBoundingClientRect()
+    arrow.innerHTML = `
+      <div style="
+        position: fixed;
+        left: ${rect.left - 30}px;
+        top: ${rect.top + rect.height/2 - 10}px;
+        font-size: 20px;
+        color: #9333ea;
+        z-index: 9999;
+        animation: pulse 1s infinite;
+      ">
+        👉
+      </div>
+    `
+    
+    document.body.appendChild(arrow)
+    
+    setTimeout(() => {
+      if (arrow.parentNode) {
+        document.body.removeChild(arrow)
+      }
+    }, 3000)
+  }
+
   // ✅ Hook para debounce do termo de pesquisa
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -197,7 +267,35 @@ export default function PlantsPage() {
 
   // ✅ useEffect que carrega plantas - agora usa debouncedSearchTerm
   useEffect(() => {
-    carregarPlantas()
+    // ✅ IMPORTANTE: Cancelar requisições anteriores se houver
+    let isCancelled = false
+    
+    const carregarPlantasComDebounce = async () => {
+      // ✅ DELAY PEQUENO para debounce
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      if (!isCancelled) {
+        console.log('🔄 Carregando plantas com estados:', {
+          currentPage,
+          itemsPerPage,
+          debouncedSearchTerm,
+          selectedFamily,
+          selectedLocation,
+          searchType,
+          sortBy,
+          sortOrder
+        })
+        
+        await carregarPlantas()
+      }
+    }
+    
+    carregarPlantasComDebounce()
+    
+    // ✅ FUNÇÃO DE LIMPEZA
+    return () => {
+      isCancelled = true
+    }
   }, [currentPage, itemsPerPage, debouncedSearchTerm, selectedFamily, selectedLocation, searchType, sortBy, sortOrder])
 
   // ✅ useEffect separado para mudanças imediatas
@@ -210,22 +308,165 @@ export default function PlantsPage() {
     carregarFiltros()
   }, [])
 
+  useEffect(() => {
+    // ✅ IMPORTANTE: Aguardar um pouco para garantir que a página foi totalmente carregada
+    const processUrlParams = async () => {
+      // Pequeno delay para garantir que todos os estados foram inicializados
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      const urlParams = new URLSearchParams(window.location.search)
+      const highlightId = urlParams.get('highlight')
+      const pageParam = urlParams.get('page')
+      const urlSearchType = urlParams.get('search_type') 
+      const urlSearchTerm = urlParams.get('search_term')
+      const timestamp = urlParams.get('t') // Timestamp para debug
+      
+      console.log('🔍 Processando parâmetros da URL:', {
+        highlight: highlightId,
+        page: pageParam,
+        searchType: urlSearchType,
+        searchTerm: urlSearchTerm,
+        timestamp: timestamp
+      })
+      
+      // ✅ IMPORTANTE: Resetar estados antes de aplicar novos valores
+      console.log('🧹 Resetando estados antes de aplicar URL...')
+      
+      // ✅ APLICAR FILTROS DE BUSCA PRIMEIRO
+      if (urlSearchType && urlSearchTerm) {
+        console.log(`🎯 Aplicando busca da URL: ${urlSearchType} = "${urlSearchTerm}"`)
+        const decodedSearchType = decodeURIComponent(urlSearchType) as SearchType
+        const decodedSearchTerm = decodeURIComponent(urlSearchTerm)
+        
+        // ✅ APLICAR ESTADOS COM DELAY ENTRE ELES
+        setSearchType(decodedSearchType)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        setSearchTerm(decodedSearchTerm)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        setDebouncedSearchTerm(decodedSearchTerm)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        // ✅ RESETAR PÁGINA ANTES DE APLICAR A NOVA
+        setCurrentPage(1)
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
+      // ✅ APLICAR PÁGINA APÓS APLICAR FILTROS
+      if (pageParam) {
+        const pageNumber = parseInt(pageParam, 10)
+        if (!isNaN(pageNumber) && pageNumber > 0) {
+          console.log(`📄 Aplicando página da URL: ${pageNumber}`)
+          setCurrentPage(pageNumber)
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+      
+      // ✅ CONFIGURAR HIGHLIGHT COM DELAY MAIOR
+      if (highlightId) {
+        console.log(`✨ Configurando highlight para planta ${highlightId}`)
+        
+        // ✅ DELAY MUITO MAIOR para garantir que tudo foi carregado
+        const highlightTimeout = setTimeout(() => {
+          console.log('🔍 Tentando encontrar elemento para highlight...')
+          
+          const element = document.querySelector(`[data-plant-id="${highlightId}"]`)
+          if (element) {
+            console.log('✅ Elemento encontrado, aplicando highlight')
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.classList.add('highlighted')
+            
+            // ✅ INDICADOR VISUAL
+            if (typeof showHighlightIndicator === 'function') {
+              showHighlightIndicator(element, 'planta')
+            }
+            
+            // Remover highlight após 5 segundos
+            setTimeout(() => {
+              element.classList.remove('highlighted')
+            }, 5000)
+          } else {
+            console.log('❌ Elemento não encontrado na primeira tentativa')
+            
+            // ✅ SEGUNDA TENTATIVA COM DELAY MAIOR
+            setTimeout(() => {
+              console.log('🔍 Segunda tentativa de encontrar elemento...')
+              const retryElement = document.querySelector(`[data-plant-id="${highlightId}"]`)
+              if (retryElement) {
+                console.log('✅ Elemento encontrado na segunda tentativa')
+                retryElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                retryElement.classList.add('highlighted')
+                
+                if (typeof showHighlightIndicator === 'function') {
+                  showHighlightIndicator(retryElement, 'planta')
+                }
+                
+                setTimeout(() => {
+                  retryElement.classList.remove('highlighted')
+                }, 5000)
+              } else {
+                console.log('❌ Elemento ainda não encontrado - pode estar em carregamento')
+                
+                // ✅ TERCEIRA TENTATIVA (última)
+                setTimeout(() => {
+                  console.log('🔍 Terceira e última tentativa...')
+                  const finalElement = document.querySelector(`[data-plant-id="${highlightId}"]`)
+                  if (finalElement) {
+                    console.log('✅ Elemento finalmente encontrado!')
+                    finalElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    finalElement.classList.add('highlighted')
+                    
+                    if (typeof showHighlightIndicator === 'function') {
+                      showHighlightIndicator(finalElement, 'planta')
+                    }
+                    
+                    setTimeout(() => {
+                      finalElement.classList.remove('highlighted')
+                    }, 5000)
+                  } else {
+                    console.log('❌ Elemento definitivamente não encontrado')
+                  }
+                }, 3000)
+              }
+            }, 2000)
+          }
+        }, 4000) // ✅ DELAY MAIOR: 4 segundos
+        
+        // ✅ RETORNAR FUNÇÃO DE LIMPEZA
+        return () => clearTimeout(highlightTimeout)
+      }
+      
+      // ✅ LIMPAR URL após processar COM DELAY
+      if (highlightId || pageParam || urlSearchType || urlSearchTerm) {
+        setTimeout(() => {
+          console.log('🧹 Limpando URL...')
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }, 500) // ✅ DELAY MAIOR para não interferir
+      }
+    }
+    
+    // ✅ EXECUTAR FUNÇÃO ASSÍNCRONA
+    processUrlParams()
+  }, [])
+
   // ✅ EFFECT: Prevenir scroll quando modal aberto
   useEffect(() => {
     if (showViewModal) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
-    }
-    
+    }    
     // Cleanup quando componente desmonta
     return () => {
       document.body.style.overflow = 'unset'
     }
   }, [showViewModal])
 
+
   const carregarPlantas = async (): Promise<void> => {
     try {
+      console.log('🔄 Iniciando carregamento de plantas...')
       setLoading(true)
       setError(null)
       
@@ -236,7 +477,20 @@ export default function PlantsPage() {
       
       let endpoint = `${API_BASE_URL}/api/admin/plantas`
       
+      // ✅ ADICIONAR LOGS DETALHADOS
+      console.log('📋 Estados atuais:', {
+        currentPage,
+        itemsPerPage,
+        debouncedSearchTerm,
+        searchType,
+        selectedFamily,
+        selectedLocation
+      })
+      
+      // ✅ APLICAR FILTROS DE BUSCA
       if (debouncedSearchTerm) {
+        console.log(`🔍 Aplicando busca: "${debouncedSearchTerm}" (tipo: ${searchType})`)
+        
         if (searchType === 'geral') {
           params.append('search', debouncedSearchTerm)
         } else {
@@ -245,12 +499,21 @@ export default function PlantsPage() {
         }
       }
       
-      if (selectedFamily) params.append('familia', selectedFamily)
-      if (selectedLocation) params.append('provincia', selectedLocation)
+      // ✅ APLICAR OUTROS FILTROS
+      if (selectedFamily) {
+        console.log(`🏷️ Aplicando filtro de família: ${selectedFamily}`)
+        params.append('familia', selectedFamily)
+      }
       
-      console.log(`🔄 Carregando plantas: ${endpoint}?${params}`)
+      if (selectedLocation) {
+        console.log(`📍 Aplicando filtro de província: ${selectedLocation}`)
+        params.append('provincia', selectedLocation)
+      }
       
-      const response = await fetch(`${endpoint}?${params}`)
+      const finalUrl = `${endpoint}?${params}`
+      console.log(`🌐 URL final da requisição: ${finalUrl}`)
+      
+      const response = await fetch(finalUrl)
       
       if (!response.ok) {
         throw new Error(`Erro ${response.status}: ${response.statusText}`)
@@ -258,18 +521,19 @@ export default function PlantsPage() {
       
       const data: PaginatedResponse<Planta> = await response.json()
       
-      console.log('✅ Dados recebidos:', data)
+      console.log('✅ Dados recebidos:', {
+        total: data.total,
+        page: data.page,
+        plantas_count: data.plantas?.length || 0,
+        first_plant: data.plantas?.[0]?.nome_cientifico || 'nenhuma'
+      })
       
-      if (data.erro && (searchType === 'composto' || searchType === 'propriedade')) {
-        setError(`Pesquisa por ${searchType === 'composto' ? 'composto químico' : 'propriedade farmacológica'} não está disponível. ${data.erro}`)
-        setPlantas([])
-        setTotalPlantas(0)
-        setTotalPages(0)
-        return
-      }
-      
+      // ✅ APLICAR ORDENAÇÃO
       let plantasOrdenadas = data.plantas || []
+      
       if (sortBy && plantasOrdenadas.length > 0) {
+        console.log(`🔄 Aplicando ordenação: ${sortBy} ${sortOrder}`)
+        
         plantasOrdenadas = [...plantasOrdenadas].sort((a, b) => {
           let aValue: string = ''
           let bValue: string = ''
@@ -304,43 +568,15 @@ export default function PlantsPage() {
         })
       }
       
+      // ✅ ATUALIZAR ESTADOS
       setPlantas(plantasOrdenadas)
       setTotalPlantas(data.total || 0)
       setTotalPages(Math.ceil((data.total || 0) / itemsPerPage))
       
-      if (data.fallback) {
-        console.log('ℹ️ Usando busca fallback:', data.message)
-      }
+      console.log(`✅ Plantas carregadas com sucesso: ${plantasOrdenadas.length} de ${data.total} total`)
       
     } catch (err) {
       console.error('❌ Erro ao carregar plantas:', err)
-      
-      if (debouncedSearchTerm && searchType !== 'geral') {
-        console.log('🔄 Tentando busca fallback...')
-        try {const fallbackParams = new URLSearchParams({
-            search: debouncedSearchTerm,
-            page: currentPage.toString(),
-            limit: itemsPerPage.toString()
-          })
-          
-          if (selectedFamily) fallbackParams.append('familia', selectedFamily)
-          if (selectedLocation) fallbackParams.append('provincia', selectedLocation)
-          
-          const fallbackResponse = await fetch(`${API_BASE_URL}/api/admin/plantas/busca-fallback?${fallbackParams}`)
-          
-          if (fallbackResponse.ok) {
-            const fallbackData: PaginatedResponse<Planta> = await fallbackResponse.json()
-            setPlantas(fallbackData.plantas || [])
-            setTotalPlantas(fallbackData.total || 0)
-            setTotalPages(Math.ceil((fallbackData.total || 0) / itemsPerPage))
-            setError(`Busca específica por ${searchType.replace('_', ' ')} não disponível. Mostrando resultados de busca geral.`)
-            return
-          }
-        } catch (fallbackErr) {
-          console.error('❌ Erro na busca fallback:', fallbackErr)
-        }
-      }
-      
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
       setError(`Erro ao carregar plantas: ${errorMessage}`)
     } finally {
@@ -1404,7 +1640,7 @@ export default function PlantsPage() {
                 </tr>
               ) : (
                 plantas.map((planta) => (
-                  <tr key={planta.id_planta} className={styles.tableRow}>
+                  <tr key={planta.id_planta} className={styles.tableRow} data-plant-id={planta.id_planta}>                    
                     <td className={styles.tableCellName}>
                       {formatarNomesComuns(planta.nomes_comuns)}
                     </td>

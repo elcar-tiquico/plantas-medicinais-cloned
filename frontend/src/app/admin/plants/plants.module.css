@@ -842,3 +842,120 @@
 .input[placeholder*="anti-inflamatório"]:focus::placeholder {
   opacity: 0.7;
 }
+
+/* .highlighted {
+  background-color: #fef3c7 !important;
+  border: 2px solid #f59e0b !important;
+  border-radius: 0.375rem;
+  animation: highlightPulse 2s ease-in-out;
+}
+
+@keyframes highlightPulse {
+  0%, 100% { 
+    background-color: #fef3c7; 
+  }
+  50% { 
+    background-color: #fde68a; 
+  }
+}
+
+.highlighted {
+  background: linear-gradient(135deg, #fef3c7, #fde68a) !important;
+  border: 3px solid #f59e0b !important;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4) !important;
+  animation: highlightPulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 10;
+}
+
+@keyframes highlightPulse {
+  0%, 100% { 
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+  }
+  50% { 
+    background: linear-gradient(135deg, #fde68a, #fcd34d);
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+  }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+} */
+
+/* =====================================================
+   ESTILOS PARA HIGHLIGHT DE ELEMENTOS ENCONTRADOS
+   Adicionar aos arquivos CSS existentes
+   ===================================================== */
+
+/* 🎯 ANIMAÇÃO PARA HIGHLIGHT */
+/* ===== HIGHLIGHT AJUSTADO PARA CORES DA PÁGINA ===== */
+
+.highlighted {
+  background: linear-gradient(135deg, #a855f7, #9333ea) !important;
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.4) !important;
+  border: 2px solid #9333ea !important;
+  border-radius: 8px !important;
+  animation: highlightPulse 2s infinite !important;
+  transition: all 0.3s ease !important;
+}
+
+@keyframes highlightPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(147, 51, 234, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

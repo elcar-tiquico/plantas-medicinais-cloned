@@ -427,30 +427,32 @@ const AdminDashboardComponent: React.FC = () => {
     </svg>
   );
 
-const PlantNameDisplay: React.FC<{ planta: PlantaRecente }> = ({ planta }) => {
-  const hasMultipleNames = planta.all_names && planta.all_names.length > 1;
-  
-  return (
-    <div className={styles.plantNameContainer}>
-      <span className={styles.primaryName}>
-        {planta.name}
-      </span>
-      {hasMultipleNames && (
-        <div className={styles.nameTooltip}>
-          <span className={styles.tooltipTrigger}>ℹ️</span>
-          <div className={styles.tooltipContent}>
-            <div className={styles.tooltipTitle}>Todos os nomes comuns:</div>
-            <ul className={styles.namesList}>
+  const PlantNameDisplay: React.FC<{ planta: PlantaRecente }> = ({ planta }) => {
+    const hasMultipleNames = planta.all_names && planta.all_names.length > 1;
+    
+    if (!hasMultipleNames) {
+      return <span className={styles.primaryName}>{planta.name}</span>;
+    }
+
+    return (
+      <div className={styles.plantNameContainer}>
+        <span className={styles.primaryName}>{planta.name}</span>
+        <div className={styles.quickTooltip}>
+          <span className={styles.infoIcon}>ℹ️</span>
+          <div className={styles.quickTooltipContent}>
+            <div className={styles.tooltipTitle}>
+              Todos os nomes ({planta.all_names?.length}):
+            </div>
+            <div className={styles.namesList}>
               {planta.all_names?.map((nome, index) => (
-                <li key={index} className={styles.nameItem}>{nome}</li>
+                <div key={index} className={styles.nameItem}>{nome}</div>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
   // Função para criar gráfico de pizza (mantida igual)
   const createPieChart = (data: FamiliaData[]) => {
@@ -1127,7 +1129,7 @@ const PlantNameDisplay: React.FC<{ planta: PlantaRecente }> = ({ planta }) => {
                 )}
 
                 <div className={styles.viewAllContainer}>
-                  <a href="/admin/categories" className={styles.buttonPurple}>
+                  <a href="/admin/familias" className={styles.buttonPurple}>
                     Gerir famílias
                   </a>
                 </div>

@@ -926,136 +926,136 @@ def get_autores_recentes():
 # ENDPOINTS ADICIONAIS PARA DADOS COMPLETOS
 # =====================================================
 
-@app.route('/api/admin/dashboard/busca', methods=['GET'])
-def busca_admin():
-    """Busca REAL integrada para o painel admin - VERSÃO FINAL CORRIGIDA"""
-    try:
-        query_param = request.args.get('q', '').strip()
-        tipo = request.args.get('tipo', 'todos')
-        limit = request.args.get('limit', 20, type=int)
+# @app.route('/api/admin/dashboard/busca', methods=['GET'])
+# def busca_admin():
+#     """Busca REAL integrada para o painel admin - VERSÃO FINAL CORRIGIDA"""
+#     try:
+#         query_param = request.args.get('q', '').strip()
+#         tipo = request.args.get('tipo', 'todos')
+#         limit = request.args.get('limit', 20, type=int)
         
-        resultados = {
-            'plantas': [],
-            'familias': [],
-            'autores': [],
-            'total_encontrado': 0
-        }
+#         resultados = {
+#             'plantas': [],
+#             'familias': [],
+#             'autores': [],
+#             'total_encontrado': 0
+#         }
         
-        if not query_param:
-            return jsonify(resultados)
+#         if not query_param:
+#             return jsonify(resultados)
         
-        search_term = f'%{query_param}%'
+#         search_term = f'%{query_param}%'
         
-        # ===== BUSCAR PLANTAS REAIS - VERSÃO FINAL CORRIGIDA =====
-        if tipo in ['plantas', 'todos']:
-            # ✅ ESTRATÉGIA: Buscar plantas únicas e depois agregar todos os seus nomes comuns
+#         # ===== BUSCAR PLANTAS REAIS - VERSÃO FINAL CORRIGIDA =====
+#         if tipo in ['plantas', 'todos']:
+#             # ✅ ESTRATÉGIA: Buscar plantas únicas e depois agregar todos os seus nomes comuns
             
-            # Primeiro: encontrar IDs de plantas que correspondem ao termo de busca
-            plantas_ids_cientificas = db.session.query(Planta.id_planta).filter(
-                Planta.nome_cientifico.ilike(search_term)
-            ).subquery()
+#             # Primeiro: encontrar IDs de plantas que correspondem ao termo de busca
+#             plantas_ids_cientificas = db.session.query(Planta.id_planta).filter(
+#                 Planta.nome_cientifico.ilike(search_term)
+#             ).subquery()
             
-            plantas_ids_comuns = db.session.query(
-                NomeComum.id_planta
-            ).filter(
-                NomeComum.nome_comum_planta.ilike(search_term)
-            ).subquery()
+#             plantas_ids_comuns = db.session.query(
+#                 NomeComum.id_planta
+#             ).filter(
+#                 NomeComum.nome_comum_planta.ilike(search_term)
+#             ).subquery()
             
-            # Combinar IDs únicos de ambas as buscas
-            plantas_ids_combinados = db.session.query(
-                plantas_ids_cientificas.c.id_planta.label('id_planta')
-            ).union(
-                db.session.query(plantas_ids_comuns.c.id_planta.label('id_planta'))
-            ).subquery()
+#             # Combinar IDs únicos de ambas as buscas
+#             plantas_ids_combinados = db.session.query(
+#                 plantas_ids_cientificas.c.id_planta.label('id_planta')
+#             ).union(
+#                 db.session.query(plantas_ids_comuns.c.id_planta.label('id_planta'))
+#             ).subquery()
             
-            # Buscar dados completos das plantas encontradas
-            plantas_query = db.session.query(
-                Planta.id_planta,
-                Planta.nome_cientifico,
-                Familia.nome_familia,
-                # ✅ AGREGAÇÃO: Combinar todos os nomes comuns separados por vírgula
-                func.group_concat(
-                    func.distinct(NomeComum.nome_comum_planta)
-                ).label('todos_nomes_comuns')
-            ).join(
-                Familia, Planta.id_familia == Familia.id_familia
-            ).outerjoin(
-                NomeComum, Planta.id_planta == NomeComum.id_planta
-            ).join(
-                plantas_ids_combinados, Planta.id_planta == plantas_ids_combinados.c.id_planta
-            ).group_by(
-                Planta.id_planta, 
-                Planta.nome_cientifico, 
-                Familia.nome_familia
-            ).limit(limit).all()
+#             # Buscar dados completos das plantas encontradas
+#             plantas_query = db.session.query(
+#                 Planta.id_planta,
+#                 Planta.nome_cientifico,
+#                 Familia.nome_familia,
+#                 # ✅ AGREGAÇÃO: Combinar todos os nomes comuns separados por vírgula
+#                 func.group_concat(
+#                     func.distinct(NomeComum.nome_comum_planta)
+#                 ).label('todos_nomes_comuns')
+#             ).join(
+#                 Familia, Planta.id_familia == Familia.id_familia
+#             ).outerjoin(
+#                 NomeComum, Planta.id_planta == NomeComum.id_planta
+#             ).join(
+#                 plantas_ids_combinados, Planta.id_planta == plantas_ids_combinados.c.id_planta
+#             ).group_by(
+#                 Planta.id_planta, 
+#                 Planta.nome_cientifico, 
+#                 Familia.nome_familia
+#             ).limit(limit).all()
             
-            for planta in plantas_query:
-                # Processar nomes comuns
-                nomes_comuns_lista = []
-                if planta.todos_nomes_comuns:
-                    # Separar por vírgula e limpar espaços
-                    nomes_comuns_lista = [nome.strip() for nome in planta.todos_nomes_comuns.split(',') if nome.strip()]
+#             for planta in plantas_query:
+#                 # Processar nomes comuns
+#                 nomes_comuns_lista = []
+#                 if planta.todos_nomes_comuns:
+#                     # Separar por vírgula e limpar espaços
+#                     nomes_comuns_lista = [nome.strip() for nome in planta.todos_nomes_comuns.split(',') if nome.strip()]
                 
-                # Criar string formatada dos nomes comuns
-                nomes_comuns_str = ', '.join(nomes_comuns_lista) if nomes_comuns_lista else None
+#                 # Criar string formatada dos nomes comuns
+#                 nomes_comuns_str = ', '.join(nomes_comuns_lista) if nomes_comuns_lista else None
                 
-                resultados['plantas'].append({
-                    'id': planta.id_planta,
-                    'nome_cientifico': planta.nome_cientifico,
-                    'nome_comum': nomes_comuns_str,  # ✅ TODOS os nomes comuns combinados
-                    'familia': planta.nome_familia,
-                    'tipo': 'planta',
-                    'total_nomes_comuns': len(nomes_comuns_lista)  # Info adicional
-                })
+#                 resultados['plantas'].append({
+#                     'id': planta.id_planta,
+#                     'nome_cientifico': planta.nome_cientifico,
+#                     'nome_comum': nomes_comuns_str,  # ✅ TODOS os nomes comuns combinados
+#                     'familia': planta.nome_familia,
+#                     'tipo': 'planta',
+#                     'total_nomes_comuns': len(nomes_comuns_lista)  # Info adicional
+#                 })
         
-        # ===== BUSCAR FAMÍLIAS REAIS (mantido igual) =====
-        if tipo in ['familias', 'todos']:
-            familias_query = Familia.query.filter(
-                Familia.nome_familia.ilike(search_term)
-            ).limit(limit).all()
+#         # ===== BUSCAR FAMÍLIAS REAIS (mantido igual) =====
+#         if tipo in ['familias', 'todos']:
+#             familias_query = Familia.query.filter(
+#                 Familia.nome_familia.ilike(search_term)
+#             ).limit(limit).all()
             
-            for familia in familias_query:
-                total_plantas_familia = Planta.query.filter_by(id_familia=familia.id_familia).count()
-                resultados['familias'].append({
-                    'id': familia.id_familia,
-                    'nome': familia.nome_familia,
-                    'total_plantas': total_plantas_familia,
-                    'tipo': 'familia'
-                })
+#             for familia in familias_query:
+#                 total_plantas_familia = Planta.query.filter_by(id_familia=familia.id_familia).count()
+#                 resultados['familias'].append({
+#                     'id': familia.id_familia,
+#                     'nome': familia.nome_familia,
+#                     'total_plantas': total_plantas_familia,
+#                     'tipo': 'familia'
+#                 })
         
-        # ===== BUSCAR AUTORES REAIS (mantido igual) =====
-        if tipo in ['autores', 'todos']:
-            autores_query = Autor.query.filter(
-                or_(
-                    Autor.nome_autor.ilike(search_term),
-                    Autor.afiliacao.ilike(search_term)
-                )
-            ).limit(limit).all()
+#         # ===== BUSCAR AUTORES REAIS (mantido igual) =====
+#         if tipo in ['autores', 'todos']:
+#             autores_query = Autor.query.filter(
+#                 or_(
+#                     Autor.nome_autor.ilike(search_term),
+#                     Autor.afiliacao.ilike(search_term)
+#                 )
+#             ).limit(limit).all()
             
-            for autor in autores_query:
-                resultados['autores'].append({
-                    'id': autor.id_autor,
-                    'nome': autor.nome_autor,
-                    'afiliacao': autor.afiliacao,
-                    'sigla': autor.sigla_afiliacao,
-                    'tipo': 'autor'
-                })
+#             for autor in autores_query:
+#                 resultados['autores'].append({
+#                     'id': autor.id_autor,
+#                     'nome': autor.nome_autor,
+#                     'afiliacao': autor.afiliacao,
+#                     'sigla': autor.sigla_afiliacao,
+#                     'tipo': 'autor'
+#                 })
         
-        # Total sem referências
-        resultados['total_encontrado'] = (
-            len(resultados['plantas']) + 
-            len(resultados['familias']) + 
-            len(resultados['autores'])
-        )
+#         # Total sem referências
+#         resultados['total_encontrado'] = (
+#             len(resultados['plantas']) + 
+#             len(resultados['familias']) + 
+#             len(resultados['autores'])
+#         )
         
-        print(f"🔍 Busca '{query_param}': {resultados['total_encontrado']} resultados únicos encontrados")
-        print(f"   📊 Plantas: {len(resultados['plantas'])}, Famílias: {len(resultados['familias'])}, Autores: {len(resultados['autores'])}")
+#         print(f"🔍 Busca '{query_param}': {resultados['total_encontrado']} resultados únicos encontrados")
+#         print(f"   📊 Plantas: {len(resultados['plantas'])}, Famílias: {len(resultados['familias'])}, Autores: {len(resultados['autores'])}")
         
-        return jsonify(resultados)
+#         return jsonify(resultados)
         
-    except Exception as e:
-        print(f"❌ Erro na busca: {str(e)}")
-        return handle_error(e)
+#     except Exception as e:
+#         print(f"❌ Erro na busca: {str(e)}")
+#         return handle_error(e)
 
 
 # =====================================================
@@ -3883,6 +3883,1581 @@ def importar_plantas():
         db.session.rollback()
         return handle_error(e, "Erro na importação")
 
+@app.route('/api/admin/dashboard/busca-com-pagina', methods=['GET'])
+def busca_com_pagina():
+    """Busca que retorna diretamente a página onde está o primeiro resultado"""
+    try:
+        query_param = request.args.get('q', '').strip()
+        tipo = request.args.get('tipo', 'plantas')
+        limit = request.args.get('limit', 10, type=int)
+        
+        if not query_param:
+            return jsonify({
+                'error': 'Termo de busca não fornecido',
+                'resultados': []
+            }), 400
+        
+        resultados = []
+        
+        if tipo == 'plantas':
+            # ✅ BUSCAR PLANTAS E CALCULAR PÁGINAS
+            search_pattern = f'%{query_param}%'
+            
+            # Buscar por nome científico
+            plantas_cientificas = db.session.query(
+                Planta.id_planta,
+                Planta.nome_cientifico,
+                Familia.nome_familia
+            ).join(
+                Familia, Planta.id_familia == Familia.id_familia
+            ).filter(
+                Planta.nome_cientifico.ilike(search_pattern)
+            ).limit(5).all()
+            
+            # Buscar por nome comum
+            plantas_por_nome_comum = db.session.query(
+                Planta.id_planta,
+                Planta.nome_cientifico,
+                Familia.nome_familia,
+                NomeComum.nome_comum_planta
+            ).join(
+                Familia, Planta.id_familia == Familia.id_familia
+            ).join(
+                NomeComum, Planta.id_planta == NomeComum.id_planta
+            ).filter(
+                NomeComum.nome_comum_planta.ilike(search_pattern)
+            ).limit(5).all()
+            
+            # Processar resultados de plantas
+            plantas_processadas = set()
+            
+            for planta in plantas_cientificas:
+                if planta.id_planta not in plantas_processadas:
+                    # Calcular página desta planta
+                    try:
+                        page_response = get_planta_page_info(planta.id_planta)
+                        page_data = page_response[0].get_json() if hasattr(page_response[0], 'get_json') else {}
+                        page = page_data.get('page', 1)
+                    except:
+                        page = 1
+                    
+                    resultados.append({
+                        'id': planta.id_planta,
+                        'tipo': 'planta',
+                        'nome_cientifico': planta.nome_cientifico,
+                        'familia': planta.nome_familia,
+                        'page': page,
+                        'match_type': 'nome_cientifico'
+                    })
+                    plantas_processadas.add(planta.id_planta)
+            
+            for planta in plantas_por_nome_comum:
+                if planta.id_planta not in plantas_processadas:
+                    try:
+                        page_response = get_planta_page_info(planta.id_planta)
+                        page_data = page_response[0].get_json() if hasattr(page_response[0], 'get_json') else {}
+                        page = page_data.get('page', 1)
+                    except:
+                        page = 1
+                    
+                    resultados.append({
+                        'id': planta.id_planta,
+                        'tipo': 'planta',
+                        'nome_cientifico': planta.nome_cientifico,
+                        'nome_comum': planta.nome_comum_planta,
+                        'familia': planta.nome_familia,
+                        'page': page,
+                        'match_type': 'nome_comum'
+                    })
+                    plantas_processadas.add(planta.id_planta)
+        
+        elif tipo == 'familias':
+            # ✅ BUSCAR FAMÍLIAS E CALCULAR PÁGINAS
+            search_pattern = f'%{query_param}%'
+            
+            familias = db.session.query(
+                Familia.id_familia,
+                Familia.nome_familia,
+                func.count(Planta.id_planta).label('total_plantas')
+            ).outerjoin(
+                Planta, Familia.id_familia == Planta.id_familia
+            ).filter(
+                Familia.nome_familia.ilike(search_pattern)
+            ).group_by(
+                Familia.id_familia, Familia.nome_familia
+            ).limit(5).all()
+            
+            for familia in familias:
+                try:
+                    page_response = get_familia_page_info(familia.id_familia)
+                    page_data = page_response[0].get_json() if hasattr(page_response[0], 'get_json') else {}
+                    page = page_data.get('page', 1)
+                except:
+                    page = 1
+                
+                resultados.append({
+                    'id': familia.id_familia,
+                    'tipo': 'familia',
+                    'nome_familia': familia.nome_familia,
+                    'total_plantas': familia.total_plantas or 0,
+                    'page': page,
+                    'match_type': 'nome_familia'
+                })
+        
+        return jsonify({
+            'query': query_param,
+            'tipo': tipo,
+            'total_encontrado': len(resultados),
+            'resultados': resultados
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro na busca com página: {e}")
+        return handle_error(e, "Erro na busca com página")
+    
+    # =====================================================
+# CORREÇÕES PARA API - PESQUISA DO HEADER
+# Adicionar/modificar estes endpoints na sua API existente
+# =====================================================
+
+# ✅ 1. CORRIGIR/ADICIONAR: Endpoint para calcular página de plantas
+@app.route('/api/admin/plantas/<int:planta_id>/page-info', methods=['GET'])
+def get_planta_page_info(planta_id):
+    """Encontrar em que página está uma planta específica"""
+    try:
+        # Parâmetros da requisição (iguais aos usados na listagem)
+        page_size = request.args.get('limit', 10, type=int)
+        search_term = request.args.get('search', '').strip()
+        search_type = request.args.get('search_type', 'geral').strip()
+        familia_filter = request.args.get('familia', '').strip()
+        provincia_filter = request.args.get('provincia', '').strip()
+        
+        print(f"🔍 Calculando página para planta {planta_id} com filtros:", {
+            'search_term': search_term,
+            'search_type': search_type,
+            'familia': familia_filter,
+            'provincia': provincia_filter
+        })
+        
+        # ✅ RECONSTRUIR A MESMA QUERY DA LISTAGEM
+        # Usando a estrutura da sua base de dados
+        query = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            Planta.data_adicao,
+            Familia.nome_familia
+        ).join(
+            Familia, Planta.id_familia == Familia.id_familia
+        )
+        
+        # ✅ APLICAR OS MESMOS FILTROS DA LISTAGEM
+        if search_term:
+            if search_type == 'geral':
+                # Busca geral por nome científico, família ou nome comum
+                search_pattern = f'%{search_term}%'
+                
+                # Subquery para plantas com nomes comuns correspondentes
+                plantas_com_nome_comum = db.session.query(
+                    NomeComum.id_planta
+                ).filter(
+                    NomeComum.nome_comum_planta.ilike(search_pattern)
+                ).distinct().subquery()
+                
+                query = query.filter(
+                    or_(
+                        Planta.nome_cientifico.ilike(search_pattern),
+                        Familia.nome_familia.ilike(search_pattern),
+                        Planta.id_planta.in_(
+                            db.session.query(plantas_com_nome_comum.c.id_planta)
+                        )
+                    )
+                )
+            elif search_type == 'autor':
+                # Busca por autor
+                plantas_por_autor = db.session.query(AutorPlanta.id_planta).join(
+                    Autor, AutorPlanta.id_autor == Autor.id_autor
+                ).filter(
+                    Autor.nome_autor.ilike(f'%{search_term}%')
+                ).distinct().subquery()
+                
+                query = query.filter(Planta.id_planta.in_(
+                    db.session.query(plantas_por_autor.c.id_planta)
+                ))
+            elif search_type == 'parte_usada':
+                # Busca por parte usada
+                plantas_por_parte = db.session.query(UsoPlanta.id_planta).join(
+                    ParteUsada, UsoPlanta.id_parte == ParteUsada.id_uso
+                ).filter(
+                    ParteUsada.parte_usada.ilike(f'%{search_term}%')
+                ).distinct().subquery()
+                
+                query = query.filter(Planta.id_planta.in_(
+                    db.session.query(plantas_por_parte.c.id_planta)
+                ))
+            elif search_type == 'indicacao':
+                # Busca por indicação
+                plantas_por_indicacao = db.session.query(UsoPlanta.id_planta).join(
+                    UsoPlantaIndicacao, UsoPlanta.id_uso_planta == UsoPlantaIndicacao.id_uso_planta
+                ).join(
+                    Indicacao, UsoPlantaIndicacao.id_indicacao == Indicacao.id_indicacao
+                ).filter(
+                    Indicacao.descricao.ilike(f'%{search_term}%')
+                ).distinct().subquery()
+                
+                query = query.filter(Planta.id_planta.in_(
+                    db.session.query(plantas_por_indicacao.c.id_planta)
+                ))
+        
+        # Aplicar filtros de família e província
+        if familia_filter:
+            query = query.filter(Familia.nome_familia == familia_filter)
+        
+        if provincia_filter:
+            plantas_na_provincia = db.session.query(
+                PlantaProvincia.id_planta
+            ).join(
+                Provincia, PlantaProvincia.id_provincia == Provincia.id_provincia
+            ).filter(
+                Provincia.nome_provincia == provincia_filter
+            ).distinct().subquery()
+            
+            query = query.filter(
+                Planta.id_planta.in_(
+                    db.session.query(plantas_na_provincia.c.id_planta)
+                )
+            )
+        
+        # ✅ ORDENAÇÃO IGUAL À LISTAGEM (mais recentes primeiro)
+        query = query.order_by(desc(Planta.data_adicao), desc(Planta.id_planta))
+        
+        # ✅ BUSCAR DADOS DA PLANTA ESPECÍFICA
+        planta_target = query.filter(Planta.id_planta == planta_id).first()
+        
+        if not planta_target:
+            return jsonify({
+                'error': 'Planta não encontrada nos filtros aplicados',
+                'planta_id': planta_id,
+                'filtros_aplicados': {
+                    'search_term': search_term,
+                    'search_type': search_type,
+                    'familia': familia_filter,
+                    'provincia': provincia_filter
+                }
+            }), 404
+        
+        # ✅ CONTAR PLANTAS QUE VÊM ANTES (MESMA ORDENAÇÃO)
+        plantas_antes = query.filter(
+            or_(
+                Planta.data_adicao > planta_target.data_adicao,
+                and_(
+                    Planta.data_adicao == planta_target.data_adicao,
+                    Planta.id_planta > planta_target.id_planta
+                )
+            )
+        ).count()
+        
+        # ✅ CALCULAR PÁGINA
+        page = (plantas_antes // page_size) + 1
+        position_in_page = (plantas_antes % page_size) + 1
+        
+        print(f"✅ Planta {planta_id} está na página {page}, posição {position_in_page}")
+        
+        return jsonify({
+            'page': page,
+            'position_in_page': position_in_page,
+            'total_before': plantas_antes,
+            'planta_info': {
+                'id': planta_target.id_planta,
+                'nome_cientifico': planta_target.nome_cientifico,
+                'familia': planta_target.nome_familia,
+                'data_adicao': planta_target.data_adicao.isoformat() if planta_target.data_adicao else None
+            },
+            'filtros_aplicados': {
+                'search_term': search_term,
+                'search_type': search_type,
+                'familia': familia_filter,
+                'provincia': provincia_filter,
+                'page_size': page_size
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao calcular página da planta {planta_id}: {e}")
+        return handle_error(e, "Erro ao calcular página da planta")
+
+# ✅ 2. CORRIGIR/ADICIONAR: Endpoint para calcular página de famílias
+@app.route('/api/admin/familias/<int:familia_id>/page-info', methods=['GET'])
+def get_familia_page_info(familia_id):
+    """Encontrar em que página está uma família específica"""
+    try:
+        page_size = request.args.get('limit', 10, type=int)
+        search_term = request.args.get('search', '').strip()
+        
+        print(f"🔍 Calculando página para família {familia_id} com busca: '{search_term}'")
+        
+        # ✅ RECONSTRUIR QUERY IGUAL À LISTAGEM DE FAMÍLIAS
+        query = db.session.query(
+            Familia.id_familia,
+            Familia.nome_familia,
+            func.count(Planta.id_planta).label('total_plantas')
+        ).outerjoin(
+            Planta, Familia.id_familia == Planta.id_familia
+        ).group_by(
+            Familia.id_familia, Familia.nome_familia
+        )
+        
+        # ✅ APLICAR FILTRO DE BUSCA SE EXISTIR
+        if search_term:
+            search_pattern = f'%{search_term}%'
+            query = query.filter(
+                Familia.nome_familia.ilike(search_pattern)
+            )
+        
+        # ✅ ORDENAÇÃO IGUAL À LISTAGEM (alfabética)
+        query = query.order_by(Familia.nome_familia)
+        
+        # ✅ BUSCAR DADOS DA FAMÍLIA ESPECÍFICA
+        familia_target = query.filter(Familia.id_familia == familia_id).first()
+        
+        if not familia_target:
+            return jsonify({
+                'error': 'Família não encontrada nos filtros aplicados',
+                'familia_id': familia_id,
+                'search_term': search_term
+            }), 404
+        
+        # ✅ CONTAR FAMÍLIAS QUE VÊM ANTES (ORDENAÇÃO ALFABÉTICA)
+        familias_antes_query = db.session.query(
+            func.count(Familia.id_familia)
+        ).outerjoin(
+            Planta, Familia.id_familia == Planta.id_familia
+        ).filter(
+            Familia.nome_familia < familia_target.nome_familia
+        )
+        
+        # ✅ APLICAR MESMO FILTRO DE BUSCA SE EXISTIR
+        if search_term:
+            search_pattern = f'%{search_term}%'
+            familias_antes_query = familias_antes_query.filter(
+                Familia.nome_familia.ilike(search_pattern)
+            )
+        
+        familias_antes_count = familias_antes_query.scalar() or 0
+        
+        # ✅ CALCULAR PÁGINA
+        page = (familias_antes_count // page_size) + 1
+        position_in_page = (familias_antes_count % page_size) + 1
+        
+        print(f"✅ Família {familia_id} está na página {page}, posição {position_in_page}")
+        
+        return jsonify({
+            'page': page,
+            'position_in_page': position_in_page,
+            'total_before': familias_antes_count,
+            'familia_info': {
+                'id': familia_target.id_familia,
+                'nome_familia': familia_target.nome_familia,
+                'total_plantas': familia_target.total_plantas or 0
+            },
+            'filtros_aplicados': {
+                'search_term': search_term,
+                'page_size': page_size
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao calcular página da família {familia_id}: {e}")
+        return handle_error(e, "Erro ao calcular página da família")
+
+# ✅ 3. MELHORAR: Endpoint de busca do dashboard (já existe, mas melhorar)
+@app.route('/api/admin/dashboard/busca', methods=['GET'])
+def busca_admin():
+    """Busca integrada para o painel admin - VERSÃO MELHORADA"""
+    try:
+        query_param = request.args.get('q', '').strip()
+        tipo = request.args.get('tipo', 'todos')
+        limit = request.args.get('limit', 10, type=int)
+        
+        print(f"🔍 Busca admin: '{query_param}' em {tipo}")
+        
+        resultados = {
+            'plantas': [],
+            'familias': [],
+            'autores': [],
+            'total_encontrado': 0
+        }
+        
+        if not query_param:
+            return jsonify(resultados)
+        
+        search_term = f'%{query_param}%'
+        
+        # ===== BUSCAR PLANTAS =====
+        if tipo in ['plantas', 'todos']:
+            try:
+                # Buscar plantas por nome científico
+                plantas_cientificas = db.session.query(
+                    Planta.id_planta,
+                    Planta.nome_cientifico,
+                    Familia.nome_familia
+                ).join(
+                    Familia, Planta.id_familia == Familia.id_familia
+                ).filter(
+                    Planta.nome_cientifico.ilike(search_term)
+                ).limit(limit).all()
+                
+                # Buscar plantas por nome comum
+                plantas_por_nome_comum = db.session.query(
+                    Planta.id_planta,
+                    Planta.nome_cientifico,
+                    Familia.nome_familia
+                ).join(
+                    Familia, Planta.id_familia == Familia.id_familia
+                ).join(
+                    NomeComum, Planta.id_planta == NomeComum.id_planta
+                ).filter(
+                    NomeComum.nome_comum_planta.ilike(search_term)
+                ).distinct().limit(limit).all()
+                
+                # Buscar plantas por família
+                plantas_por_familia = db.session.query(
+                    Planta.id_planta,
+                    Planta.nome_cientifico,
+                    Familia.nome_familia
+                ).join(
+                    Familia, Planta.id_familia == Familia.id_familia
+                ).filter(
+                    Familia.nome_familia.ilike(search_term)
+                ).limit(limit).all()
+                
+                # Combinar resultados únicos
+                plantas_unicas = {}
+                
+                # Processar cada conjunto de resultados
+                for planta in plantas_cientificas + plantas_por_nome_comum + plantas_por_familia:
+                    if planta.id_planta not in plantas_unicas:
+                        # Buscar todos os nomes comuns desta planta
+                        nomes_comuns = db.session.query(
+                            NomeComum.nome_comum_planta
+                        ).filter(
+                            NomeComum.id_planta == planta.id_planta
+                        ).all()
+                        
+                        nomes_comuns_str = ', '.join([nome.nome_comum_planta for nome in nomes_comuns]) if nomes_comuns else None
+                        
+                        plantas_unicas[planta.id_planta] = {
+                            'id': planta.id_planta,
+                            'nome_cientifico': planta.nome_cientifico,
+                            'nome_comum': nomes_comuns_str,
+                            'familia': planta.nome_familia,
+                            'tipo': 'planta'
+                        }
+                
+                # Limitar resultados
+                resultados['plantas'] = list(plantas_unicas.values())[:limit]
+                
+                print(f"✅ Plantas encontradas: {len(resultados['plantas'])}")
+                
+            except Exception as e:
+                print(f"❌ Erro ao buscar plantas: {e}")
+                resultados['plantas'] = []
+        
+        # ===== BUSCAR FAMÍLIAS =====
+        if tipo in ['familias', 'todos']:
+            try:
+                familias_query = db.session.query(
+                    Familia.id_familia,
+                    Familia.nome_familia,
+                    func.count(Planta.id_planta).label('total_plantas')
+                ).outerjoin(
+                    Planta, Familia.id_familia == Planta.id_familia
+                ).filter(
+                    Familia.nome_familia.ilike(search_term)
+                ).group_by(
+                    Familia.id_familia, Familia.nome_familia
+                ).limit(limit).all()
+                
+                for familia in familias_query:
+                    resultados['familias'].append({
+                        'id': familia.id_familia,
+                        'nome': familia.nome_familia,
+                        'total_plantas': familia.total_plantas or 0,
+                        'tipo': 'familia'
+                    })
+                
+                print(f"✅ Famílias encontradas: {len(resultados['familias'])}")
+                
+            except Exception as e:
+                print(f"❌ Erro ao buscar famílias: {e}")
+                resultados['familias'] = []
+        
+        # ===== BUSCAR AUTORES =====
+        if tipo in ['autores', 'todos']:
+            try:
+                autores_query = db.session.query(
+                    Autor.id_autor,
+                    Autor.nome_autor,
+                    Autor.afiliacao,
+                    func.count(AutorPlanta.id_planta).label('total_plantas')
+                ).outerjoin(
+                    AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+                ).filter(
+                    or_(
+                        Autor.nome_autor.ilike(search_term),
+                        Autor.afiliacao.ilike(search_term)
+                    )
+                ).group_by(
+                    Autor.id_autor, Autor.nome_autor, Autor.afiliacao
+                ).limit(limit).all()
+                
+                for autor in autores_query:
+                    resultados['autores'].append({
+                        'id': autor.id_autor,
+                        'nome': autor.nome_autor,
+                        'afiliacao': autor.afiliacao,
+                        'total_plantas': autor.total_plantas or 0,
+                        'tipo': 'autor'
+                    })
+                
+                print(f"✅ Autores encontrados: {len(resultados['autores'])}")
+                
+            except Exception as e:
+                print(f"❌ Erro ao buscar autores: {e}")
+                resultados['autores'] = []
+        
+        # Calcular total
+        resultados['total_encontrado'] = (
+            len(resultados['plantas']) + 
+            len(resultados['familias']) + 
+            len(resultados['autores'])
+        )
+        
+        print(f"✅ Total de resultados: {resultados['total_encontrado']}")
+        
+        return jsonify(resultados)
+        
+    except Exception as e:
+        print(f"❌ Erro geral na busca: {e}")
+        return handle_error(e, "Erro na busca")
+
+# ✅ 4. ADICIONAR: Endpoint para debug da busca
+@app.route('/api/admin/debug/busca-plantas', methods=['GET'])
+def debug_busca_plantas():
+    """Debug da busca de plantas"""
+    try:
+        planta_id = request.args.get('planta_id', type=int)
+        search_term = request.args.get('search', '').strip()
+        
+        if not planta_id:
+            return jsonify({'error': 'planta_id é obrigatório'}), 400
+        
+        # Buscar planta
+        planta = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            Planta.data_adicao,
+            Familia.nome_familia
+        ).join(
+            Familia, Planta.id_familia == Familia.id_familia
+        ).filter(
+            Planta.id_planta == planta_id
+        ).first()
+        
+        if not planta:
+            return jsonify({'error': 'Planta não encontrada'}), 404
+        
+        # Buscar nomes comuns
+        nomes_comuns = db.session.query(
+            NomeComum.nome_comum_planta
+        ).filter(
+            NomeComum.id_planta == planta_id
+        ).all()
+        
+        # Simular busca
+        resultados_busca = []
+        
+        if search_term:
+            search_pattern = f'%{search_term}%'
+            
+            # Testar se encontraria por nome científico
+            if planta.nome_cientifico.lower().find(search_term.lower()) >= 0:
+                resultados_busca.append('nome_cientifico')
+            
+            # Testar se encontraria por família
+            if planta.nome_familia.lower().find(search_term.lower()) >= 0:
+                resultados_busca.append('familia')
+            
+            # Testar se encontraria por nome comum
+            for nome in nomes_comuns:
+                if nome.nome_comum_planta.lower().find(search_term.lower()) >= 0:
+                    resultados_busca.append('nome_comum')
+                    break
+        
+        return jsonify({
+            'planta': {
+                'id': planta.id_planta,
+                'nome_cientifico': planta.nome_cientifico,
+                'familia': planta.nome_familia,
+                'data_adicao': planta.data_adicao.isoformat() if planta.data_adicao else None
+            },
+            'nomes_comuns': [nome.nome_comum_planta for nome in nomes_comuns],
+            'search_term': search_term,
+            'seria_encontrada': len(resultados_busca) > 0,
+            'encontrada_por': resultados_busca,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro no debug da busca")
+
+# ✅ 5. ADICIONAR: Endpoint para testar cálculo de páginas
+@app.route('/api/admin/debug/teste-pagina', methods=['GET'])
+def teste_calculo_pagina():
+    """Testar cálculo de página"""
+    try:
+        # Pegar algumas plantas para teste
+        plantas_teste = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            Planta.data_adicao
+        ).join(Familia).order_by(
+            desc(Planta.data_adicao), desc(Planta.id_planta)
+        ).limit(25).all()
+        
+        resultados = []
+        
+        for i, planta in enumerate(plantas_teste):
+            posicao_esperada = i + 1
+            page_esperada = ((i) // 10) + 1  # 10 por página
+            
+            # Testar cálculo real
+            try:
+                response = get_planta_page_info(planta.id_planta)
+                if isinstance(response, tuple):
+                    page_data = response[0].get_json()
+                    page_real = page_data.get('page', 0)
+                    total_before = page_data.get('total_before', 0)
+                else:
+                    page_real = 0
+                    total_before = 0
+                
+                resultados.append({
+                    'id_planta': planta.id_planta,
+                    'nome_cientifico': planta.nome_cientifico,
+                    'posicao_esperada': posicao_esperada,
+                    'page_esperada': page_esperada,
+                    'page_real': page_real,
+                    'total_before': total_before,
+                    'correto': page_esperada == page_real
+                })
+                
+            except Exception as e:
+                resultados.append({
+                    'id_planta': planta.id_planta,
+                    'nome_cientifico': planta.nome_cientifico,
+                    'posicao_esperada': posicao_esperada,
+                    'page_esperada': page_esperada,
+                    'page_real': 0,
+                    'total_before': 0,
+                    'correto': False,
+                    'erro': str(e)
+                })
+        
+        acertos = sum(1 for r in resultados if r.get('correto', False))
+        
+        return jsonify({
+            'total_testado': len(resultados),
+            'acertos': acertos,
+            'erros': len(resultados) - acertos,
+            'taxa_acerto': round((acertos / len(resultados) * 100), 1) if resultados else 0,
+            'detalhes': resultados,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro no teste de páginas")       
+
+# =====================================================
+# ENDPOINTS PARA GESTÃO DE AUTORES E REFERÊNCIAS
+# Baseado na estrutura real da base de dados
+# =====================================================
+
+# NOTA: Estrutura da BD confirmada:
+# - autor (id_autor, nome_autor, afiliacao, sigla_afiliacao)
+# - referencia (id_referencia, link_referencia, tipo_referencia, titulo_referencia, ano)
+# - autor_referencia (id_autor, id_referencia, ordem_autor, papel)
+# - autor_planta (id_autor, id_planta)
+# - planta_referencia (id_planta, id_referencia)
+
+@app.route('/api/admin/autores', methods=['GET', 'POST'])
+def handle_autores():
+    """Handler para listagem (GET) e criação (POST) de autores"""
+    
+    if request.method == 'GET':
+        # ===== GET: Listar autores com filtros e paginação =====
+        try:
+            # Parâmetros de paginação
+            page = request.args.get('page', 1, type=int)
+            limit = request.args.get('limit', 10, type=int)
+            
+            # Parâmetro de busca
+            search_term = request.args.get('search', '').strip()
+            
+            # Query base - incluir contagens REAIS de plantas e referências
+            # Baseado nas tabelas: autor_planta e autor_referencia
+            query = db.session.query(
+                Autor.id_autor,
+                Autor.nome_autor,
+                Autor.afiliacao,
+                Autor.sigla_afiliacao,
+                func.count(func.distinct(AutorPlanta.id_planta)).label('total_plantas'),
+                func.count(func.distinct(AutorReferencia.id_referencia)).label('total_referencias')
+            ).outerjoin(
+                AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+            ).outerjoin(
+                AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+            ).group_by(
+                Autor.id_autor, Autor.nome_autor, Autor.afiliacao, Autor.sigla_afiliacao
+            )
+            
+            # Aplicar filtro de busca
+            if search_term:
+                search_pattern = f'%{search_term}%'
+                query = query.filter(
+                    or_(
+                        Autor.nome_autor.ilike(search_pattern),
+                        Autor.afiliacao.ilike(search_pattern),
+                        Autor.sigla_afiliacao.ilike(search_pattern)
+                    )
+                )
+                print(f"🔍 Aplicando filtro de busca autores: '{search_term}'")
+            
+            # Ordenação
+            query = query.order_by(Autor.nome_autor)
+            
+            # Contar total após filtros
+            total_count = query.count()
+            
+            # Aplicar paginação
+            offset = (page - 1) * limit
+            autores_query = query.offset(offset).limit(limit).all()
+            
+            # Preparar resultado
+            autores_resultado = []
+            for autor in autores_query:
+                autores_resultado.append({
+                    'id_autor': autor.id_autor,
+                    'nome_autor': autor.nome_autor,
+                    'afiliacao': autor.afiliacao,
+                    'sigla_afiliacao': autor.sigla_afiliacao,
+                    'total_plantas': autor.total_plantas or 0,
+                    'total_referencias': autor.total_referencias or 0
+                })
+            
+            print(f"✅ Busca autores executada: '{search_term}' -> {len(autores_resultado)} resultados de {total_count} total")
+            
+            return jsonify({
+                'autores': autores_resultado,
+                'total': total_count,
+                'page': page,
+                'limit': limit,
+                'total_pages': (total_count + limit - 1) // limit if total_count > 0 else 0,
+                'has_next': page * limit < total_count,
+                'has_prev': page > 1,
+                'search_applied': search_term,
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao carregar autores: {e}")
+            return handle_error(e, "Erro ao carregar autores")
+    
+    elif request.method == 'POST':
+        # ===== POST: Criar um novo autor =====
+        try:
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+            nome_autor = data.get('nome_autor', '').strip()
+            afiliacao = data.get('afiliacao', '').strip()
+            sigla_afiliacao = data.get('sigla_afiliacao', '').strip()
+            
+            if not nome_autor:
+                return jsonify({'error': 'Nome do autor é obrigatório'}), 400
+            
+            # Verificar se já existe
+            autor_existente = Autor.query.filter_by(nome_autor=nome_autor).first()
+            if autor_existente:
+                return jsonify({'error': 'Já existe um autor com este nome'}), 400
+            
+            # Criar novo autor
+            novo_autor = Autor(
+                nome_autor=nome_autor,
+                afiliacao=afiliacao if afiliacao else None,
+                sigla_afiliacao=sigla_afiliacao if sigla_afiliacao else None
+            )
+            
+            db.session.add(novo_autor)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'autor_id': novo_autor.id_autor,
+                'message': 'Autor criado com sucesso'
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return handle_error(e, "Erro ao criar autor")
+
+@app.route('/api/admin/autores/<int:autor_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_autor_by_id(autor_id):
+    """Handler unificado para autor por ID - GET, PUT, DELETE"""
+    
+    if request.method == 'GET':
+        # ===== GET: Obter detalhes de um autor =====
+        try:
+            autor = db.session.query(
+                Autor.id_autor,
+                Autor.nome_autor,
+                Autor.afiliacao,
+                Autor.sigla_afiliacao,
+                func.count(func.distinct(AutorPlanta.id_planta)).label('total_plantas'),
+                func.count(func.distinct(AutorReferencia.id_referencia)).label('total_referencias')
+            ).outerjoin(
+                AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+            ).outerjoin(
+                AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+            ).filter(
+                Autor.id_autor == autor_id
+            ).group_by(
+                Autor.id_autor, Autor.nome_autor, Autor.afiliacao, Autor.sigla_afiliacao
+            ).first()
+            
+            if not autor:
+                return jsonify({'error': 'Autor não encontrado'}), 404
+            
+            return jsonify({
+                'id_autor': autor.id_autor,
+                'nome_autor': autor.nome_autor,
+                'afiliacao': autor.afiliacao,
+                'sigla_afiliacao': autor.sigla_afiliacao,
+                'total_plantas': autor.total_plantas or 0,
+                'total_referencias': autor.total_referencias or 0
+            })
+            
+        except Exception as e:
+            return handle_error(e, "Erro ao carregar detalhes do autor")
+    
+    elif request.method == 'PUT':
+        # ===== PUT: Atualizar um autor =====
+        try:
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+            autor = Autor.query.get(autor_id)
+            if not autor:
+                return jsonify({'error': 'Autor não encontrado'}), 404
+            
+            nome_autor = data.get('nome_autor', '').strip()
+            afiliacao = data.get('afiliacao', '').strip()
+            sigla_afiliacao = data.get('sigla_afiliacao', '').strip()
+            
+            if not nome_autor:
+                return jsonify({'error': 'Nome do autor é obrigatório'}), 400
+            
+            # Verificar se não há conflito
+            autor_conflito = Autor.query.filter(
+                and_(
+                    Autor.nome_autor == nome_autor,
+                    Autor.id_autor != autor_id
+                )
+            ).first()
+            
+            if autor_conflito:
+                return jsonify({'error': 'Já existe outro autor com este nome'}), 400
+            
+            # Atualizar
+            autor.nome_autor = nome_autor
+            autor.afiliacao = afiliacao if afiliacao else None
+            autor.sigla_afiliacao = sigla_afiliacao if sigla_afiliacao else None
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Autor atualizado com sucesso'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return handle_error(e, "Erro ao atualizar autor")
+    
+    elif request.method == 'DELETE':
+        # ===== DELETE: Excluir um autor =====
+        try:
+            print(f"🗑️ Tentando excluir autor {autor_id}")
+            
+            autor = Autor.query.get(autor_id)
+            if not autor:
+                return jsonify({'error': 'Autor não encontrado'}), 404
+            
+            # Verificar se tem plantas ou referências associadas CONFORME ESTRUTURA REAL
+            total_plantas = AutorPlanta.query.filter_by(id_autor=autor_id).count()
+            total_referencias = AutorReferencia.query.filter_by(id_autor=autor_id).count()
+            total_associacoes = total_plantas + total_referencias
+            
+            print(f"📊 Autor '{autor.nome_autor}' tem {total_plantas} plantas e {total_referencias} referências associadas")
+            
+            if total_associacoes > 0:
+                return jsonify({
+                    'error': f'Não é possível excluir o autor "{autor.nome_autor}" porque tem {total_associacoes} associações ({total_plantas} plantas e {total_referencias} referências)'
+                }), 400
+            
+            # Excluir autor
+            nome_autor_backup = autor.nome_autor
+            db.session.delete(autor)
+            db.session.commit()
+            
+            print(f"✅ Autor '{nome_autor_backup}' excluído com sucesso")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Autor "{nome_autor_backup}" excluído com sucesso'
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao excluir autor {autor_id}: {e}")
+            db.session.rollback()
+            return handle_error(e, "Erro ao excluir autor")
+
+@app.route('/api/admin/referencias', methods=['GET', 'POST'])
+def handle_referencias():
+    """Handler para listagem (GET) e criação (POST) de referências"""
+    
+    if request.method == 'GET':
+        # ===== GET: Listar referências com filtros e paginação =====
+        try:
+            # Parâmetros de paginação
+            page = request.args.get('page', 1, type=int)
+            limit = request.args.get('limit', 10, type=int)
+            
+            # Parâmetro de busca
+            search_term = request.args.get('search', '').strip()
+            
+            # Query base - incluir contagem REAL de plantas associadas
+            # Baseado na tabela: planta_referencia
+            query = db.session.query(
+                Referencia.id_referencia,
+                Referencia.titulo_referencia,
+                Referencia.tipo_referencia,
+                Referencia.ano,
+                Referencia.link_referencia,
+                func.count(func.distinct(PlantaReferencia.id_planta)).label('total_plantas')
+            ).outerjoin(
+                PlantaReferencia, Referencia.id_referencia == PlantaReferencia.id_referencia
+            ).group_by(
+                Referencia.id_referencia, Referencia.titulo_referencia, 
+                Referencia.tipo_referencia, Referencia.ano, Referencia.link_referencia
+            )
+            
+            # Aplicar filtro de busca
+            if search_term:
+                search_pattern = f'%{search_term}%'
+                query = query.filter(
+                    or_(
+                        Referencia.titulo_referencia.ilike(search_pattern),
+                        Referencia.link_referencia.ilike(search_pattern),
+                        Referencia.tipo_referencia.ilike(search_pattern),
+                        Referencia.ano.ilike(search_pattern)
+                    )
+                )
+                print(f"🔍 Aplicando filtro de busca referências: '{search_term}'")
+            
+            # Ordenação
+            query = query.order_by(desc(Referencia.id_referencia))
+            
+            # Contar total após filtros
+            total_count = query.count()
+            
+            # Aplicar paginação
+            offset = (page - 1) * limit
+            referencias_query = query.offset(offset).limit(limit).all()
+            
+            # Preparar resultado
+            referencias_resultado = []
+            for ref in referencias_query:
+                # Buscar autores específicos desta referência CONFORME ESTRUTURA REAL
+                # Tabela: autor_referencia com ordem_autor e papel
+                try:
+                    autores_especificos = db.session.query(
+                        Autor.id_autor,
+                        Autor.nome_autor,
+                        Autor.afiliacao,
+                        Autor.sigla_afiliacao,
+                        AutorReferencia.ordem_autor,
+                        AutorReferencia.papel
+                    ).join(
+                        AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+                    ).filter(
+                        AutorReferencia.id_referencia == ref.id_referencia
+                    ).order_by(AutorReferencia.ordem_autor).all()
+                    
+                    autores_list = [
+                        {
+                            'id_autor': autor.id_autor,
+                            'nome_autor': autor.nome_autor,
+                            'afiliacao': autor.afiliacao,
+                            'sigla_afiliacao': autor.sigla_afiliacao,
+                            'ordem_autor': autor.ordem_autor,  # Campo REAL da BD
+                            'papel': autor.papel                # Campo REAL da BD: 'primeiro','correspondente','coautor'
+                        } for autor in autores_especificos
+                    ]
+                    
+                except Exception as e:
+                    print(f"Erro ao carregar autores da referência {ref.id_referencia}: {e}")
+                    autores_list = []
+                
+                referencias_resultado.append({
+                    'id_referencia': ref.id_referencia,
+                    'titulo_referencia': ref.titulo_referencia,
+                    'tipo_referencia': ref.tipo_referencia,
+                    'ano': ref.ano,
+                    'link_referencia': ref.link_referencia,
+                    'total_plantas': ref.total_plantas or 0,
+                    'autores_especificos': autores_list
+                })
+            
+            print(f"✅ Busca referências executada: '{search_term}' -> {len(referencias_resultado)} resultados de {total_count} total")
+            
+            return jsonify({
+                'referencias': referencias_resultado,
+                'total': total_count,
+                'page': page,
+                'limit': limit,
+                'total_pages': (total_count + limit - 1) // limit if total_count > 0 else 0,
+                'has_next': page * limit < total_count,
+                'has_prev': page > 1,
+                'search_applied': search_term,
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao carregar referências: {e}")
+            return handle_error(e, "Erro ao carregar referências")
+    
+    elif request.method == 'POST':
+        # ===== POST: Criar uma nova referência =====
+        try:
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+            link_referencia = data.get('link_referencia', '').strip()
+            titulo_referencia = data.get('titulo_referencia', '').strip()
+            tipo_referencia = data.get('tipo_referencia', '').strip()
+            ano = data.get('ano', '').strip()
+            
+            if not link_referencia:
+                return jsonify({'error': 'Link da referência é obrigatório'}), 400
+            
+            # Verificar se já existe
+            referencia_existente = Referencia.query.filter_by(link_referencia=link_referencia).first()
+            if referencia_existente:
+                return jsonify({'error': 'Já existe uma referência com este link'}), 400
+            
+            # Criar nova referência
+            nova_referencia = Referencia(
+                link_referencia=link_referencia,
+                titulo_referencia=titulo_referencia if titulo_referencia else None,
+                tipo_referencia=tipo_referencia if tipo_referencia else None,
+                ano=ano if ano else None
+            )
+            
+            db.session.add(nova_referencia)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'referencia_id': nova_referencia.id_referencia,
+                'message': 'Referência criada com sucesso'
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return handle_error(e, "Erro ao criar referência")
+
+@app.route('/api/admin/referencias/<int:referencia_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_referencia_by_id(referencia_id):
+    """Handler unificado para referência por ID - GET, PUT, DELETE"""
+    
+    if request.method == 'GET':
+        # ===== GET: Obter detalhes de uma referência =====
+        try:
+            referencia = db.session.query(
+                Referencia.id_referencia,
+                Referencia.titulo_referencia,
+                Referencia.tipo_referencia,
+                Referencia.ano,
+                Referencia.link_referencia,
+                func.count(func.distinct(PlantaReferencia.id_planta)).label('total_plantas')
+            ).outerjoin(
+                PlantaReferencia, Referencia.id_referencia == PlantaReferencia.id_referencia
+            ).filter(
+                Referencia.id_referencia == referencia_id
+            ).group_by(
+                Referencia.id_referencia, Referencia.titulo_referencia,
+                Referencia.tipo_referencia, Referencia.ano, Referencia.link_referencia
+            ).first()
+            
+            if not referencia:
+                return jsonify({'error': 'Referência não encontrada'}), 404
+            
+            # Buscar autores específicos
+            try:
+                autores_especificos = db.session.query(
+                    Autor.id_autor,
+                    Autor.nome_autor,
+                    Autor.afiliacao,
+                    Autor.sigla_afiliacao,
+                    AutorReferencia.ordem_autor,
+                    AutorReferencia.papel
+                ).join(
+                    AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+                ).filter(
+                    AutorReferencia.id_referencia == referencia_id
+                ).order_by(AutorReferencia.ordem_autor).all()
+                
+                autores_list = [
+                    {
+                        'id_autor': autor.id_autor,
+                        'nome_autor': autor.nome_autor,
+                        'afiliacao': autor.afiliacao,
+                        'sigla_afiliacao': autor.sigla_afiliacao,
+                        'ordem_autor': autor.ordem_autor,
+                        'papel': autor.papel
+                    } for autor in autores_especificos
+                ]
+                
+            except Exception as e:
+                print(f"Erro ao carregar autores da referência {referencia_id}: {e}")
+                autores_list = []
+            
+            return jsonify({
+                'id_referencia': referencia.id_referencia,
+                'titulo_referencia': referencia.titulo_referencia,
+                'tipo_referencia': referencia.tipo_referencia,
+                'ano': referencia.ano,
+                'link_referencia': referencia.link_referencia,
+                'total_plantas': referencia.total_plantas or 0,
+                'autores_especificos': autores_list
+            })
+            
+        except Exception as e:
+            return handle_error(e, "Erro ao carregar detalhes da referência")
+    
+    elif request.method == 'PUT':
+        # ===== PUT: Atualizar uma referência =====
+        try:
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+            referencia = Referencia.query.get(referencia_id)
+            if not referencia:
+                return jsonify({'error': 'Referência não encontrada'}), 404
+            
+            link_referencia = data.get('link_referencia', '').strip()
+            titulo_referencia = data.get('titulo_referencia', '').strip()
+            tipo_referencia = data.get('tipo_referencia', '').strip()
+            ano = data.get('ano', '').strip()
+            
+            if not link_referencia:
+                return jsonify({'error': 'Link da referência é obrigatório'}), 400
+            
+            # Verificar se não há conflito
+            referencia_conflito = Referencia.query.filter(
+                and_(
+                    Referencia.link_referencia == link_referencia,
+                    Referencia.id_referencia != referencia_id
+                )
+            ).first()
+            
+            if referencia_conflito:
+                return jsonify({'error': 'Já existe outra referência com este link'}), 400
+            
+            # Atualizar
+            referencia.link_referencia = link_referencia
+            referencia.titulo_referencia = titulo_referencia if titulo_referencia else None
+            referencia.tipo_referencia = tipo_referencia if tipo_referencia else None
+            referencia.ano = ano if ano else None
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Referência atualizada com sucesso'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return handle_error(e, "Erro ao atualizar referência")
+    
+    elif request.method == 'DELETE':
+        # ===== DELETE: Excluir uma referência =====
+        try:
+            print(f"🗑️ Tentando excluir referência {referencia_id}")
+            
+            referencia = Referencia.query.get(referencia_id)
+            if not referencia:
+                return jsonify({'error': 'Referência não encontrada'}), 404
+            
+            # Verificar se tem plantas associadas CONFORME ESTRUTURA REAL
+            # Tabela: planta_referencia
+            total_plantas = PlantaReferencia.query.filter_by(id_referencia=referencia_id).count()
+            
+            print(f"📊 Referência '{referencia.titulo_referencia or 'Sem título'}' tem {total_plantas} plantas associadas")
+            
+            if total_plantas > 0:
+                return jsonify({
+                    'error': f'Não é possível excluir a referência "{referencia.titulo_referencia or 'Sem título'}" porque tem {total_plantas} plantas associadas'
+                }), 400
+            
+            # Remover associações com autores antes de excluir CONFORME ESTRUTURA REAL
+            # Tabela: autor_referencia (com CASCADE já definido na FK)
+            AutorReferencia.query.filter_by(id_referencia=referencia_id).delete()
+            
+            # Excluir referência
+            titulo_backup = referencia.titulo_referencia or 'Sem título'
+            db.session.delete(referencia)
+            db.session.commit()
+            
+            print(f"✅ Referência '{titulo_backup}' excluída com sucesso")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Referência "{titulo_backup}" excluída com sucesso'
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao excluir referência {referencia_id}: {e}")
+            db.session.rollback()
+            return handle_error(e, "Erro ao excluir referência")
+
+# =====================================================
+# ENDPOINTS ADICIONAIS PARA CORRELAÇÃO AUTORES-REFERÊNCIAS
+# Baseado na estrutura real: autor_referencia
+# =====================================================
+
+@app.route('/api/admin/autores/<int:autor_id>/referencias', methods=['GET'])
+def get_referencias_do_autor(autor_id):
+    """Listar todas as referências de um autor específico"""
+    try:
+        # Verificar se autor existe
+        autor = Autor.query.get(autor_id)
+        if not autor:
+            return jsonify({'error': 'Autor não encontrado'}), 404
+        
+        # Buscar referências do autor CONFORME ESTRUTURA REAL
+        referencias_autor = db.session.query(
+            Referencia.id_referencia,
+            Referencia.titulo_referencia,
+            Referencia.tipo_referencia,
+            Referencia.ano,
+            Referencia.link_referencia,
+            AutorReferencia.ordem_autor,
+            AutorReferencia.papel,
+            func.count(func.distinct(PlantaReferencia.id_planta)).label('total_plantas')
+        ).join(
+            AutorReferencia, Referencia.id_referencia == AutorReferencia.id_referencia
+        ).outerjoin(
+            PlantaReferencia, Referencia.id_referencia == PlantaReferencia.id_referencia
+        ).filter(
+            AutorReferencia.id_autor == autor_id
+        ).group_by(
+            Referencia.id_referencia, Referencia.titulo_referencia,
+            Referencia.tipo_referencia, Referencia.ano, Referencia.link_referencia,
+            AutorReferencia.ordem_autor, AutorReferencia.papel
+        ).order_by(
+            AutorReferencia.ordem_autor, desc(Referencia.ano)
+        ).all()
+        
+        referencias_resultado = []
+        for ref in referencias_autor:
+            referencias_resultado.append({
+                'id_referencia': ref.id_referencia,
+                'titulo_referencia': ref.titulo_referencia,
+                'tipo_referencia': ref.tipo_referencia,
+                'ano': ref.ano,
+                'link_referencia': ref.link_referencia,
+                'ordem_autor': ref.ordem_autor,
+                'papel': ref.papel,
+                'total_plantas': ref.total_plantas or 0
+            })
+        
+        return jsonify({
+            'autor': {
+                'id_autor': autor.id_autor,
+                'nome_autor': autor.nome_autor,
+                'afiliacao': autor.afiliacao,
+                'sigla_afiliacao': autor.sigla_afiliacao
+            },
+            'referencias': referencias_resultado,
+            'total_referencias': len(referencias_resultado)
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao carregar referências do autor")
+
+@app.route('/api/admin/referencias/<int:referencia_id>/autores', methods=['GET'])
+def get_autores_da_referencia(referencia_id):
+    """Listar todos os autores de uma referência específica"""
+    try:
+        # Verificar se referência existe
+        referencia = Referencia.query.get(referencia_id)
+        if not referencia:
+            return jsonify({'error': 'Referência não encontrada'}), 404
+        
+        # Buscar autores da referência CONFORME ESTRUTURA REAL
+        autores_referencia = db.session.query(
+            Autor.id_autor,
+            Autor.nome_autor,
+            Autor.afiliacao,
+            Autor.sigla_afiliacao,
+            AutorReferencia.ordem_autor,
+            AutorReferencia.papel,
+            func.count(func.distinct(AutorPlanta.id_planta)).label('total_plantas_autor')
+        ).join(
+            AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+        ).outerjoin(
+            AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+        ).filter(
+            AutorReferencia.id_referencia == referencia_id
+        ).group_by(
+            Autor.id_autor, Autor.nome_autor, Autor.afiliacao, Autor.sigla_afiliacao,
+            AutorReferencia.ordem_autor, AutorReferencia.papel
+        ).order_by(
+            AutorReferencia.ordem_autor
+        ).all()
+        
+        autores_resultado = []
+        for autor in autores_referencia:
+            autores_resultado.append({
+                'id_autor': autor.id_autor,
+                'nome_autor': autor.nome_autor,
+                'afiliacao': autor.afiliacao,
+                'sigla_afiliacao': autor.sigla_afiliacao,
+                'ordem_autor': autor.ordem_autor,
+                'papel': autor.papel,
+                'total_plantas_autor': autor.total_plantas_autor or 0
+            })
+        
+        return jsonify({
+            'referencia': {
+                'id_referencia': referencia.id_referencia,
+                'titulo_referencia': referencia.titulo_referencia,
+                'tipo_referencia': referencia.tipo_referencia,
+                'ano': referencia.ano,
+                'link_referencia': referencia.link_referencia
+            },
+            'autores': autores_resultado,
+            'total_autores': len(autores_resultado)
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao carregar autores da referência")
+
+@app.route('/api/admin/autor-referencia', methods=['POST'])
+def criar_associacao_autor_referencia():
+    """Criar nova associação entre autor e referência"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        id_autor = data.get('id_autor')
+        id_referencia = data.get('id_referencia')
+        ordem_autor = data.get('ordem_autor', 1)
+        papel = data.get('papel', 'coautor')
+        
+        if not id_autor or not id_referencia:
+            return jsonify({'error': 'ID do autor e ID da referência são obrigatórios'}), 400
+        
+        # Verificar se autor existe
+        autor = Autor.query.get(id_autor)
+        if not autor:
+            return jsonify({'error': 'Autor não encontrado'}), 404
+        
+        # Verificar se referência existe
+        referencia = Referencia.query.get(id_referencia)
+        if not referencia:
+            return jsonify({'error': 'Referência não encontrada'}), 404
+        
+        # Verificar se associação já existe
+        associacao_existente = AutorReferencia.query.filter_by(
+            id_autor=id_autor, 
+            id_referencia=id_referencia
+        ).first()
+        
+        if associacao_existente:
+            return jsonify({'error': 'Associação já existe entre este autor e referência'}), 400
+        
+        # Validar papel
+        papeis_validos = ['primeiro', 'correspondente', 'coautor']
+        if papel not in papeis_validos:
+            return jsonify({'error': f'Papel deve ser um de: {", ".join(papeis_validos)}'}), 400
+        
+        # Criar nova associação CONFORME ESTRUTURA REAL
+        nova_associacao = AutorReferencia(
+            id_autor=id_autor,
+            id_referencia=id_referencia,
+            ordem_autor=ordem_autor,
+            papel=papel
+        )
+        
+        db.session.add(nova_associacao)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Associação autor-referência criada com sucesso',
+            'associacao': {
+                'id_autor': id_autor,
+                'id_referencia': id_referencia,
+                'ordem_autor': ordem_autor,
+                'papel': papel,
+                'autor_nome': autor.nome_autor,
+                'referencia_titulo': referencia.titulo_referencia
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e, "Erro ao criar associação autor-referência")
+
+@app.route('/api/admin/autor-referencia/<int:autor_id>/<int:referencia_id>', methods=['DELETE'])
+def remover_associacao_autor_referencia(autor_id, referencia_id):
+    """Remover associação entre autor e referência"""
+    try:
+        # Buscar associação existente
+        associacao = AutorReferencia.query.filter_by(
+            id_autor=autor_id,
+            id_referencia=referencia_id
+        ).first()
+        
+        if not associacao:
+            return jsonify({'error': 'Associação não encontrada'}), 404
+        
+        # Buscar nomes para log
+        autor = Autor.query.get(autor_id)
+        referencia = Referencia.query.get(referencia_id)
+        
+        # Remover associação
+        db.session.delete(associacao)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Associação removida entre {autor.nome_autor if autor else "autor"} e referência {referencia.titulo_referencia if referencia else "referência"}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e, "Erro ao remover associação autor-referência")
+
+@app.route('/api/admin/stats/autores-referencias', methods=['GET'])
+def get_stats_autores_referencias():
+    """Estatísticas da correlação autores-referências"""
+    try:
+        # Estatísticas gerais
+        total_autores = Autor.query.count()
+        total_referencias = Referencia.query.count()
+        total_associacoes = AutorReferencia.query.count()
+        
+        # Autores com referências
+        autores_com_referencias = db.session.query(
+            func.count(func.distinct(AutorReferencia.id_autor))
+        ).scalar()
+        
+        # Referências com autores
+        referencias_com_autores = db.session.query(
+            func.count(func.distinct(AutorReferencia.id_referencia))
+        ).scalar()
+        
+        # Distribuição por papel
+        distribuicao_papel = db.session.query(
+            AutorReferencia.papel,
+            func.count(AutorReferencia.id_autor).label('total')
+        ).group_by(AutorReferencia.papel).all()
+        
+        # Top 5 autores mais produtivos (em referências)
+        top_autores = db.session.query(
+            Autor.nome_autor,
+            Autor.afiliacao,
+            func.count(AutorReferencia.id_referencia).label('total_referencias')
+        ).join(
+            AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+        ).group_by(
+            Autor.id_autor, Autor.nome_autor, Autor.afiliacao
+        ).order_by(
+            desc('total_referencias')
+        ).limit(5).all()
+        
+        # Referências com mais autores
+        referencias_colaborativas = db.session.query(
+            Referencia.titulo_referencia,
+            Referencia.tipo_referencia,
+            func.count(AutorReferencia.id_autor).label('total_autores')
+        ).join(
+            AutorReferencia, Referencia.id_referencia == AutorReferencia.id_referencia
+        ).group_by(
+            Referencia.id_referencia, Referencia.titulo_referencia, Referencia.tipo_referencia
+        ).having(
+            func.count(AutorReferencia.id_autor) > 1
+        ).order_by(
+            desc('total_autores')
+        ).limit(5).all()
+        
+        return jsonify({
+            'totais': {
+                'total_autores': total_autores,
+                'total_referencias': total_referencias,
+                'total_associacoes': total_associacoes,
+                'autores_com_referencias': autores_com_referencias,
+                'referencias_com_autores': referencias_com_autores
+            },
+            'percentuais': {
+                'autores_com_referencias': round((autores_com_referencias / total_autores * 100), 1) if total_autores > 0 else 0,
+                'referencias_com_autores': round((referencias_com_autores / total_referencias * 100), 1) if total_referencias > 0 else 0
+            },
+            'distribuicao_papel': [
+                {
+                    'papel': papel.papel,
+                    'total': papel.total,
+                    'percentual': round((papel.total / total_associacoes * 100), 1) if total_associacoes > 0 else 0
+                } for papel in distribuicao_papel
+            ],
+            'top_autores_produtivos': [
+                {
+                    'nome_autor': autor.nome_autor,
+                    'afiliacao': autor.afiliacao,
+                    'total_referencias': autor.total_referencias
+                } for autor in top_autores
+            ],
+            'referencias_colaborativas': [
+                {
+                    'titulo': ref.titulo_referencia,
+                    'tipo': ref.tipo_referencia,
+                    'total_autores': ref.total_autores
+                } for ref in referencias_colaborativas
+            ]
+        })
+        
+    except Exception as e:
+        return handle_error(e, "Erro ao carregar estatísticas autores-referências")
 # =====================================================
 # ENDPOINT FINAL DE TESTE
 # =====================================================

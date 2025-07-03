@@ -108,8 +108,8 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
       ),
     },
     {
-      name: "Locais",
-      href: "/admin/locations",
+      name: "Referências",
+      href: "/admin/references",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -122,8 +122,10 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <circle cx="12" cy="10" r="3"></circle>
-          <path d="M12 2a8 8 0 0 0-8 8c0 1.892.402 3.13 1.5 4.5L12 22l6.5-7.5c1.098-1.37 1.5-2.608 1.5-4.5a8 8 0 0 0-8-8z"></path>
+          {/* ✅ NOVO ÍCONE: Livro/Bibliografia para referências */}
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+          <path d="M8 7h8"></path>
+          <path d="M8 11h8"></path>
         </svg>
       ),
     },
