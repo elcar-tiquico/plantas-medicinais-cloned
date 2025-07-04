@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import styles from './dashboard.module.css';
+import Link from 'next/link';
 
 // Interfaces TypeScript (mantidas iguais)
 interface StatItem {
@@ -540,10 +541,10 @@ const AdminDashboardComponent: React.FC = () => {
         <div className={styles.header}>
           <h1 className={styles.title}>Dashboard</h1>
           <div className={styles.buttonGroup}>
-            <button className={styles.buttonGreen}>
+            <Link href="/admin/plants/add" className={styles.buttonGreen}>
               <PlusIcon />
               <span>Adicionar Planta</span>
-            </button>
+            </Link>
             {error && (
               <button className={styles.buttonBlue} onClick={fetchData}>
                 <span>🔄 Tentar Novamente</span>
@@ -729,7 +730,7 @@ const AdminDashboardComponent: React.FC = () => {
                 )}
 
                 {/* Quick Actions */}
-                <div className={styles.section}>
+                {/* <div className={styles.section}>
                   <h4 className={styles.sectionTitle}>Acções Rápidas</h4>
                   <div className={styles.quickActionsGrid}>
                     <div className={styles.quickActionCardPurple}>
@@ -783,7 +784,7 @@ const AdminDashboardComponent: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             )}
 
@@ -1218,11 +1219,11 @@ const AdminDashboardComponent: React.FC = () => {
                   </div>
                 )}
 
-                <div className={styles.viewAllContainer}>
+                {/* <div className={styles.viewAllContainer}>
                   <a href="/admin/locations" className={styles.buttonBlue}>
                     Gerir locais
                   </a>
-                </div>
+                </div> */}
               </div>
             )}
 

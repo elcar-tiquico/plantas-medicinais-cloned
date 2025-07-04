@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -2539,6 +2540,8 @@ def buscar_autores():
     except Exception as e:
         return handle_error(e, "Erro ao buscar autores")
 
+
+
 @app.route('/api/admin/referencias/buscar', methods=['GET'])
 def buscar_referencias():
     """Buscar referências para autocomplete"""
@@ -4577,6 +4580,182 @@ def teste_calculo_pagina():
     except Exception as e:
         return handle_error(e, "Erro no teste de páginas")       
 
+
+# =====================================================
+# 1. ENDPOINT PRINCIPAL - BUSCA DE AUTORES
+# =====================================================
+
+@app.route('/api/admin/dashboard/busca-autores', methods=['GET'])
+def busca_autores_header():
+    """Busca específica de autores para o header - com informações completas"""
+    try:
+        query_param = request.args.get('q', '').strip()
+        limit = request.args.get('limit', 10, type=int)
+        
+        print(f"🔍 Busca de autores no header: '{query_param}'")
+        
+        if not query_param:
+            return jsonify({
+                'autores': [],
+                'total_encontrado': 0
+            })
+        
+        search_term = f'%{query_param}%'
+        
+        # Buscar autores com contagens REAIS de plantas e referências
+        autores_query = db.session.query(
+            Autor.id_autor,
+            Autor.nome_autor,
+            Autor.afiliacao,
+            Autor.sigla_afiliacao,
+            func.count(func.distinct(AutorPlanta.id_planta)).label('total_plantas'),
+            func.count(func.distinct(AutorReferencia.id_referencia)).label('total_referencias')
+        ).outerjoin(
+            AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+        ).outerjoin(
+            AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+        ).filter(
+            or_(
+                Autor.nome_autor.ilike(search_term),
+                Autor.afiliacao.ilike(search_term),
+                Autor.sigla_afiliacao.ilike(search_term)
+            )
+        ).group_by(
+            Autor.id_autor, Autor.nome_autor, Autor.afiliacao, Autor.sigla_afiliacao
+        ).order_by(
+            # Ordenar por relevância: autores com mais plantas primeiro
+            desc('total_plantas'), Autor.nome_autor
+        ).limit(limit).all()
+        
+        # Preparar resultado
+        autores_resultado = []
+        for autor in autores_query:
+            autores_resultado.append({
+                'id': autor.id_autor,
+                'nome': autor.nome_autor,
+                'afiliacao': autor.afiliacao,
+                'sigla_afiliacao': autor.sigla_afiliacao,
+                'total_plantas': autor.total_plantas or 0,
+                'total_referencias': autor.total_referencias or 0,
+                'tipo': 'autor'
+            })
+        
+        print(f"✅ Autores encontrados: {len(autores_resultado)}")
+        
+        return jsonify({
+            'autores': autores_resultado,
+            'total_encontrado': len(autores_resultado)
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro na busca de autores: {e}")
+        return handle_error(e, "Erro na busca de autores")
+
+# =====================================================
+# 2. ENDPOINT PARA CALCULAR PÁGINA DO AUTOR
+# =====================================================
+
+@app.route('/api/admin/autores/<int:autor_id>/page-info', methods=['GET'])
+def get_autor_page_info(autor_id):
+    """Encontrar em que página está um autor específico na listagem"""
+    try:
+        # Parâmetros da requisição
+        page_size = request.args.get('limit', 10, type=int)
+        search_term = request.args.get('search', '').strip()
+        
+        print(f"🔍 Calculando página para autor {autor_id} com busca: '{search_term}'")
+        
+        # Reconstruir a mesma query da listagem de autores
+        query = db.session.query(
+            Autor.id_autor,
+            Autor.nome_autor,
+            Autor.afiliacao,
+            Autor.sigla_afiliacao,
+            func.count(func.distinct(AutorPlanta.id_planta)).label('total_plantas'),
+            func.count(func.distinct(AutorReferencia.id_referencia)).label('total_referencias')
+        ).outerjoin(
+            AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+        ).outerjoin(
+            AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+        ).group_by(
+            Autor.id_autor, Autor.nome_autor, Autor.afiliacao, Autor.sigla_afiliacao
+        )
+        
+        # Aplicar filtro de busca se existir
+        if search_term:
+            search_pattern = f'%{search_term}%'
+            query = query.filter(
+                or_(
+                    Autor.nome_autor.ilike(search_pattern),
+                    Autor.afiliacao.ilike(search_pattern),
+                    Autor.sigla_afiliacao.ilike(search_pattern)
+                )
+            )
+        
+        # Ordenação igual à listagem (alfabética por nome)
+        query = query.order_by(Autor.nome_autor)
+        
+        # Buscar dados do autor específico
+        autor_target = query.filter(Autor.id_autor == autor_id).first()
+        
+        if not autor_target:
+            return jsonify({
+                'error': 'Autor não encontrado nos filtros aplicados',
+                'autor_id': autor_id,
+                'search_term': search_term
+            }), 404
+        
+        # Contar autores que vêm antes (ordenação alfabética)
+        autores_antes_query = db.session.query(
+            func.count(Autor.id_autor)
+        ).outerjoin(
+            AutorPlanta, Autor.id_autor == AutorPlanta.id_autor
+        ).outerjoin(
+            AutorReferencia, Autor.id_autor == AutorReferencia.id_autor
+        ).filter(
+            Autor.nome_autor < autor_target.nome_autor
+        )
+        
+        # Aplicar mesmo filtro de busca se existir
+        if search_term:
+            search_pattern = f'%{search_term}%'
+            autores_antes_query = autores_antes_query.filter(
+                or_(
+                    Autor.nome_autor.ilike(search_pattern),
+                    Autor.afiliacao.ilike(search_pattern),
+                    Autor.sigla_afiliacao.ilike(search_pattern)
+                )
+            )
+        
+        autores_antes_count = autores_antes_query.scalar() or 0
+        
+        # Calcular página
+        page = (autores_antes_count // page_size) + 1
+        position_in_page = (autores_antes_count % page_size) + 1
+        
+        print(f"✅ Autor {autor_id} está na página {page}, posição {position_in_page}")
+        
+        return jsonify({
+            'page': page,
+            'position_in_page': position_in_page,
+            'total_before': autores_antes_count,
+            'autor_info': {
+                'id': autor_target.id_autor,
+                'nome_autor': autor_target.nome_autor,
+                'afiliacao': autor_target.afiliacao,
+                'sigla_afiliacao': autor_target.sigla_afiliacao,
+                'total_plantas': autor_target.total_plantas or 0,
+                'total_referencias': autor_target.total_referencias or 0
+            },
+            'filtros_aplicados': {
+                'search_term': search_term,
+                'page_size': page_size
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao calcular página do autor {autor_id}: {e}")
+        return handle_error(e, "Erro ao calcular página do autor")
 # =====================================================
 # ENDPOINTS PARA GESTÃO DE AUTORES E REFERÊNCIAS
 # Baseado na estrutura real da base de dados

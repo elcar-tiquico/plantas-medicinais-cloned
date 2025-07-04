@@ -225,9 +225,28 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
           }
           break
           
+        // ✅ NOVO: Caso para autores
         case 'autor':
-          const timestamp = Date.now()
-          url = `/admin/plants?search_type=autor&search_term=${encodeURIComponent(result.nome || '')}&t=${timestamp}`
+          console.log('📊 Calculando página do autor...', result.id)
+          
+          const autorParams = new URLSearchParams({
+            limit: '10',
+            search: result.nome || ''
+          })
+          
+          const autorResponse = await fetch(`${API_BASE_URL}/api/admin/autores/${result.id}/page-info?${autorParams}`)
+          
+          if (autorResponse.ok) {
+            const pageInfo = await autorResponse.json()
+            console.log('✅ Página do autor calculada:', pageInfo)
+            
+            const timestamp = Date.now()
+            url = `/admin/references?page=${pageInfo.page}&highlight=${result.id}&search=${encodeURIComponent(result.nome || '')}&type=autor&t=${timestamp}`
+          } else {
+            console.log('⚠️ Falha ao calcular página do autor')
+            const timestamp = Date.now()
+            url = `/admin/references?search=${encodeURIComponent(result.nome || '')}&highlight=${result.id}&type=autor&t=${timestamp}`
+          }
           break
       }
 
@@ -250,8 +269,9 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
         case 'familia':
           window.location.href = `/admin/familias?highlight=${result.id}&t=${timestamp}`
           break
+        // ✅ NOVO: Fallback para autor
         case 'autor':
-          window.location.href = `/admin/plants?search_type=autor&search_term=${encodeURIComponent(result.nome || '')}&t=${timestamp}`
+          window.location.href = `/admin/authors-references?highlight=${result.id}&type=autor&t=${timestamp}`
           break
       }
     }
@@ -682,26 +702,24 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
             </div>
 
             {/* ✅ BOTÃO ATUALIZADO: Adicionar nova planta com navegação */}
-            <button 
-              className={styles.actionButton}
-              onClick={() => router.push('/admin/plants/add')}
-              title="Adicionar nova planta"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
+            <Link href="/admin/plants/add" title="Adicionar nova planta">
+              <button className={styles.actionButton}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </Link>
 
             <div className={styles.profileContainer} ref={profileRef}>
               <button

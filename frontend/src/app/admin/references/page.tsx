@@ -728,87 +728,105 @@ export default function AutoresReferenciasPage() {
     }, 3000)
   }
 
-  // ✅ EFFECT: URL PARAMS PROCESSING
+  // ✅ NOVO: useEffect para processar highlights de autores vindos do header
   useEffect(() => {
     const processUrlParams = async () => {
+      // ✅ DELAY INICIAL para garantir carregamento
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+    
       const urlParams = new URLSearchParams(window.location.search)
       const highlightId = urlParams.get('highlight')
-      const highlightType = urlParams.get('type') // 'autor' ou 'referencia'
       const pageParam = urlParams.get('page')
       const urlSearch = urlParams.get('search')
-      
+      const highlightType = urlParams.get('type') // 'autor' ou 'referencia'
+      const timestamp = urlParams.get('t')
+    
       console.log('🔍 Processando parâmetros da URL (autores/referências):', {
         highlight: highlightId,
         type: highlightType,
         page: pageParam,
-        search: urlSearch
+        search: urlSearch,
+        timestamp: timestamp
       })
-      
-      // Definir aba ativa baseada no tipo
+    
+      // ✅ DEFINIR ABA ATIVA baseada no tipo
       if (highlightType === 'autor') {
         setActiveTab('autores')
-      } else if (highlightType === 'referencia') {
+        console.log('🎯 Definindo aba ativa: autores')
+      } else if (highlightType === 'referencia' || !highlightType) {
+        // Default para referências se não especificado
         setActiveTab('referencias')
+        console.log('🎯 Definindo aba ativa: referências')
       }
-      
-      // Aplicar filtro de busca
+    
+      // ✅ APLICAR FILTRO DE BUSCA
       if (urlSearch) {
         const decodedSearch = decodeURIComponent(urlSearch)
+        console.log('🔍 Aplicando busca decodificada:', decodedSearch)
+      
         if (highlightType === 'autor') {
           setSearchTermAutores(decodedSearch)
           setDebouncedSearchTermAutores(decodedSearch)
-        } else if (highlightType === 'referencia') {
+          console.log('✅ Busca aplicada na aba de autores')
+        } else {
           setSearchTermReferencias(decodedSearch)
           setDebouncedSearchTermReferencias(decodedSearch)
+          console.log('✅ Busca aplicada na aba de referências')
         }
       }
-      
-      // Aplicar página
+    
+      // ✅ APLICAR PÁGINA
       if (pageParam) {
         const pageNumber = parseInt(pageParam, 10)
         if (!isNaN(pageNumber) && pageNumber > 0) {
+          console.log('📄 Aplicando página:', pageNumber)
+        
           if (highlightType === 'autor') {
             setCurrentPageAutores(pageNumber)
-          } else if (highlightType === 'referencia') {
+          } else {
             setCurrentPageReferencias(pageNumber)
           }
         }
       }
-      
-      // Configurar highlight
+    
+      // ✅ CONFIGURAR HIGHLIGHT
       if (highlightId && highlightType) {
         const dataAttribute = highlightType === 'autor' ? 'data-autor-id' : 'data-referencia-id'
-        
+      
+        console.log('🎯 Configurando highlight:', { highlightId, highlightType, dataAttribute })
+      
         setTimeout(() => {
           const element = document.querySelector(`[${dataAttribute}="${highlightId}"]`)
           if (element) {
+            console.log('✅ Elemento encontrado para highlight')
             element.scrollIntoView({ behavior: 'smooth', block: 'center' })
             element.classList.add('highlighted')
-            
+          
+            // ✅ INDICADOR VISUAL usando a função existente
             if (typeof showHighlightIndicator === 'function') {
               showHighlightIndicator(element, highlightType)
             }
-            
+          
             setTimeout(() => {
               element.classList.remove('highlighted')
             }, 5000)
+          } else {
+            console.log('⚠️ Elemento não encontrado para highlight:', `[${dataAttribute}="${highlightId}"]`)
           }
         }, 4000)
       }
-      
-      // Limpar URL
-      if (highlightId || pageParam || urlSearch) {
+    
+      // ✅ LIMPAR URL
+      if (highlightId || pageParam || urlSearch || highlightType) {
         setTimeout(() => {
           window.history.replaceState({}, document.title, window.location.pathname)
         }, 500)
       }
     }
-    
+  
     processUrlParams()
   }, [])
-
+  
   // ✅ EFFECT: Load data based on active tab
   useEffect(() => {
     if (activeTab === 'autores') {
