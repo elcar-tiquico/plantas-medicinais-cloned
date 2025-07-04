@@ -5845,6 +5845,89 @@ def get_plantas_por_provincia_detalhado():
         return handle_error(e)
 
 
+@app.route('/api/admin/plantas/<int:id_planta>/usos-detalhados', methods=['GET'])
+def get_usos_detalhados_planta(id_planta):
+    """
+    ✅ NOVO ENDPOINT: Retorna usos medicinais com todos os detalhes
+    Específico para o wizard de edição
+    """
+    try:
+        logger.info(f"🔄 Buscando usos detalhados da planta {id_planta}")
+        
+        # Verificar se a planta existe
+        planta = Planta.query.get_or_404(id_planta)
+        
+        # ✅ Query complexa para buscar todos os dados dos usos
+        usos_detalhados = []
+        
+        for uso_planta in planta.usos_planta:
+            # Buscar indicações específicas deste uso
+            indicacoes_uso = db.session.query(Indicacao).join(
+                UsoPlantaIndicacao, 
+                Indicacao.id_indicacao == UsoPlantaIndicacao.id_indicacao
+            ).filter(
+                UsoPlantaIndicacao.id_uso_planta == uso_planta.id_uso_planta
+            ).all()
+            
+            # Buscar métodos de preparação específicos deste uso
+            metodos_preparacao_uso = db.session.query(MetodoPreparacaoTradicional).join(
+                UsoPlantaPreparacao,
+                MetodoPreparacaoTradicional.id_preparacao == UsoPlantaPreparacao.id_preparacao
+            ).filter(
+                UsoPlantaPreparacao.id_uso_planta == uso_planta.id_uso_planta
+            ).all()
+            
+            # Buscar métodos de extração específicos deste uso
+            metodos_extracao_uso = db.session.query(MetodoExtracao).join(
+                UsoPlantaExtracao,
+                MetodoExtracao.id_extraccao == UsoPlantaExtracao.id_extraccao
+            ).filter(
+                UsoPlantaExtracao.id_uso_planta == uso_planta.id_uso_planta
+            ).all()
+            
+            # Montar objeto detalhado do uso
+            uso_detalhado = {
+                'id_uso_planta': uso_planta.id_uso_planta,
+                'id_uso': uso_planta.id_parte,  # ID da parte usada
+                'parte_usada': uso_planta.parte_usada.parte_usada if uso_planta.parte_usada else 'Não informado',
+                'observacoes': uso_planta.observacoes,
+                'indicacoes': [
+                    {
+                        'id_indicacao': ind.id_indicacao,
+                        'descricao': ind.descricao
+                    } for ind in indicacoes_uso
+                ],
+                'metodos_preparacao': [
+                    {
+                        'id_preparacao': met.id_preparacao,
+                        'descricao': met.descricao
+                    } for met in metodos_preparacao_uso
+                ],
+                'metodos_extracao': [
+                    {
+                        'id_extraccao': met.id_extraccao,
+                        'descricao': met.descricao
+                    } for met in metodos_extracao_uso
+                ]
+            }
+            
+            usos_detalhados.append(uso_detalhado)
+        
+        logger.info(f"✅ Encontrados {len(usos_detalhados)} usos detalhados para planta {id_planta}")
+        
+        # Log detalhado para debug
+        for i, uso in enumerate(usos_detalhados):
+            logger.info(f"   Uso {i+1}: {uso['parte_usada']} - {len(uso['indicacoes'])} indicações, {len(uso['metodos_preparacao'])} prep., {len(uso['metodos_extracao'])} extr.")
+        
+        return jsonify(usos_detalhados), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao buscar usos detalhados da planta {id_planta}: {str(e)}")
+        return jsonify({
+            'error': 'Erro interno do servidor',
+            'details': str(e)
+        }), 500
+
 # =====================================================
 # ROTA PARA VALIDAR DADOS DE PROVÍNCIA
 # =====================================================

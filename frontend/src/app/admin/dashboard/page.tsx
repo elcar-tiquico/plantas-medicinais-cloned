@@ -165,6 +165,13 @@ const AdminDashboardComponent: React.FC = () => {
   const API_BASE_URL = process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:5001/api/admin/dashboard';
   const MAIN_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+  // ADICIONAR estes novos estados após os existentes:
+  const [showEditModal, setShowEditModal] = useState<boolean>(false)
+  const [editModalType, setEditModalType] = useState<'autor' | 'referencia' | null>(null)
+  const [selectedEditItem, setSelectedEditItem] = useState<any>(null)
+  const [editFormData, setEditFormData] = useState<any>({})
+  const [editModalLoading, setEditModalLoading] = useState<boolean>(false)
+
   // ===== FUNÇÃO PARA FORMATAR NOMES DE FAMÍLIAS =====
   const formatarNomeFamilia = (nomeFamilia: string): string => {
     return nomeFamilia.toUpperCase();
@@ -533,6 +540,182 @@ const AdminDashboardComponent: React.FC = () => {
     );
   };
 
+  // ADICIONAR estas novas funções:
+  // SUBSTITUIR a função abrirModalEdicao por esta:
+  const abrirModalEdicao = (tipo: 'autor' | 'referencia', item: any) => {
+    console.log('🔍 Abrindo modal para:', tipo);
+    console.log('📋 Dados recebidos:', item);
+    
+    setEditModalType(tipo)
+    setSelectedEditItem(item)
+    
+    if (tipo === 'autor') {
+      const formData = {
+        nome_autor: item.nome_autor || item.nome || '',
+        afiliacao: item.afiliacao || '',
+        sigla_afiliacao: item.sigla_afiliacao || item.sigla || ''
+      };
+      console.log('✅ FormData para autor:', formData);
+      setEditFormData(formData);
+    } else {
+      const formData = {
+        titulo_referencia: item.titulo_referencia || item.titulo || '',
+        tipo_referencia: item.tipo_referencia || item.tipo || '',
+        ano: item.ano || '',
+        link_referencia: item.link_referencia || item.link || ''
+      };
+      console.log('✅ FormData para referência:', formData);
+      setEditFormData(formData);
+    }
+    
+    setShowEditModal(true)
+  }
+
+  const fecharModalEdicao = () => {
+    setShowEditModal(false)
+    setEditModalType(null)
+    setSelectedEditItem(null)
+    setEditFormData({})
+    setEditModalLoading(false)
+  }
+
+// ✅ FUNÇÃO SIMPLIFICADA - IGUAL À PÁGINA DE REFERÊNCIAS
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEditModalLoading(true)
+    
+    try {
+      const endpoint = editModalType === 'autor' ? 'autores' : 'referencias'
+      const id = editModalType === 'autor' ? selectedEditItem.id_autor : selectedEditItem.id_referencia
+
+      console.log('🔍 INÍCIO DA VALIDAÇÃO SIMPLIFICADA:', {
+        editModalType,
+        selectedEditItem,
+        editFormData,
+        endpoint,
+        id
+      })
+
+      // ✅ VALIDAÇÃO SIMPLIFICADA PARA REFERÊNCIAS
+      if (editModalType === 'referencia') {
+        // Sempre exigir link - igual à página de referências
+        if (!editFormData.link_referencia?.trim()) {
+          alert('Link da referência é obrigatório')
+          setEditModalLoading(false)
+          return
+        }
+        
+        console.log('✅ FRONTEND: Validação de referência passou (link obrigatório)')
+        
+      } else {
+        // Para autores, nome é obrigatório
+        if (!editFormData.nome_autor?.trim()) {
+          alert('Nome do autor é obrigatório')
+          setEditModalLoading(false)
+          return
+        }
+        console.log('✅ FRONTEND: Validação de autor passou!')
+      }
+
+      // ✅ PREPARAR DADOS PARA ENVIO
+      const dadosParaEnvio = editModalType === 'autor' 
+        ? {
+            nome_autor: String(editFormData.nome_autor || '').trim(),
+            afiliacao: String(editFormData.afiliacao || '').trim(),
+            sigla_afiliacao: String(editFormData.sigla_afiliacao || '').trim()
+          }
+        : {
+            titulo_referencia: String(editFormData.titulo_referencia || '').trim(),
+            tipo_referencia: String(editFormData.tipo_referencia || '').trim(),
+            ano: String(editFormData.ano || '').trim(),
+            link_referencia: String(editFormData.link_referencia || '').trim()
+          }
+
+      console.log('📤 DADOS PREPARADOS PARA ENVIO:', {
+        endpoint,
+        id,
+        dadosParaEnvio,
+        dadosStringified: JSON.stringify(dadosParaEnvio, null, 2)
+      })
+
+      // ✅ USAR A API CORRETA
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
+      const fullURL = `${API_URL}/api/admin/${endpoint}/${id}`
+      
+      console.log('🌐 FAZENDO REQUISIÇÃO PARA:', {
+        method: 'PUT',
+        url: fullURL,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dadosParaEnvio)
+      })
+
+      const response = await fetch(fullURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dadosParaEnvio)
+      })
+      
+      console.log('📥 RESPOSTA DA API:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ Erro da API:', errorData)
+        throw new Error(errorData.error || errorData.message || 'Erro ao atualizar')
+      }
+      
+      const responseData = await response.json()
+      console.log('✅ RESPOSTA DE SUCESSO:', responseData)
+      
+      fecharModalEdicao()
+      await fetchData() // Recarregar dados
+      
+      // ✅ FEEDBACK DE SUCESSO
+      const tipoItem = editModalType === 'autor' ? 'Autor' : 'Referência'
+      console.log(`✅ ${tipoItem} atualizado com sucesso`)
+      
+    } catch (error) {
+      console.error('❌ ERRO FINAL:', error)
+      
+      // ✅ TRATAMENTO DE ERRO MAIS DETALHADO
+      let errorMessage = 'Erro desconhecido'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
+      // Se for erro de rede
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Erro de conexão. Verifique se a API está rodando na porta 5001.'
+      }
+      
+      alert(`Erro ao atualizar ${editModalType === 'autor' ? 'autor' : 'referência'}: ${errorMessage}`)
+    } finally {
+      setEditModalLoading(false)
+    }
+  }
+
+  // ✅ FUNÇÃO AUXILIAR SIMPLIFICADA PARA VALIDAÇÃO DO FORMULÁRIO
+  const isFormValid = () => {
+    if (editModalType === 'autor') {
+      return editFormData.nome_autor?.trim()
+    } else {
+      // ✅ SEMPRE EXIGIR LINK - IGUAL À PÁGINA DE REFERÊNCIAS
+      return editFormData.link_referencia?.trim()
+    }
+  }
+
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setEditFormData((prev: any) => ({ ...prev, [name]: value }))
+  }
+
+  // ✅ FUNÇÃO AUXILIAR PARA VALIDAÇÃO DO FORMULÁRIO
+ 
+
   return (
     <div className={styles.container}>
       <div className={styles.maxWidth}>
@@ -661,7 +844,6 @@ const AdminDashboardComponent: React.FC = () => {
                 { id: 'locations', label: 'Locais de Colheita' },
                 { id: 'references', label: 'Referências' },
                 { id: 'authors', label: 'Autores' },
-                { id: 'searches', label: 'Pesquisas' } // ===== NOVA ABA =====
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -785,194 +967,6 @@ const AdminDashboardComponent: React.FC = () => {
                     </div>
                   </div>
                 </div> */}
-              </div>
-            )}
-
-            {/* ===== NOVA ABA PESQUISAS ===== */}
-            {activeTab === 'searches' && (
-              <div>
-                <h3 className={styles.tabTitle}>Análise de Pesquisas</h3>
-                <p className={styles.tabDescription}>
-                  Monitore o interesse dos utilizadores e os padrões de pesquisa no sistema PhytoMoz.
-                </p>
-
-                {searchLoading ? (
-                  <LoadingSpinner />
-                ) : searchStats ? (
-                  <>
-                    {/* Cards de estatísticas de pesquisa */}
-                    <div className={styles.chartsGrid}>
-                      <div className={styles.chartCard}>
-                        <h4 className={styles.chartTitle}>Interesse dos Utilizadores</h4>
-                        <div className={styles.progressList}>
-                          <div className={styles.progressItem}>
-                            <div className={styles.progressInfo}>
-                              <span className={styles.progressLabel}>Total de Cliques</span>
-                              <span className={styles.progressValue}>{searchStats.total_cliques}</span>
-                            </div>
-                          </div>
-                          <div className={styles.progressItem}>
-                            <div className={styles.progressInfo}>
-                              <span className={styles.progressLabel}>Cliques Hoje</span>
-                              <span className={styles.progressValue}>{searchStats.cliques_hoje}</span>
-                            </div>
-                          </div>
-                          <div className={styles.progressItem}>
-                            <div className={styles.progressInfo}>
-                              <span className={styles.progressLabel}>Plantas Únicas Clicadas</span>
-                              <span className={styles.progressValue}>{searchStats.plantas_unicas_clicadas}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={styles.chartCard}>
-                        <h4 className={styles.chartTitle}>Interesse por Tipo de Busca</h4>
-                        <div className={styles.progressList}>
-                          {searchStats.interesse_por_tipo.map((tipo, index) => (
-                            <div key={index} className={styles.progressItem}>
-                              <div className={styles.progressInfo}>
-                                <span className={styles.progressLabel}>
-                                  {tipo.tipo_busca === 'nome_popular' ? 'Nome Popular' : 
-                                   tipo.tipo_busca === 'nome_cientifico' ? 'Nome Científico' : 
-                                   tipo.tipo_busca}
-                                </span>
-                                <span className={styles.progressValue}>{tipo.total_cliques} cliques</span>
-                              </div>
-                              <div className={styles.progressBar}>
-                                <div 
-                                  className={styles.progressFillBlue} 
-                                  style={{ width: `${tipo.percentual}%` }}
-                                ></div>
-                              </div>
-                              <span className={styles.progressPercentage}>{tipo.percentual}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Top plantas mais clicadas */}
-                    {searchStats.top_plantas_clicadas.length > 0 && (
-                      <div className={styles.section}>
-                        <h4 className={styles.sectionTitle}>Plantas Mais Procuradas</h4>
-                        <div className={styles.tableContainer}>
-                          <table className={styles.table}>
-                            <thead className={styles.tableHead}>
-                              <tr>
-                                <th className={styles.tableHeader}>Posição</th>
-                                <th className={styles.tableHeader}>Termo de Busca</th>
-                                <th className={styles.tableHeader}>Tipo</th>
-                                <th className={styles.tableHeader}>Total de Cliques</th>
-                                <th className={styles.tableHeader}>Interesse</th>
-                              </tr>
-                            </thead>
-                            <tbody className={styles.tableBody}>
-                              {searchStats.top_plantas_clicadas.slice(0, 10).map((planta, index) => (
-                                <tr key={index} className={styles.tableRow}>
-                                  <td className={styles.tableCell}>
-                                    <span style={{ fontWeight: '600', color: '#9333ea' }}>#{index + 1}</span>
-                                  </td>
-                                  <td className={styles.tableCell}>
-                                    <div className={styles.tableCellTitle}>{planta.termo}</div>
-                                  </td>
-                                  <td className={styles.tableCell}>
-                                    <span className={styles.badge}>
-                                      {planta.tipo_busca === 'nome_popular' ? 'Nome Popular' : 
-                                       planta.tipo_busca === 'nome_cientifico' ? 'Nome Científico' : 
-                                       planta.tipo_busca}
-                                    </span>
-                                  </td>
-                                  <td className={styles.tableCell}>
-                                    <span style={{ fontWeight: '600', color: '#111827' }}>
-                                      {planta.total_cliques}
-                                    </span>
-                                  </td>
-                                  <td className={styles.tableCell}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                      <div style={{ 
-                                        width: '40px', 
-                                        height: '4px', 
-                                        backgroundColor: '#e5e7eb', 
-                                        borderRadius: '2px',
-                                        overflow: 'hidden'
-                                      }}>
-                                        <div 
-                                          style={{ 
-                                            width: `${(planta.total_cliques / Math.max(...searchStats.top_plantas_clicadas.map(p => p.total_cliques))) * 100}%`, 
-                                            height: '100%', 
-                                            backgroundColor: '#22c55e',
-                                            transition: 'width 0.3s ease'
-                                          }}
-                                        ></div>
-                                      </div>
-                                      <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: '500' }}>
-                                        Alto
-                                      </span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Informações adicionais */}
-                    <div className={styles.section}>
-                      <h4 className={styles.sectionTitle}>Informações do Sistema de Tracking</h4>
-                      <div className={styles.progressList}>
-                        <div className={styles.progressItem}>
-                          <div className={styles.progressInfo}>
-                            <span className={styles.progressLabel}>Métrica Utilizada</span>
-                            <span className={styles.progressValue}>{searchStats.metrica}</span>
-                          </div>
-                        </div>
-                        {searchStats.primeiro_clique && (
-                          <div className={styles.progressItem}>
-                            <div className={styles.progressInfo}>
-                              <span className={styles.progressLabel}>Primeiro Clique Registado</span>
-                              <span className={styles.progressValue}>
-                                {new Date(searchStats.primeiro_clique).toLocaleDateString('pt-PT')}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                        {searchStats.ultimo_clique && (
-                          <div className={styles.progressItem}>
-                            <div className={styles.progressInfo}>
-                              <span className={styles.progressLabel}>Último Clique</span>
-                              <span className={styles.progressValue}>
-                                {new Date(searchStats.ultimo_clique).toLocaleDateString('pt-PT')} às{' '}
-                                {new Date(searchStats.ultimo_clique).toLocaleTimeString('pt-PT')}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className={styles.loadingContainer}>
-                    <span className={styles.loadingText}>
-                      {searchStats === null 
-                        ? "Nenhum dado de pesquisa disponível ainda. Os dados aparecerão quando os utilizadores começarem a interagir com o sistema."
-                        : "Carregando dados de pesquisa..."
-                      }
-                    </span>
-                  </div>
-                )}
-
-                <div className={styles.viewAllContainer}>
-                  <button 
-                    className={styles.buttonBlue}
-                    onClick={() => fetchSearchData()}
-                    disabled={searchLoading}
-                  >
-                    {searchLoading ? '🔄 Actualizando...' : '🔄 Actualizar Dados de Pesquisa'}
-                  </button>
-                </div>
               </div>
             )}
 
@@ -1326,7 +1320,22 @@ const AdminDashboardComponent: React.FC = () => {
                                     </div>
                                   </td>
                                   <td className={styles.tableCellAction}>
-                                    <a href="#" className={styles.editLink}>Editar</a>
+                                    <button 
+                                      onClick={() => {
+                                        console.log('Dados da referência clicada:', ref);
+                                        abrirModalEdicao('referencia', {
+                                          id_referencia: ref.id,
+                                          titulo_referencia: ref.titulo,
+                                          tipo_referencia: ref.tipo,
+                                          ano: ref.ano,
+                                          link_referencia: ref.link
+                                        });
+                                      }}
+                                      className={styles.editLink}
+                                      style={{ background: 'none', border: 'none', padding: 0 }}
+                                    >
+                                      Editar
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -1371,9 +1380,9 @@ const AdminDashboardComponent: React.FC = () => {
                 )}
 
                 <div className={styles.viewAllContainer}>
-                  <a href="/admin/references" className={styles.buttonPurple}>
+                  <Link href="/admin/references?tab=referencias" className={styles.buttonPurple}>
                     Gerir referências
-                  </a>
+                  </Link>
                 </div>
               </div>
             )}
@@ -1482,7 +1491,21 @@ const AdminDashboardComponent: React.FC = () => {
                                   <td className={styles.tableCell}>{autor.total_plantas}</td>
                                   <td className={styles.tableCell}>{autor.total_referencias}</td>
                                   <td className={styles.tableCellAction}>
-                                    <a href="#" className={styles.editLink}>Editar</a>
+                                    <button 
+                                      onClick={() => {
+                                        console.log('Dados do autor clicado:', autor);
+                                        abrirModalEdicao('autor', {
+                                          id_autor: autor.id,
+                                          nome_autor: autor.nome,
+                                          afiliacao: autor.afiliacao,
+                                          sigla_afiliacao: autor.sigla
+                                        });
+                                      }}
+                                      className={styles.editLink}
+                                      style={{ background: 'none', border: 'none', padding: 0 }}
+                                    >
+                                      Editar
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -1528,15 +1551,257 @@ const AdminDashboardComponent: React.FC = () => {
                 )}
 
                 <div className={styles.viewAllContainer}>
-                  <a href="/admin/authors" className={styles.buttonGreen}>
+                  <Link href="/admin/references?tab=autores" className={styles.buttonGreen}>
                     Gerir autores
-                  </a>
+                  </Link>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
+      {showEditModal && (
+        <div className={styles.modalOverlay} onClick={fecharModalEdicao}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>
+                Editar {editModalType === 'autor' ? 'Autor' : 'Referência'}
+              </h2>
+              <button 
+                className={styles.modalCloseButton}
+                onClick={fecharModalEdicao}
+                aria-label="Fechar modal"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit}>
+              <div className={styles.modalBody}>
+                {editModalType === 'autor' ? (
+                  <div className={styles.formGrid}>
+                    <div className={`${styles.formItem} ${styles.formGridFull}`}>
+                      <label htmlFor="nome_autor" className={styles.formLabel}>
+                        Nome do Autor *
+                      </label>
+                      <input
+                        type="text"
+                        id="nome_autor"
+                        name="nome_autor"
+                        value={editFormData.nome_autor || ''}
+                        onChange={handleEditInputChange}
+                        className={styles.formInput}
+                        placeholder="Ex: João Silva, Maria Santos..."
+                        maxLength={150}
+                        disabled={editModalLoading}
+                        autoComplete="off"
+                        autoFocus
+                        required
+                      />
+                      <p className={styles.formHint}>
+                        Nome completo do autor (máximo 150 caracteres)
+                      </p>
+                      <div className={`${styles.characterCount} ${(editFormData.nome_autor?.length || 0) > 135 ? styles.characterCountWarning : styles.characterCountNormal}`}>
+                        {editFormData.nome_autor?.length || 0}/150 caracteres
+                      </div>
+                    </div>
+
+                    <div className={styles.formGridTwo}>
+                      <div className={styles.formItem}>
+                        <label htmlFor="afiliacao" className={styles.formLabel}>
+                          Afiliação
+                        </label>
+                        <input
+                          type="text"
+                          id="afiliacao"
+                          name="afiliacao"
+                          value={editFormData.afiliacao || ''}
+                          onChange={handleEditInputChange}
+                          className={styles.formInput}
+                          placeholder="Ex: Universidade Eduardo Mondlane..."
+                          maxLength={150}
+                          disabled={editModalLoading}
+                          autoComplete="off"
+                        />
+                        <p className={styles.formHint}>
+                          Instituição de afiliação do autor (opcional)
+                        </p>
+                      </div>
+
+                      <div className={styles.formItem}>
+                        <label htmlFor="sigla_afiliacao" className={styles.formLabel}>
+                          Sigla da Afiliação
+                        </label>
+                        <input
+                          type="text"
+                          id="sigla_afiliacao"
+                          name="sigla_afiliacao"
+                          value={editFormData.sigla_afiliacao || ''}
+                          onChange={handleEditInputChange}
+                          className={styles.formInput}
+                          placeholder="Ex: UEM, INS..."
+                          maxLength={50}
+                          disabled={editModalLoading}
+                          autoComplete="off"
+                        />
+                        <p className={styles.formHint}>
+                          Sigla ou abreviação da instituição (opcional)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGridTwo}>
+                      <div className={styles.formItem}>
+                        <label htmlFor="tipo_referencia" className={styles.formLabel}>
+                          Tipo de Referência *
+                        </label>
+                        <select
+                          id="tipo_referencia"
+                          name="tipo_referencia"
+                          value={editFormData.tipo_referencia || ''}
+                          onChange={handleEditInputChange}
+                          className={styles.formSelect}
+                          disabled={editModalLoading}
+                          required
+                        >
+                          <option value="">Seleccionar tipo...</option>
+                          <option value="Artigo Científico">Artigo Científico</option>
+                          <option value="Livro">Livro</option>
+                          <option value="Tese/Dissertação">Tese/Dissertação</option>
+                          <option value="Website/URL">Website/URL</option>
+                        </select>
+                        <p className={styles.formHint}>
+                          Tipo de publicação ou fonte bibliográfica
+                        </p>
+                      </div>
+
+                      <div className={styles.formItem}>
+                        <label htmlFor="ano" className={styles.formLabel}>
+                          Ano de Publicação
+                        </label>
+                        <input
+                          type="text"
+                          id="ano"
+                          name="ano"
+                          value={editFormData.ano || ''}
+                          onChange={handleEditInputChange}
+                          className={styles.formInput}
+                          placeholder="Ex: 2023, 2024..."
+                          maxLength={4}
+                          disabled={editModalLoading}
+                          autoComplete="off"
+                        />
+                        <p className={styles.formHint}>
+                          Ano de publicação (opcional)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={`${styles.formItem} ${styles.formGridFull}`}>
+                      <label htmlFor="titulo_referencia" className={styles.formLabel}>
+                        Título da Referência
+                      </label>
+                      <input
+                        type="text"
+                        id="titulo_referencia"
+                        name="titulo_referencia"
+                        value={editFormData.titulo_referencia || ''}
+                        onChange={handleEditInputChange}
+                        className={styles.formInput}
+                        placeholder="Ex: Plantas Medicinais de Moçambique..."
+                        disabled={editModalLoading}
+                        autoComplete="off"
+                      />
+                      <p className={styles.formHint}>
+                        Título completo da obra ou publicação (opcional)
+                      </p>
+                    </div>
+
+                    <div className={`${styles.formItem} ${styles.formGridFull}`}>
+                      <label htmlFor="link_referencia" className={styles.formLabel}>
+                        Link/URL da Referência *
+                      </label>
+                      <input
+                        type="url"
+                        id="link_referencia"
+                        name="link_referencia"
+                        value={editFormData.link_referencia || ''}
+                        onChange={handleEditInputChange}
+                        className={styles.formInput}
+                        placeholder="Ex: https://exemplo.com/artigo..."
+                        disabled={editModalLoading}
+                        autoComplete="off"
+                        autoFocus={editModalType === 'referencia'}
+                      />
+                      <p className={styles.formHint}>
+                        URL completa da referência (obrigatório)
+                      </p>
+                      
+                      {/* ✅ INDICADOR VISUAL DO TIPO */}
+                      {editFormData.tipo_referencia && (
+                        <div style={{ 
+                          marginTop: '0.5rem',
+                          padding: '0.5rem',
+                          borderRadius: '0.375rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
+                          backgroundColor: editFormData.tipo_referencia === 'Livro' ? '#eff6ff' : '#fef2f2',
+                          color: editFormData.tipo_referencia === 'Livro' ? '#1d4ed8' : '#dc2626',
+                          border: `1px solid ${editFormData.tipo_referencia === 'Livro' ? '#bfdbfe' : '#fecaca'}`
+                        }}>
+                          📋 Tipo selecionado: <strong>{editFormData.tipo_referencia}</strong>
+                          {editFormData.tipo_referencia === 'Livro' && (
+                            <span style={{ display: 'block', marginTop: '0.25rem', fontWeight: '400' }}>
+                              ✅ URL opcional - pode deixar em branco se não disponível
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button 
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={fecharModalEdicao}
+                  disabled={editModalLoading}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className={styles.btnPrimary}
+                  disabled={editModalLoading || !isFormValid()}
+                >
+                  {editModalLoading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid #ffffff',
+                        borderTop: '2px solid transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                      Atualizando...
+                    </span>
+                  ) : (
+                    'Atualizar'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

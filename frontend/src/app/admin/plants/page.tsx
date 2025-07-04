@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import styles from "./plants.module.css"
 import modalStyles from "./modal.module.css" // ✅ IMPORTAR CSS DOS MODALS
+import DeleteConfirmModal from './DeleteConfirmModal'
 
 // ✅ TIPOS DEFINIDOS PARA TYPESCRIPT
 interface Planta {
@@ -188,6 +189,11 @@ export default function PlantsPage() {
 
   // ✅ ESTADO PARA CONTROLAR SE JÁ PROCESSOU URL
   const [urlProcessed, setUrlProcessed] = useState(false)
+
+  // 2. ✅ ADICIONAR ESTES ESTADOS (logo após os estados existentes, linha ~120)
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false)
+  const [plantaToDelete, setPlantaToDelete] = useState<PlantaDetalhada | null>(null)
+  const [isDeleting, setIsDeleting] = useState<boolean>(false)
 
   // ✅ ADICIONAR esta função dentro do componente (antes do return)
   // ✅ FUNÇÃO showHighlightIndicator com cores ajustadas para a página
@@ -603,6 +609,71 @@ export default function PlantsPage() {
       }
     } catch (err) {
       console.error('❌ Erro ao carregar filtros:', err)
+    }
+  }
+
+  // Função para preparar exclusão (carregar detalhes da planta)
+  const handleDeleteClick = async (plantaId: number): Promise<void> => {
+    try {
+      console.log(`🔄 Carregando detalhes da planta ${plantaId} para exclusão`)
+      
+      const response = await fetch(`${API_BASE_URL}/api/admin/plantas/${plantaId}`)
+      
+      if (!response.ok) {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`)
+      }
+      
+      const plantaDetalhada: PlantaDetalhada = await response.json()
+      
+      setPlantaToDelete(plantaDetalhada)
+      setShowDeleteModal(true)
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar detalhes para exclusão:', error)
+      alert('Erro ao carregar detalhes da planta. Tente novamente.')
+    }
+  }
+
+  // Função para confirmar exclusão
+  const handleConfirmDelete = async (plantaId: number): Promise<void> => {
+    setIsDeleting(true)
+    try {
+      console.log(`🗑️ Excluindo planta ${plantaId}`)
+      
+      const response = await fetch(`${API_BASE_URL}/api/admin/plantas/${plantaId}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Erro ao excluir planta')
+      }
+      
+      console.log('✅ Planta excluída com sucesso')
+      
+      // Fechar modal
+      setShowDeleteModal(false)
+      setPlantaToDelete(null)
+      
+      // Recarregar lista
+      await carregarPlantas()
+      
+      // Mostrar confirmação
+      alert('🗑️ Planta excluída com sucesso!')
+      
+    } catch (error) {
+      console.error('❌ Erro ao excluir planta:', error)
+      alert(`Erro ao excluir planta: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Função para fechar modal de exclusão
+  const handleCloseDeleteModal = (): void => {
+    if (!isDeleting) {
+      setShowDeleteModal(false)
+      setPlantaToDelete(null)
     }
   }
 
@@ -1680,9 +1751,10 @@ export default function PlantsPage() {
                           Editar
                         </Link>
                         <button 
-                          onClick={() => handleDelete(planta.id_planta)} 
+                          onClick={() => handleDeleteClick(planta.id_planta)}
                           className={styles.deleteButton}
                           title="Excluir planta"
+                          disabled={isDeleting}
                         >
                           Excluir
                         </button>
@@ -1781,6 +1853,14 @@ export default function PlantsPage() {
 
       {/* ✅ MODAL DE VISUALIZAÇÃO - RENDERIZADO CONDICIONALMENTE */}
       <ModalVisualizacao />
+      {/* Modal de Confirmação de Exclusão */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        planta={plantaToDelete}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   )
 }

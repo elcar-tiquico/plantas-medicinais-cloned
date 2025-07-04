@@ -659,6 +659,29 @@ export default function AutoresReferenciasPage() {
     return () => clearTimeout(timer)
   }, [searchTermAutores])
 
+  // REMOVER o useEffect anterior e usar este:
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
+    
+    console.log('🔍 Parâmetro tab detectado:', tabParam)
+    
+    if (tabParam === 'autores') {
+      console.log('✅ Mudando para aba autores')
+      setActiveTab('autores')
+    } else if (tabParam === 'referencias') {
+      console.log('✅ Mudando para aba referencias')
+      setActiveTab('referencias')
+    }
+    
+    // Limpar URL após definir a aba
+    if (tabParam) {
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }, 100)
+    }
+  }, []) // Executar apenas uma vez ao montar o componente
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTermReferencias(searchTermReferencias)
@@ -750,11 +773,17 @@ export default function AutoresReferenciasPage() {
       })
     
       // ✅ DEFINIR ABA ATIVA baseada no tipo
-      if (highlightType === 'autor') {
+      const tabParam = urlParams.get('tab')
+      if (tabParam === 'autores') {
+        setActiveTab('autores')
+        console.log('🎯 Definindo aba ativa via parâmetro: autores')
+      } else if (tabParam === 'referencias') {
+        setActiveTab('referencias')
+        console.log('🎯 Definindo aba ativa via parâmetro: referências')
+      } else if (highlightType === 'autor') {
         setActiveTab('autores')
         console.log('🎯 Definindo aba ativa: autores')
-      } else if (highlightType === 'referencia' || !highlightType) {
-        // Default para referências se não especificado
+      } else if (highlightType === 'referencia') {
         setActiveTab('referencias')
         console.log('🎯 Definindo aba ativa: referências')
       }
