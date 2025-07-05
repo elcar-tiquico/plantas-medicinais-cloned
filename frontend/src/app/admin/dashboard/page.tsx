@@ -166,11 +166,9 @@ const AdminDashboardComponent: React.FC = () => {
   const MAIN_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   // ADICIONAR estes novos estados após os existentes:
-  const [showEditModal, setShowEditModal] = useState<boolean>(false)
-  const [editModalType, setEditModalType] = useState<'autor' | 'referencia' | null>(null)
-  const [selectedEditItem, setSelectedEditItem] = useState<any>(null)
-  const [editFormData, setEditFormData] = useState<any>({})
-  const [editModalLoading, setEditModalLoading] = useState<boolean>(false)
+  const [showViewModal, setShowViewModal] = useState<boolean>(false);
+  const [viewModalType, setViewModalType] = useState<'autor' | 'referencia' | 'planta' | null>(null);
+  const [selectedViewItem, setSelectedViewItem] = useState<any>(null);
 
   // ===== FUNÇÃO PARA FORMATAR NOMES DE FAMÍLIAS =====
   const formatarNomeFamilia = (nomeFamilia: string): string => {
@@ -539,179 +537,38 @@ const AdminDashboardComponent: React.FC = () => {
       </div>
     );
   };
-
-  // ADICIONAR estas novas funções:
-  // SUBSTITUIR a função abrirModalEdicao por esta:
-  const abrirModalEdicao = (tipo: 'autor' | 'referencia', item: any) => {
-    console.log('🔍 Abrindo modal para:', tipo);
-    console.log('📋 Dados recebidos:', item);
-    
-    setEditModalType(tipo)
-    setSelectedEditItem(item)
-    
-    if (tipo === 'autor') {
-      const formData = {
-        nome_autor: item.nome_autor || item.nome || '',
-        afiliacao: item.afiliacao || '',
-        sigla_afiliacao: item.sigla_afiliacao || item.sigla || ''
-      };
-      console.log('✅ FormData para autor:', formData);
-      setEditFormData(formData);
-    } else {
-      const formData = {
-        titulo_referencia: item.titulo_referencia || item.titulo || '',
-        tipo_referencia: item.tipo_referencia || item.tipo || '',
-        ano: item.ano || '',
-        link_referencia: item.link_referencia || item.link || ''
-      };
-      console.log('✅ FormData para referência:', formData);
-      setEditFormData(formData);
-    }
-    
-    setShowEditModal(true)
-  }
-
-  const fecharModalEdicao = () => {
-    setShowEditModal(false)
-    setEditModalType(null)
-    setSelectedEditItem(null)
-    setEditFormData({})
-    setEditModalLoading(false)
-  }
-
-// ✅ FUNÇÃO SIMPLIFICADA - IGUAL À PÁGINA DE REFERÊNCIAS
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setEditModalLoading(true)
-    
+// ADICIONAR APENAS ESTAS:
+const abrirModalVisualizacao = async (tipo: 'autor' | 'referencia' | 'planta', item: any) => {
+  console.log('👁️ Visualizando:', tipo, item);
+  setViewModalType(tipo);
+  
+  if (tipo === 'planta') {
+    // Para plantas, buscar dados completos da API
     try {
-      const endpoint = editModalType === 'autor' ? 'autores' : 'referencias'
-      const id = editModalType === 'autor' ? selectedEditItem.id_autor : selectedEditItem.id_referencia
-
-      console.log('🔍 INÍCIO DA VALIDAÇÃO SIMPLIFICADA:', {
-        editModalType,
-        selectedEditItem,
-        editFormData,
-        endpoint,
-        id
-      })
-
-      // ✅ VALIDAÇÃO SIMPLIFICADA PARA REFERÊNCIAS
-      if (editModalType === 'referencia') {
-        // Sempre exigir link - igual à página de referências
-        if (!editFormData.link_referencia?.trim()) {
-          alert('Link da referência é obrigatório')
-          setEditModalLoading(false)
-          return
-        }
-        
-        console.log('✅ FRONTEND: Validação de referência passou (link obrigatório)')
-        
+      const response = await fetch(`${API_BASE_URL.replace('/dashboard', '')}/plantas/${item.id}`);
+      if (response.ok) {
+        const plantaCompleta = await response.json();
+        setSelectedViewItem(plantaCompleta);
       } else {
-        // Para autores, nome é obrigatório
-        if (!editFormData.nome_autor?.trim()) {
-          alert('Nome do autor é obrigatório')
-          setEditModalLoading(false)
-          return
-        }
-        console.log('✅ FRONTEND: Validação de autor passou!')
+        // Fallback para dados básicos se API falhar
+        setSelectedViewItem(item);
       }
-
-      // ✅ PREPARAR DADOS PARA ENVIO
-      const dadosParaEnvio = editModalType === 'autor' 
-        ? {
-            nome_autor: String(editFormData.nome_autor || '').trim(),
-            afiliacao: String(editFormData.afiliacao || '').trim(),
-            sigla_afiliacao: String(editFormData.sigla_afiliacao || '').trim()
-          }
-        : {
-            titulo_referencia: String(editFormData.titulo_referencia || '').trim(),
-            tipo_referencia: String(editFormData.tipo_referencia || '').trim(),
-            ano: String(editFormData.ano || '').trim(),
-            link_referencia: String(editFormData.link_referencia || '').trim()
-          }
-
-      console.log('📤 DADOS PREPARADOS PARA ENVIO:', {
-        endpoint,
-        id,
-        dadosParaEnvio,
-        dadosStringified: JSON.stringify(dadosParaEnvio, null, 2)
-      })
-
-      // ✅ USAR A API CORRETA
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
-      const fullURL = `${API_URL}/api/admin/${endpoint}/${id}`
-      
-      console.log('🌐 FAZENDO REQUISIÇÃO PARA:', {
-        method: 'PUT',
-        url: fullURL,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosParaEnvio)
-      })
-
-      const response = await fetch(fullURL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosParaEnvio)
-      })
-      
-      console.log('📥 RESPOSTA DA API:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('❌ Erro da API:', errorData)
-        throw new Error(errorData.error || errorData.message || 'Erro ao atualizar')
-      }
-      
-      const responseData = await response.json()
-      console.log('✅ RESPOSTA DE SUCESSO:', responseData)
-      
-      fecharModalEdicao()
-      await fetchData() // Recarregar dados
-      
-      // ✅ FEEDBACK DE SUCESSO
-      const tipoItem = editModalType === 'autor' ? 'Autor' : 'Referência'
-      console.log(`✅ ${tipoItem} atualizado com sucesso`)
-      
     } catch (error) {
-      console.error('❌ ERRO FINAL:', error)
-      
-      // ✅ TRATAMENTO DE ERRO MAIS DETALHADO
-      let errorMessage = 'Erro desconhecido'
-      if (error instanceof Error) {
-        errorMessage = error.message
-      }
-      
-      // Se for erro de rede
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        errorMessage = 'Erro de conexão. Verifique se a API está rodando na porta 5001.'
-      }
-      
-      alert(`Erro ao atualizar ${editModalType === 'autor' ? 'autor' : 'referência'}: ${errorMessage}`)
-    } finally {
-      setEditModalLoading(false)
+      console.error('Erro ao buscar detalhes da planta:', error);
+      setSelectedViewItem(item);
     }
+  } else {
+    setSelectedViewItem(item);
   }
+  
+  setShowViewModal(true);
+};
 
-  // ✅ FUNÇÃO AUXILIAR SIMPLIFICADA PARA VALIDAÇÃO DO FORMULÁRIO
-  const isFormValid = () => {
-    if (editModalType === 'autor') {
-      return editFormData.nome_autor?.trim()
-    } else {
-      // ✅ SEMPRE EXIGIR LINK - IGUAL À PÁGINA DE REFERÊNCIAS
-      return editFormData.link_referencia?.trim()
-    }
-  }
-
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setEditFormData((prev: any) => ({ ...prev, [name]: value }))
-  }
+  const fecharModalVisualizacao = () => {
+    setShowViewModal(false);
+    setViewModalType(null);
+    setSelectedViewItem(null);
+  };
 
   // ✅ FUNÇÃO AUXILIAR PARA VALIDAÇÃO DO FORMULÁRIO
  
@@ -881,7 +738,7 @@ const AdminDashboardComponent: React.FC = () => {
                             <th className={styles.tableHeader}>Família</th>
                             <th className={styles.tableHeader}>Data de Adição</th>
                             <th className={styles.tableHeader}>
-                              <span className={styles.srOnly}>Editar</span>
+                              <span className={styles.srOnly}>Ver</span>
                             </th>
                           </tr>
                         </thead>
@@ -897,7 +754,20 @@ const AdminDashboardComponent: React.FC = () => {
                               <td className={styles.tableCell}>{planta.family}</td>
                               <td className={styles.tableCell}>{planta.added_at}</td>
                               <td className={styles.tableCellAction}>
-                                <a href="#" className={styles.editLink}>Editar</a>
+                                <button 
+                                  onClick={() => abrirModalVisualizacao('planta', {
+                                    id: planta.id,
+                                    name: planta.name,
+                                    all_names: planta.all_names,
+                                    scientific_name: planta.scientific_name,
+                                    family: planta.family,
+                                    exsicata: planta.exsicata,
+                                    added_at: planta.added_at
+                                  })}
+                                  className={styles.viewButton}
+                                >
+                                  Ver
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -1296,7 +1166,7 @@ const AdminDashboardComponent: React.FC = () => {
                                 <th className={styles.tableHeader}>Plantas</th>
                                 <th className={styles.tableHeader}>Autores</th>
                                 <th className={styles.tableHeader}>
-                                  <span className={styles.srOnly}>Editar</span>
+                                  <span className={styles.srOnly}>Ver</span>
                                 </th>
                               </tr>
                             </thead>
@@ -1321,20 +1191,18 @@ const AdminDashboardComponent: React.FC = () => {
                                   </td>
                                   <td className={styles.tableCellAction}>
                                     <button 
-                                      onClick={() => {
-                                        console.log('Dados da referência clicada:', ref);
-                                        abrirModalEdicao('referencia', {
-                                          id_referencia: ref.id,
-                                          titulo_referencia: ref.titulo,
-                                          tipo_referencia: ref.tipo,
-                                          ano: ref.ano,
-                                          link_referencia: ref.link
-                                        });
-                                      }}
-                                      className={styles.editLink}
-                                      style={{ background: 'none', border: 'none', padding: 0 }}
+                                      onClick={() => abrirModalVisualizacao('referencia', {
+                                        id_referencia: ref.id,
+                                        titulo_referencia: ref.titulo,
+                                        tipo_referencia: ref.tipo,
+                                        ano: ref.ano,
+                                        link_referencia: ref.link,
+                                        total_plantas: ref.total_plantas,
+                                        autores: ref.autores
+                                      })}
+                                      className={styles.viewButton}
                                     >
-                                      Editar
+                                      Ver
                                     </button>
                                   </td>
                                 </tr>
@@ -1470,7 +1338,7 @@ const AdminDashboardComponent: React.FC = () => {
                                 <th className={styles.tableHeader}>Plantas</th>
                                 <th className={styles.tableHeader}>Referências</th>
                                 <th className={styles.tableHeader}>
-                                  <span className={styles.srOnly}>Editar</span>
+                                  <span className={styles.srOnly}>Ver</span>
                                 </th>
                               </tr>
                             </thead>
@@ -1492,19 +1360,17 @@ const AdminDashboardComponent: React.FC = () => {
                                   <td className={styles.tableCell}>{autor.total_referencias}</td>
                                   <td className={styles.tableCellAction}>
                                     <button 
-                                      onClick={() => {
-                                        console.log('Dados do autor clicado:', autor);
-                                        abrirModalEdicao('autor', {
-                                          id_autor: autor.id,
-                                          nome_autor: autor.nome,
-                                          afiliacao: autor.afiliacao,
-                                          sigla_afiliacao: autor.sigla
-                                        });
-                                      }}
-                                      className={styles.editLink}
-                                      style={{ background: 'none', border: 'none', padding: 0 }}
+                                      onClick={() => abrirModalVisualizacao('autor', {
+                                        id_autor: autor.id,
+                                        nome_autor: autor.nome,
+                                        afiliacao: autor.afiliacao,
+                                        sigla_afiliacao: autor.sigla,
+                                        total_plantas: autor.total_plantas,
+                                        total_referencias: autor.total_referencias
+                                      })}
+                                      className={styles.viewButton}
                                     >
-                                      Editar
+                                      Ver
                                     </button>
                                   </td>
                                 </tr>
@@ -1560,16 +1426,19 @@ const AdminDashboardComponent: React.FC = () => {
           </div>
         </div>
       </div>
-      {showEditModal && (
-        <div className={styles.modalOverlay} onClick={fecharModalEdicao}>
+      
+      {showViewModal && (
+        <div className={styles.modalOverlay} onClick={fecharModalVisualizacao}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>
-                Editar {editModalType === 'autor' ? 'Autor' : 'Referência'}
+                {viewModalType === 'autor' ? 'Detalhes do Autor' : 
+                viewModalType === 'referencia' ? 'Detalhes da Referência' : 
+                'Detalhes da Planta'}
               </h2>
               <button 
                 className={styles.modalCloseButton}
-                onClick={fecharModalEdicao}
+                onClick={fecharModalVisualizacao}
                 aria-label="Fechar modal"
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1579,226 +1448,368 @@ const AdminDashboardComponent: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit}>
-              <div className={styles.modalBody}>
-                {editModalType === 'autor' ? (
-                  <div className={styles.formGrid}>
-                    <div className={`${styles.formItem} ${styles.formGridFull}`}>
-                      <label htmlFor="nome_autor" className={styles.formLabel}>
-                        Nome do Autor *
-                      </label>
-                      <input
-                        type="text"
-                        id="nome_autor"
-                        name="nome_autor"
-                        value={editFormData.nome_autor || ''}
-                        onChange={handleEditInputChange}
-                        className={styles.formInput}
-                        placeholder="Ex: João Silva, Maria Santos..."
-                        maxLength={150}
-                        disabled={editModalLoading}
-                        autoComplete="off"
-                        autoFocus
-                        required
-                      />
-                      <p className={styles.formHint}>
-                        Nome completo do autor (máximo 150 caracteres)
-                      </p>
-                      <div className={`${styles.characterCount} ${(editFormData.nome_autor?.length || 0) > 135 ? styles.characterCountWarning : styles.characterCountNormal}`}>
-                        {editFormData.nome_autor?.length || 0}/150 caracteres
-                      </div>
-                    </div>
-
-                    <div className={styles.formGridTwo}>
-                      <div className={styles.formItem}>
-                        <label htmlFor="afiliacao" className={styles.formLabel}>
-                          Afiliação
-                        </label>
-                        <input
-                          type="text"
-                          id="afiliacao"
-                          name="afiliacao"
-                          value={editFormData.afiliacao || ''}
-                          onChange={handleEditInputChange}
-                          className={styles.formInput}
-                          placeholder="Ex: Universidade Eduardo Mondlane..."
-                          maxLength={150}
-                          disabled={editModalLoading}
-                          autoComplete="off"
-                        />
-                        <p className={styles.formHint}>
-                          Instituição de afiliação do autor (opcional)
-                        </p>
-                      </div>
-
-                      <div className={styles.formItem}>
-                        <label htmlFor="sigla_afiliacao" className={styles.formLabel}>
-                          Sigla da Afiliação
-                        </label>
-                        <input
-                          type="text"
-                          id="sigla_afiliacao"
-                          name="sigla_afiliacao"
-                          value={editFormData.sigla_afiliacao || ''}
-                          onChange={handleEditInputChange}
-                          className={styles.formInput}
-                          placeholder="Ex: UEM, INS..."
-                          maxLength={50}
-                          disabled={editModalLoading}
-                          autoComplete="off"
-                        />
-                        <p className={styles.formHint}>
-                          Sigla ou abreviação da instituição (opcional)
-                        </p>
-                      </div>
-                    </div>
+            <div className={styles.modalBody}>
+            {viewModalType === 'autor' ? (
+              <div className={styles.viewDetailsGrid}>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Nome do Autor</div>
+                  <div className={styles.viewDetailValue}>
+                    {selectedViewItem?.nome_autor || selectedViewItem?.nome || 'Não informado'}
                   </div>
-                ) : (
-                  <div className={styles.formGrid}>
-                    <div className={styles.formGridTwo}>
-                      <div className={styles.formItem}>
-                        <label htmlFor="tipo_referencia" className={styles.formLabel}>
-                          Tipo de Referência *
-                        </label>
-                        <select
-                          id="tipo_referencia"
-                          name="tipo_referencia"
-                          value={editFormData.tipo_referencia || ''}
-                          onChange={handleEditInputChange}
-                          className={styles.formSelect}
-                          disabled={editModalLoading}
-                          required
-                        >
-                          <option value="">Seleccionar tipo...</option>
-                          <option value="Artigo Científico">Artigo Científico</option>
-                          <option value="Livro">Livro</option>
-                          <option value="Tese/Dissertação">Tese/Dissertação</option>
-                          <option value="Website/URL">Website/URL</option>
-                        </select>
-                        <p className={styles.formHint}>
-                          Tipo de publicação ou fonte bibliográfica
-                        </p>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Afiliação</div>
+                  <div className={styles.viewDetailValue}>
+                    {selectedViewItem?.afiliacao || 'Não informado'}
+                  </div>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Sigla da Afiliação</div>
+                  <div className={styles.viewDetailValue}>
+                    {selectedViewItem?.sigla_afiliacao || selectedViewItem?.sigla || 'Não informado'}
+                  </div>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Total de Plantas</div>
+                  <div className={styles.viewDetailValue}>
+                    <span className={styles.statBadge}>
+                      {selectedViewItem?.total_plantas || 0} plantas
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : viewModalType === 'referencia' ? (
+              <div className={styles.viewDetailsGrid}>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Título da Referência</div>
+                  <div className={styles.viewDetailValue}>
+                    {selectedViewItem?.titulo_referencia || selectedViewItem?.titulo || 'Não informado'}
+                  </div>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Tipo de Referência</div>
+                  <div className={styles.viewDetailValue}>
+                    <span className={styles.badge}>
+                      {selectedViewItem?.tipo_referencia || selectedViewItem?.tipo || 'Não informado'}
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Ano de Publicação</div>
+                  <div className={styles.viewDetailValue}>
+                    {selectedViewItem?.ano || 'Não informado'}
+                  </div>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Link/URL</div>
+                  <div className={styles.viewDetailValue}>
+                    {selectedViewItem?.link_referencia || selectedViewItem?.link ? (
+                      <a 
+                        href={selectedViewItem?.link_referencia || selectedViewItem?.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.linkButton}
+                      >
+                        🔗 Abrir Link
+                      </a>
+                    ) : (
+                      'Não informado'
+                    )}
+                  </div>
+                </div>
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>Total de Plantas</div>
+                  <div className={styles.viewDetailValue}>
+                    <span className={styles.statBadge}>
+                      {selectedViewItem?.total_plantas || 0} plantas
+                    </span>
+                  </div>
+                </div>
+                {selectedViewItem?.autores && selectedViewItem.autores.length > 0 && (
+                  <div className={styles.viewDetailItem} style={{ gridColumn: '1 / -1' }}>
+                    <div className={styles.viewDetailLabel}>Autores</div>
+                    <div className={styles.viewDetailValue}>
+                      <div className={styles.authorsList}>
+                        {selectedViewItem.autores.map((autor: string, index: number) => (
+                          <span key={index} className={styles.authorTag}>
+                            {autor}
+                          </span>
+                        ))}
                       </div>
-
-                      <div className={styles.formItem}>
-                        <label htmlFor="ano" className={styles.formLabel}>
-                          Ano de Publicação
-                        </label>
-                        <input
-                          type="text"
-                          id="ano"
-                          name="ano"
-                          value={editFormData.ano || ''}
-                          onChange={handleEditInputChange}
-                          className={styles.formInput}
-                          placeholder="Ex: 2023, 2024..."
-                          maxLength={4}
-                          disabled={editModalLoading}
-                          autoComplete="off"
-                        />
-                        <p className={styles.formHint}>
-                          Ano de publicação (opcional)
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className={`${styles.formItem} ${styles.formGridFull}`}>
-                      <label htmlFor="titulo_referencia" className={styles.formLabel}>
-                        Título da Referência
-                      </label>
-                      <input
-                        type="text"
-                        id="titulo_referencia"
-                        name="titulo_referencia"
-                        value={editFormData.titulo_referencia || ''}
-                        onChange={handleEditInputChange}
-                        className={styles.formInput}
-                        placeholder="Ex: Plantas Medicinais de Moçambique..."
-                        disabled={editModalLoading}
-                        autoComplete="off"
-                      />
-                      <p className={styles.formHint}>
-                        Título completo da obra ou publicação (opcional)
-                      </p>
-                    </div>
-
-                    <div className={`${styles.formItem} ${styles.formGridFull}`}>
-                      <label htmlFor="link_referencia" className={styles.formLabel}>
-                        Link/URL da Referência *
-                      </label>
-                      <input
-                        type="url"
-                        id="link_referencia"
-                        name="link_referencia"
-                        value={editFormData.link_referencia || ''}
-                        onChange={handleEditInputChange}
-                        className={styles.formInput}
-                        placeholder="Ex: https://exemplo.com/artigo..."
-                        disabled={editModalLoading}
-                        autoComplete="off"
-                        autoFocus={editModalType === 'referencia'}
-                      />
-                      <p className={styles.formHint}>
-                        URL completa da referência (obrigatório)
-                      </p>
-                      
-                      {/* ✅ INDICADOR VISUAL DO TIPO */}
-                      {editFormData.tipo_referencia && (
-                        <div style={{ 
-                          marginTop: '0.5rem',
-                          padding: '0.5rem',
-                          borderRadius: '0.375rem',
-                          fontSize: '0.75rem',
-                          fontWeight: '500',
-                          backgroundColor: editFormData.tipo_referencia === 'Livro' ? '#eff6ff' : '#fef2f2',
-                          color: editFormData.tipo_referencia === 'Livro' ? '#1d4ed8' : '#dc2626',
-                          border: `1px solid ${editFormData.tipo_referencia === 'Livro' ? '#bfdbfe' : '#fecaca'}`
-                        }}>
-                          📋 Tipo selecionado: <strong>{editFormData.tipo_referencia}</strong>
-                          {editFormData.tipo_referencia === 'Livro' && (
-                            <span style={{ display: 'block', marginTop: '0.25rem', fontWeight: '400' }}>
-                              ✅ URL opcional - pode deixar em branco se não disponível
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
+                <div className={styles.viewDetailItem}>
+                  <div className={styles.viewDetailLabel}>ID da Referência</div>
+                  <div className={styles.viewDetailValue}>
+                    <code className={styles.codeText}>
+                      #{selectedViewItem?.id_referencia || selectedViewItem?.id || 'N/A'}
+                    </code>
+                  </div>
+                </div>
               </div>
+            ) : (
+              <div>
+                {/* Informações Básicas */}
+                <div className={styles.modalSection}>
+                  <h3 className={styles.sectionTitle}>📋 Informações Básicas</h3>
+                  <div className={styles.infoGrid}>
+                    <div className={styles.infoItem}>
+                      <label>Nome Científico</label>
+                      <span><em>{selectedViewItem?.nome_cientifico || 'Não informado'}</em></span>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <label>Família Botânica</label>
+                      <span>{selectedViewItem?.familia?.nome_familia.toUpperCase() || 'Não informado'}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <label>Número de Exsicata</label>
+                      <span>{selectedViewItem?.numero_exsicata || 'Não informado'}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <label>Data de Adição</label>
+                      <span>{selectedViewItem?.data_adicao || selectedViewItem?.added_at || 'Não informado'}</span>
+                    </div>
+                  </div>
+                </div>
 
-              <div className={styles.modalFooter}>
-                <button 
-                  type="button"
-                  className={styles.btnSecondary}
-                  onClick={fecharModalEdicao}
-                  disabled={editModalLoading}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className={styles.btnPrimary}
-                  disabled={editModalLoading || !isFormValid()}
-                >
-                  {editModalLoading ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{
-                        width: '16px',
-                        height: '16px',
-                        border: '2px solid #ffffff',
-                        borderTop: '2px solid transparent',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }}></div>
-                      Atualizando...
-                    </span>
-                  ) : (
-                    'Atualizar'
-                  )}
-                </button>
+                {/* Nomes Comuns */}
+                {selectedViewItem?.nomes_comuns && selectedViewItem.nomes_comuns.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Nomes Comuns ({selectedViewItem.nomes_comuns.length})</h3>
+                    <div className={styles.badgesContainer}>
+                      {selectedViewItem.nomes_comuns.map((nome: any, index: number) => (
+                        <span key={index} className={styles.badgeSimple}>
+                          {nome.nome_comum}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Nomes Comuns</h3>
+                    <div className={styles.noData}>Nenhum nome comum registado</div>
+                  </div>
+                )}
+
+                {/* Províncias */}
+                {selectedViewItem?.provincias && selectedViewItem.provincias.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Províncias de Ocorrência ({selectedViewItem.provincias.length})</h3>
+                    <div className={styles.badgesContainer}>
+                      {selectedViewItem.provincias.map((provincia: any, index: number) => (
+                        <span key={index} className={styles.badgeSimple}>
+                          {provincia.nome_provincia}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Províncias de Ocorrência</h3>
+                    <div className={styles.noData}>Nenhuma província registada</div>
+                  </div>
+                )}
+
+                {/* Usos Medicinais */}
+                {selectedViewItem?.usos_especificos && selectedViewItem.usos_especificos.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Usos Medicinais ({selectedViewItem.usos_especificos.length})</h3>
+                    <div className={styles.usosEspecificosList}>
+                      {selectedViewItem.usos_especificos.map((uso: any, index: number) => (
+                        <div key={index} className={styles.usoEspecificoCard}>
+                          <div className={styles.parteUsadaHeader}>
+                            🌿 Parte usada: {uso.parte_usada}
+                          </div>
+                          
+                          {uso.observacoes && (
+                            <div className={styles.observacoes}>
+                              "{uso.observacoes}"
+                            </div>
+                          )}
+
+                          {uso.indicacoes && uso.indicacoes.length > 0 && (
+                            <div className={styles.usoDetailSection}>
+                              <div className={styles.usoDetailTitle}>Indicações:</div>
+                              <div className={styles.badgesContainer}>
+                                {uso.indicacoes.map((ind: any, i: number) => (
+                                  <span key={i} className={styles.badgeSimple} style={{ borderColor: '#3b82f6', color: '#3b82f6' }}>
+                                    {ind.descricao}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {uso.metodos_preparacao && uso.metodos_preparacao.length > 0 && (
+                            <div className={styles.usoDetailSection}>
+                              <div className={styles.usoDetailTitle}>Métodos de Preparação:</div>
+                              <div className={styles.badgesContainer}>
+                                {uso.metodos_preparacao.map((met: any, i: number) => (
+                                  <span key={i} className={styles.badgeSimple} style={{ borderColor: '#10b981', color: '#10b981' }}>
+                                    {met.descricao}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {uso.metodos_extracao && uso.metodos_extracao.length > 0 && (
+                            <div className={styles.usoDetailSection}>
+                              <div className={styles.usoDetailTitle}>Métodos de Extracção:</div>
+                              <div className={styles.badgesContainer}>
+                                {uso.metodos_extracao.map((ext: any, i: number) => (
+                                  <span key={i} className={styles.badgeSimple} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+                                    {ext.descricao}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Usos Medicinais</h3>
+                    <div className={styles.noData}>Nenhum uso medicinal registado</div>
+                  </div>
+                )}
+
+                {/* Compostos Químicos */}
+                {selectedViewItem?.compostos && selectedViewItem.compostos.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Compostos Químicos ({selectedViewItem.compostos.length})</h3>
+                    <div className={styles.badgesContainer}>
+                      {selectedViewItem.compostos.map((composto: any, index: number) => (
+                        <span key={index} className={styles.badgeSimple} style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}>
+                          {composto.nome_composto}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Compostos Químicos</h3>
+                    <div className={styles.noData}>Nenhum composto químico registado</div>
+                  </div>
+                )}
+
+                {/* Propriedades Farmacológicas */}
+                {selectedViewItem?.propriedades && selectedViewItem.propriedades.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Propriedades Farmacológicas ({selectedViewItem.propriedades.length})</h3>
+                    <div className={styles.badgesContainer}>
+                      {selectedViewItem.propriedades.map((prop: any, index: number) => (
+                        <span key={index} className={styles.badgeSimple} style={{ borderColor: '#059669', color: '#059669' }}>
+                          {prop.descricao}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Propriedades Farmacológicas</h3>
+                    <div className={styles.noData}>Nenhuma propriedade farmacológica registada</div>
+                  </div>
+                )}
+
+                {/* Autores */}
+                {selectedViewItem?.autores && selectedViewItem.autores.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Autores ({selectedViewItem.autores.length})</h3>
+                    <div className={styles.badgesContainer}>
+                      {selectedViewItem.autores.map((autor: any, index: number) => (
+                        <span key={index} className={styles.badgeSimple}>
+                          {autor.nome_autor}
+                          {autor.sigla_afiliacao && ` (${autor.sigla_afiliacao})`}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Autores</h3>
+                    <div className={styles.noData}>Nenhum autor registado</div>
+                  </div>
+                )}
+
+                {/* Referências */}
+                {selectedViewItem?.referencias_especificas && selectedViewItem.referencias_especificas.length > 0 ? (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Referências ({selectedViewItem.referencias_especificas.length})</h3>
+                    <div className={styles.referenciasEspecificasList}>
+                      {selectedViewItem.referencias_especificas.map((ref: any, index: number) => (
+                        <div key={index} className={styles.referenciaEspecificaCard}>
+                          <div className={styles.referenciaHeader}>
+                            <div className={styles.refTitulo}>{ref.titulo}</div>
+                            <div className={styles.refDetails}>
+                              {ref.tipo} • {ref.ano || 'Sem ano'}
+                              {ref.link && (
+                                <span className={styles.refLink}>
+                                  <a href={ref.link} target="_blank" rel="noopener noreferrer">
+                                    🔗 Abrir Link
+                                  </a>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {ref.autores_especificos && ref.autores_especificos.length > 0 && (
+                            <div>
+                              <div className={styles.usoDetailTitle}>Autores da Referência:</div>
+                              <div className={styles.badgesContainer}>
+                                {ref.autores_especificos.map((autor: any, i: number) => (
+                                  <span key={i} className={styles.badgeSimple} style={{ fontSize: '0.75rem' }}>
+                                    {autor.nome_autor}
+                                    {autor.ordem_autor && ` (${autor.ordem_autor}º)`}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <h3 className={styles.sectionTitle}>Referências</h3>
+                    <div className={styles.noData}>Nenhuma referência registada</div>
+                  </div>
+                )}
+
+                {/* ID da Planta */}
+                <div className={styles.modalSection}>
+                  <div className={styles.infoGrid}>
+                    <div className={styles.infoItem}>
+                      <label>ID da Planta</label>
+                      <span>
+                        <code style={{ 
+                          fontFamily: 'monospace', 
+                          backgroundColor: '#f3f4f6', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px',
+                          fontSize: '0.875rem'
+                        }}>
+                          #{selectedViewItem?.id_planta || selectedViewItem?.id || 'N/A'}
+                        </code>
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </form>
+            )}
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button 
+                className={styles.btnSecondary}
+                onClick={fecharModalVisualizacao}
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
