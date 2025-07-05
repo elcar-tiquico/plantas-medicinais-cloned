@@ -162,6 +162,23 @@ const AdminDashboardComponent: React.FC = () => {
   const [searchDetailed, setSearchDetailed] = useState<SearchDetailed | null>(null);
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
 
+  const isManageableFamily = (familyName: string): boolean => {
+    const normalizedName = familyName.toLowerCase().trim()
+    const nonManageableNames = [
+      'outras', 
+      'outros', 
+      'other', 
+      'others',
+      'várias',
+      'diversas',
+      'não classificada',
+      'não classificadas',
+      'sem família'
+    ]
+    
+    return !nonManageableNames.includes(normalizedName)
+  }
+
   const API_BASE_URL = process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:5001/api/admin/dashboard';
   const MAIN_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -918,7 +935,6 @@ const abrirModalVisualizacao = async (tipo: 'autor' | 'referencia' | 'planta', i
                         </div>
                       </div>
                     </div>
-
                     {/* ===== NOVA TABELA DE FAMÍLIAS (SEM EMOJIS E SEM COLUNA DIVERSIDADE) ===== */}
                     <div className={styles.section}>
                       <h4 className={styles.sectionTitle}>Famílias Cadastradas</h4>
@@ -978,7 +994,28 @@ const abrirModalVisualizacao = async (tipo: 'autor' | 'referencia' | 'planta', i
                                   </div>
                                 </td>
                                 <td className={styles.tableCellAction}>
-                                  <a href="#" className={styles.editLink}>Gerir</a>
+                                  {/* ✅ USAR A FUNÇÃO isManageableFamily AQUI */}
+                                  {isManageableFamily(familia.name) ? (
+                                    <Link 
+                                      href={`/admin/plants?familia=${encodeURIComponent(familia.name)}&highlight_familia=true&from=dashboard`}
+                                      className={styles.editLink}
+                                      title={`Ver todas as plantas da família ${formatarNomeFamilia(familia.name)}`}
+                                    >
+                                      Gerir
+                                    </Link>
+                                  ) : (
+                                    <span 
+                                      style={{ 
+                                        color: '#d1d5db', 
+                                        fontSize: '0.875rem',
+                                        textAlign: 'center',
+                                        display: 'block'
+                                      }}
+                                      title="Agrupamento de famílias menores - não gerível individualmente"
+                                    >
+                                      —
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -1552,7 +1589,7 @@ const abrirModalVisualizacao = async (tipo: 'autor' | 'referencia' | 'planta', i
               <div>
                 {/* Informações Básicas */}
                 <div className={styles.modalSection}>
-                  <h3 className={styles.sectionTitle}>📋 Informações Básicas</h3>
+                  <h3 className={styles.sectionTitle}>Informações Básicas</h3>
                   <div className={styles.infoGrid}>
                     <div className={styles.infoItem}>
                       <label>Nome Científico</label>

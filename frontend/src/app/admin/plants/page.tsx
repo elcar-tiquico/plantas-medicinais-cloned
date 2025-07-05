@@ -314,10 +314,9 @@ export default function PlantsPage() {
     carregarFiltros()
   }, [])
 
+// ✅ ATUALIZAR o useEffect existente que processa parâmetros da URL
   useEffect(() => {
-    // ✅ IMPORTANTE: Aguardar um pouco para garantir que a página foi totalmente carregada
     const processUrlParams = async () => {
-      // Pequeno delay para garantir que todos os estados foram inicializados
       await new Promise(resolve => setTimeout(resolve, 200))
       
       const urlParams = new URLSearchParams(window.location.search)
@@ -325,26 +324,99 @@ export default function PlantsPage() {
       const pageParam = urlParams.get('page')
       const urlSearchType = urlParams.get('search_type') 
       const urlSearchTerm = urlParams.get('search_term')
-      const timestamp = urlParams.get('t') // Timestamp para debug
+      
+      // ✅ NOVO: Processar filtro de família da URL
+      const familiaParam = urlParams.get('familia')
+      const highlightFamilia = urlParams.get('highlight_familia')
+      const timestamp = urlParams.get('t')
       
       console.log('🔍 Processando parâmetros da URL:', {
         highlight: highlightId,
         page: pageParam,
         searchType: urlSearchType,
         searchTerm: urlSearchTerm,
+        familia: familiaParam,        // ✅ NOVO
+        highlightFamilia: highlightFamilia, // ✅ NOVO
         timestamp: timestamp
       })
       
-      // ✅ IMPORTANTE: Resetar estados antes de aplicar novos valores
       console.log('🧹 Resetando estados antes de aplicar URL...')
       
-      // ✅ APLICAR FILTROS DE BUSCA PRIMEIRO
+      // ✅ NOVO: Aplicar filtro de família PRIMEIRO (se existir)
+      if (familiaParam) {
+        console.log(`🏷️ Aplicando filtro de família da URL: "${familiaParam}"`)
+        const decodedFamilia = decodeURIComponent(familiaParam)
+        
+        setSelectedFamily(decodedFamilia)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        // ✅ Mostrar indicador visual se veio do dashboard
+        if (highlightFamilia === 'true') {
+          // Criar notificação de família selecionada
+          const indicator = document.createElement('div')
+          indicator.innerHTML = `
+            <div style="
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              background: linear-gradient(135deg, #9333ea, #7e22ce);
+              color: white;
+              padding: 12px 16px;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(147, 51, 234, 0.25);
+              z-index: 10000;
+              font-weight: 600;
+              font-size: 14px;
+              animation: slideInRight 0.3s ease-out;
+              border: 2px solid #a855f7;
+            ">
+              🏷️ Família "${decodedFamilia.toUpperCase()}" selecionada!
+              <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">
+                📋 Mostrando plantas desta família
+              </div>
+            </div>
+          `
+          
+          document.body.appendChild(indicator)
+          
+          // Remover após 4 segundos
+          setTimeout(() => {
+            if (indicator.parentNode) {
+              indicator.style.animation = 'slideOutRight 0.3s ease-in'
+              setTimeout(() => {
+                document.body.removeChild(indicator)
+              }, 300)
+            }
+          }, 4000)
+          
+          // ✅ Destacar o filtro de família visualmente
+          setTimeout(() => {
+            const familySelect = document.getElementById('family')
+            if (familySelect) {
+              familySelect.style.borderColor = '#9333ea'
+              familySelect.style.boxShadow = '0 0 0 2px rgba(147, 51, 234, 0.2)'
+              familySelect.style.backgroundColor = '#faf5ff'
+              
+              // Scroll suave até o filtro
+              familySelect.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              
+              // Remover destaque após 3 segundos
+              setTimeout(() => {
+                familySelect.style.borderColor = ''
+                familySelect.style.boxShadow = ''
+                familySelect.style.backgroundColor = ''
+              }, 3000)
+            }
+          }, 1000)
+        }
+      }
+      
+      // ✅ APLICAR FILTROS DE BUSCA (mantido igual)
       if (urlSearchType && urlSearchTerm) {
         console.log(`🎯 Aplicando busca da URL: ${urlSearchType} = "${urlSearchTerm}"`)
         const decodedSearchType = decodeURIComponent(urlSearchType) as SearchType
         const decodedSearchTerm = decodeURIComponent(urlSearchTerm)
         
-        // ✅ APLICAR ESTADOS COM DELAY ENTRE ELES
         setSearchType(decodedSearchType)
         await new Promise(resolve => setTimeout(resolve, 50))
         
@@ -354,12 +426,11 @@ export default function PlantsPage() {
         setDebouncedSearchTerm(decodedSearchTerm)
         await new Promise(resolve => setTimeout(resolve, 50))
         
-        // ✅ RESETAR PÁGINA ANTES DE APLICAR A NOVA
         setCurrentPage(1)
         await new Promise(resolve => setTimeout(resolve, 100))
       }
       
-      // ✅ APLICAR PÁGINA APÓS APLICAR FILTROS
+      // ✅ APLICAR PÁGINA (mantido igual)
       if (pageParam) {
         const pageNumber = parseInt(pageParam, 10)
         if (!isNaN(pageNumber) && pageNumber > 0) {
@@ -369,11 +440,10 @@ export default function PlantsPage() {
         }
       }
       
-      // ✅ CONFIGURAR HIGHLIGHT COM DELAY MAIOR
+      // ✅ HIGHLIGHT DE PLANTA (mantido igual)
       if (highlightId) {
         console.log(`✨ Configurando highlight para planta ${highlightId}`)
         
-        // ✅ DELAY MUITO MAIOR para garantir que tudo foi carregado
         const highlightTimeout = setTimeout(() => {
           console.log('🔍 Tentando encontrar elemento para highlight...')
           
@@ -383,24 +453,18 @@ export default function PlantsPage() {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' })
             element.classList.add('highlighted')
             
-            // ✅ INDICADOR VISUAL
             if (typeof showHighlightIndicator === 'function') {
               showHighlightIndicator(element, 'planta')
             }
             
-            // Remover highlight após 5 segundos
             setTimeout(() => {
               element.classList.remove('highlighted')
             }, 5000)
           } else {
-            console.log('❌ Elemento não encontrado na primeira tentativa')
-            
-            // ✅ SEGUNDA TENTATIVA COM DELAY MAIOR
+            // Segunda e terceira tentativa (mantido igual)
             setTimeout(() => {
-              console.log('🔍 Segunda tentativa de encontrar elemento...')
               const retryElement = document.querySelector(`[data-plant-id="${highlightId}"]`)
               if (retryElement) {
-                console.log('✅ Elemento encontrado na segunda tentativa')
                 retryElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 retryElement.classList.add('highlighted')
                 
@@ -412,14 +476,9 @@ export default function PlantsPage() {
                   retryElement.classList.remove('highlighted')
                 }, 5000)
               } else {
-                console.log('❌ Elemento ainda não encontrado - pode estar em carregamento')
-                
-                // ✅ TERCEIRA TENTATIVA (última)
                 setTimeout(() => {
-                  console.log('🔍 Terceira e última tentativa...')
                   const finalElement = document.querySelector(`[data-plant-id="${highlightId}"]`)
                   if (finalElement) {
-                    console.log('✅ Elemento finalmente encontrado!')
                     finalElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
                     finalElement.classList.add('highlighted')
                     
@@ -430,29 +489,25 @@ export default function PlantsPage() {
                     setTimeout(() => {
                       finalElement.classList.remove('highlighted')
                     }, 5000)
-                  } else {
-                    console.log('❌ Elemento definitivamente não encontrado')
                   }
                 }, 3000)
               }
             }, 2000)
           }
-        }, 4000) // ✅ DELAY MAIOR: 4 segundos
+        }, 4000)
         
-        // ✅ RETORNAR FUNÇÃO DE LIMPEZA
         return () => clearTimeout(highlightTimeout)
       }
       
-      // ✅ LIMPAR URL após processar COM DELAY
-      if (highlightId || pageParam || urlSearchType || urlSearchTerm) {
+      // ✅ LIMPAR URL após processar
+      if (highlightId || pageParam || urlSearchType || urlSearchTerm || familiaParam || highlightFamilia) {
         setTimeout(() => {
           console.log('🧹 Limpando URL...')
           window.history.replaceState({}, document.title, window.location.pathname)
-        }, 500) // ✅ DELAY MAIOR para não interferir
+        }, 500)
       }
     }
     
-    // ✅ EXECUTAR FUNÇÃO ASSÍNCRONA
     processUrlParams()
   }, [])
 
