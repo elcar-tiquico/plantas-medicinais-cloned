@@ -1,36 +1,210 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useSearch } from "@/context/search-context"
 import { PlantDetails } from "@/components/plant-details"
 import { useLanguage } from "@/context/language-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import styles from "./results-table.module.css"
 
-// Componente para tooltip de autores
-function AuthorTooltip({ plant }: { plant: any }) {
-  const [showTooltip, setShowTooltip] = useState(false)
+// Interfaces para tipagem
+interface Autor {
+  id_autor?: number
+  nome_autor: string
+  afiliacao?: string
+  sigla_afiliacao?: string
+}
+
+interface Plant {
+  id: number
+  nome?: string
+  nomes_comuns?: string[]
+  familia?: string
+  nomeCientifico: string
+  afiliacao?: string
+  autores_detalhados?: Autor[]
+}
+
+interface TooltipPosition {
+  top: boolean
+  bottom: boolean
+  left: boolean
+  right: boolean
+}
+
+// Componente para tooltip de autores com posicionamento dinâmico
+function AuthorTooltip({ plant }: { plant: Plant }) {
+  const [showTooltip, setShowTooltip] = useState<boolean>(false)
+  const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition>({
+    top: false,
+    left: false,
+    right: false,
+    bottom: false
+  })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   
-  // Extrair autores dos dados (assumindo que estão na estrutura atual)
+  // Extrair autores dos dados
   const autores = plant.autores_detalhados || []
+  
+  // Função para calcular a melhor posição do tooltip
+  const calculateTooltipPosition = () => {
+    if (!buttonRef.current || !showTooltip) return
+    
+    const buttonRect = buttonRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    
+    // Espaços disponíveis
+    const spaceAbove = buttonRect.top
+    const spaceBelow = viewportHeight - buttonRect.bottom
+    const spaceLeft = buttonRect.left
+    const spaceRight = viewportWidth - buttonRect.right
+    
+    // Dimensões do tooltip
+    const tooltipWidth = Math.min(288, viewportWidth - 32) // 18rem = 288px, com margem
+    const tooltipHeight = 200 // altura estimada
+    
+    const newPosition = {
+      top: false,
+      bottom: false,
+      left: false,
+      right: false
+    }
+    
+    // Decidir posição vertical
+    if (spaceAbove >= tooltipHeight + 16) {
+      newPosition.top = true
+    } else {
+      newPosition.bottom = true
+    }
+    
+    // Decidir posição horizontal
+    if (spaceRight >= tooltipWidth) {
+      newPosition.left = true
+    } else if (spaceLeft >= tooltipWidth) {
+      newPosition.right = true
+    } else {
+      // Se não couber nem à esquerda nem à direita, centralizar
+      newPosition.left = true
+    }
+    
+    setTooltipPosition(newPosition)
+  }
+  
+  useEffect(() => {
+    if (showTooltip) {
+      // Pequeno delay para garantir que o tooltip foi renderizado
+      const timer = setTimeout(calculateTooltipPosition, 10)
+      return () => clearTimeout(timer)
+    }
+  }, [showTooltip])
+  
+  // Recalcular posição quando a janela redimensionar
+  useEffect(() => {
+    if (showTooltip) {
+      const handleResize = () => calculateTooltipPosition()
+      const handleScroll = () => calculateTooltipPosition()
+      
+      window.addEventListener('resize', handleResize)
+      window.addEventListener('scroll', handleScroll, true)
+      
+      return () => {
+        window.removeEventListener('resize', handleResize)
+        window.removeEventListener('scroll', handleScroll, true)
+      }
+    }
+  }, [showTooltip])
   
   if (autores.length === 0) {
     return <span className={styles.authorInfo}>{plant.afiliacao}</span>
   }
 
+  const getTooltipStyle = () => {
+    if (!buttonRef.current || !showTooltip) {
+      return {
+        position: 'fixed' as const,
+        zIndex: 1000,
+        width: 'min(18rem, calc(100vw - 2rem))',
+        maxWidth: '18rem',
+        maxHeight: '20rem',
+        overflowY: 'auto' as const
+      }
+    }
+    
+    const buttonRect = buttonRef.current.getBoundingClientRect()
+    const style: any = {
+      position: 'fixed' as const,
+      zIndex: 1000,
+      width: 'min(18rem, calc(100vw - 2rem))',
+      maxWidth: '18rem',
+      maxHeight: '20rem',
+      overflowY: 'auto' as const
+    }
+    
+    // Posicionamento vertical
+    if (tooltipPosition.top) {
+      style.bottom = `calc(100vh - ${buttonRect.top}px + 0.5rem)`
+    } else {
+      style.top = `calc(${buttonRect.bottom}px + 0.5rem)`
+    }
+    
+    // Posicionamento horizontal
+    if (tooltipPosition.right) {
+      style.right = `calc(100vw - ${buttonRect.right}px)`
+    } else {
+      style.left = `${Math.max(16, buttonRect.left)}px` // Mínimo de 16px da borda
+    }
+    
+    return style
+  }
+
+  const handleButtonBlur = (e: any) => {
+    // Só fecha se o foco não for para o tooltip
+    if (!tooltipRef.current?.contains(e.relatedTarget)) {
+      setShowTooltip(false)
+    }
+  }
+
+  const handleButtonClick = () => {
+    setShowTooltip(!showTooltip)
+  }
+
+  const handleMouseEnter = () => {
+    setShowTooltip(true)
+  }
+
+  const handleMouseLeave = () => {
+    setShowTooltip(false)
+  }
+
   return (
     <div className={styles.authorTooltipContainer}>
       <button
+        ref={buttonRef}
         className={styles.authorButton}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        onClick={() => setShowTooltip(!showTooltip)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleButtonClick}
+        onFocus={handleMouseEnter}
+        onBlur={handleButtonBlur}
+        aria-expanded={showTooltip}
+        aria-haspopup="true"
+        type="button"
       >
         👥 Autores
       </button>
       
       {showTooltip && (
-        <div className={styles.authorTooltip}>
+        <div
+          ref={tooltipRef}
+          className={styles.authorTooltip}
+          style={getTooltipStyle()}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          role="tooltip"
+          tabIndex={-1}
+        >
           <div className={styles.tooltipTitle}>Autores e Afiliações:</div>
           <div className={styles.authorsList}>
             {autores.map((autor: any, index: number) => (
@@ -61,6 +235,15 @@ export function ResultsTable() {
 
   const toggleDetails = (id: number) => {
     setSelectedPlant(selectedPlant === id ? null : id)
+  }
+
+  const handleToggleClick = (e: any, id: number) => {
+    e.stopPropagation()
+    toggleDetails(id)
+  }
+
+  const handleHeaderClick = (id: number) => {
+    toggleDetails(id)
   }
 
   // Estado de carregamento
@@ -166,9 +349,12 @@ export function ResultsTable() {
       </div>
 
       <div className={styles.resultsList}>
-        {results.map((plant) => (
+        {results.map((plant: any) => (
           <div key={plant.id} className={styles.resultItem}>
-            <div className={styles.resultItemHeader} onClick={() => toggleDetails(plant.id)}>
+            <div 
+              className={styles.resultItemHeader} 
+              onClick={() => handleHeaderClick(plant.id)}
+            >
               <div className={styles.resultItemInfo}>
                 {/* Nomes populares (normal) */}
                 <h3 className={styles.resultItemTitle}>
@@ -192,10 +378,9 @@ export function ResultsTable() {
               <div className={styles.resultItemActions}>
                 <button
                   className={styles.toggleButton}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleDetails(plant.id)
-                  }}
+                  onClick={(e) => handleToggleClick(e, plant.id)}
+                  type="button"
+                  aria-label={selectedPlant === plant.id ? "Fechar detalhes" : "Ver detalhes"}
                 >
                   {selectedPlant === plant.id ? (
                     <svg
@@ -208,6 +393,7 @@ export function ResultsTable() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      aria-hidden="true"
                     >
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg>
@@ -222,6 +408,7 @@ export function ResultsTable() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      aria-hidden="true"
                     >
                       <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>

@@ -5879,9 +5879,9 @@ def get_usos_detalhados_planta(id_planta):
             ).all()
             
             # Buscar métodos de extração específicos deste uso
-            metodos_extracao_uso = db.session.query(MetodoExtracao).join(
+            metodos_extracao_uso = db.session.query(MetodoExtracacao).join(
                 UsoPlantaExtracao,
-                MetodoExtracao.id_extraccao == UsoPlantaExtracao.id_extraccao
+                MetodoExtracacao.id_extraccao == UsoPlantaExtracao.id_extraccao
             ).filter(
                 UsoPlantaExtracao.id_uso_planta == uso_planta.id_uso_planta
             ).all()
