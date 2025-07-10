@@ -1,7 +1,7 @@
 # API DASHBOARD ADMIN - VERSÃO COMPLETA COM DADOS REAIS
 
 from venv import logger
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from sqlalchemy import func, desc, and_, or_
@@ -10,6 +10,9 @@ import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import json
+from werkzeug.utils import secure_filename
+from PIL import Image
+import uuid
 
 load_dotenv()
 
@@ -36,6 +39,21 @@ CORS(app, origins=cors_origins)
 # Inicializar extensões
 db = SQLAlchemy(app)
 
+# Configurações para imagens
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'uploads', 'plantas_imagens')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+class PlantaImagem(db.Model):
+    __tablename__ = 'planta_imagem'
+    id_imagem = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), nullable=False)
+    nome_arquivo = db.Column(db.String(255), nullable=False)
+    ordem = db.Column(db.Integer, default=1)
+    legenda = db.Column(db.String(255))
+    data_upload = db.Column(db.DateTime, default=datetime.utcnow)
 # MODELOS DA BASE DE DADOS (baseados no SQL fornecido)
 class Familia(db.Model):
     __tablename__ = 'familia'
@@ -190,6 +208,18 @@ class UsoPlantaPreparacao(db.Model):
 def handle_error(e, message="Erro interno do servidor"):
     print(f"Erro: {str(e)}")
     return jsonify({'error': message, 'details': str(e)}), 500
+
+# ===== FUNÇÕES AUXILIARES =====
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def resize_image(image_path, max_size=800):
+    try:
+        with Image.open(image_path) as img:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            img.save(image_path, optimize=True, quality=85)
+    except Exception as e:
+        print(f"Erro ao redimensionar imagem: {e}")
 
 # =====================================================
 # ENDPOINTS PRINCIPAIS DO DASHBOARD - DADOS REAIS
@@ -1867,6 +1897,15 @@ def get_planta_detalhes_completos(planta_id):
             PlantaProvincia.id_planta == planta_id
         ).all()
         
+        # ===== IMAGENS DA PLANTA =====
+        imagens = db.session.query(
+            PlantaImagem.id_imagem,
+            PlantaImagem.nome_arquivo,
+            PlantaImagem.ordem,
+            PlantaImagem.legenda
+        ).filter(
+            PlantaImagem.id_planta == planta_id
+        ).order_by(PlantaImagem.ordem).all()
         # ===== ✨ 3. USOS ESPECÍFICOS - NOVA ESTRUTURA COMO NA API PRINCIPAL =====
         usos_especificos = []
         
@@ -2119,6 +2158,15 @@ def get_planta_detalhes_completos(planta_id):
                 } for prop in propriedades
             ],
             
+            'imagens': [
+                {
+                    'id_imagem': img.id_imagem,
+                    'nome_arquivo': img.nome_arquivo,
+                    'ordem': img.ordem,
+                    'legenda': img.legenda,
+                    'url': f'/uploads/plantas_imagens/{planta_id}/{img.nome_arquivo}'
+                } for img in imagens
+            ],
             # ===== METADADOS =====
             'metadata': {
                 'total_nomes_comuns': len(nomes_comuns),
@@ -5697,7 +5745,114 @@ def teste_conexao_plantas():
 # =====================================================
 # FIM DOS ENDPOINTS - AGORA ESTÁ COMPLETO!
 # =====================================================
+@app.route('/api/admin/plantas/<int:planta_id>/imagens', methods=['GET'])
+def get_imagens_planta(planta_id):
+    try:
+        planta = Planta.query.get(planta_id)
+        if not planta:
+            return jsonify({'error': 'Planta não encontrada'}), 404
+        
+        imagens = PlantaImagem.query.filter_by(id_planta=planta_id).order_by(PlantaImagem.ordem).all()
+        
+        resultado = []
+        for img in imagens:
+            resultado.append({
+                'id_imagem': img.id_imagem,
+                'nome_arquivo': img.nome_arquivo,
+                'ordem': img.ordem,
+                'legenda': img.legenda,
+                'url': f'/uploads/plantas_imagens/{planta_id}/{img.nome_arquivo}',
+                'data_upload': img.data_upload.isoformat() if img.data_upload else None
+            })
+        
+        return jsonify({'imagens': resultado, 'total': len(resultado)})
+    except Exception as e:
+        return handle_error(e, "Erro ao carregar imagens")
 
+@app.route('/api/admin/plantas/<int:planta_id>/imagens', methods=['POST'])
+def upload_imagem_planta(planta_id):
+    try:
+        planta = Planta.query.get(planta_id)
+        if not planta:
+            return jsonify({'error': 'Planta não encontrada'}), 404
+        
+        total_imagens = PlantaImagem.query.filter_by(id_planta=planta_id).count()
+        if total_imagens >= 3:
+            return jsonify({'error': 'Máximo de 3 imagens por planta'}), 400
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        if file.filename == '' or not allowed_file(file.filename):
+            return jsonify({'error': 'Arquivo inválido'}), 400
+        
+        planta_folder = os.path.join(UPLOAD_FOLDER, str(planta_id))
+        os.makedirs(planta_folder, exist_ok=True)
+        
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{file_extension}"
+        file_path = os.path.join(planta_folder, filename)
+        
+        file.save(file_path)
+        resize_image(file_path)
+        
+        nova_imagem = PlantaImagem(
+            id_planta=planta_id,
+            nome_arquivo=filename,
+            ordem=total_imagens + 1,
+            legenda=request.form.get('legenda', '')
+        )
+        
+        db.session.add(nova_imagem)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'imagem': {
+                'id_imagem': nova_imagem.id_imagem,
+                'nome_arquivo': nova_imagem.nome_arquivo,
+                'ordem': nova_imagem.ordem,
+                'legenda': nova_imagem.legenda,
+                'url': f'/uploads/plantas_imagens/{planta_id}/{filename}'
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e, "Erro ao fazer upload da imagem")
+
+@app.route('/api/admin/plantas/<int:planta_id>/imagens/<int:imagem_id>', methods=['DELETE'])
+def delete_imagem_planta(planta_id, imagem_id):
+    try:
+        imagem = PlantaImagem.query.filter_by(id_imagem=imagem_id, id_planta=planta_id).first()
+        if not imagem:
+            return jsonify({'error': 'Imagem não encontrada'}), 404
+        
+        file_path = os.path.join(UPLOAD_FOLDER, str(planta_id), imagem.nome_arquivo)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        db.session.delete(imagem)
+        db.session.commit()
+        
+        # Reordenar imagens restantes
+        imagens_restantes = PlantaImagem.query.filter_by(id_planta=planta_id).order_by(PlantaImagem.ordem).all()
+        for i, img in enumerate(imagens_restantes):
+            img.ordem = i + 1
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Imagem excluída com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e, "Erro ao excluir imagem")
+
+@app.route('/uploads/plantas_imagens/<int:planta_id>/<filename>')
+def serve_plant_image(planta_id, filename):
+    try:
+        planta_folder = os.path.join(UPLOAD_FOLDER, str(planta_id))
+        return send_from_directory(planta_folder, filename)
+    except Exception as e:
+        return jsonify({'error': 'Imagem não encontrada'}), 404
 
 if __name__ == '__main__':
     with app.app_context():

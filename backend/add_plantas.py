@@ -14,8 +14,13 @@ import os
 import uuid
 import logging
 from datetime import datetime, timedelta
+import base64
+from PIL import Image
+from io import BytesIO
 from dotenv import load_dotenv
 
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'uploads', 'plantas_imagens')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Carregar variáveis de ambiente
 load_dotenv()
 
@@ -300,6 +305,30 @@ class UsoPlantaExtracao(db.Model):
     id_uso_planta = db.Column(db.Integer, db.ForeignKey('uso_planta.id_uso_planta'), primary_key=True)
     id_extraccao = db.Column(db.Integer, db.ForeignKey('metodo_extraccao.id_extraccao'), primary_key=True)
 
+class PlantaImagem(db.Model):
+    __tablename__ = 'planta_imagem'
+    
+    id_imagem = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), nullable=False)
+    nome_arquivo = db.Column(db.String(255), nullable=False)
+    ordem = db.Column(db.Integer, nullable=False, default=1)
+    legenda = db.Column(db.Text)
+    data_upload = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relacionamento
+    planta = db.relationship('Planta', backref=db.backref('imagens', lazy=True, cascade='all, delete-orphan'))
+    
+    def to_dict(self):
+        return {
+            'id_imagem': self.id_imagem,
+            'id_planta': self.id_planta,
+            'nome_arquivo': self.nome_arquivo,
+            'ordem': self.ordem,
+            'legenda': self.legenda,
+            'url': f'/uploads/plantas_imagens/{self.id_planta}/{self.nome_arquivo}',
+            'data_upload': self.data_upload.isoformat() if self.data_upload else None
+        }
+
 # Relacionamentos many-to-many
 Planta.autores = db.relationship('Autor', secondary='autor_planta', backref='plantas', lazy='select')
 Planta.provincias = db.relationship('Provincia', secondary='planta_provincia', backref='plantas', lazy='select')
@@ -531,7 +560,12 @@ def validate_planta_step():
             if len(compostos) == 0 and len(propriedades) == 0:
                 warnings.append('Considere adicionar informações sobre composição química ou propriedades farmacológicas')
         
-        elif step == 5:  # Referências (OBRIGATÓRIO)
+        elif step == 5:  # Imagens (OBRIGATÓRIO)
+            imagens = form_data.get('imagens', [])
+            if len(imagens) == 0:
+                errors['imagens'] = 'Pelo menos uma imagem da planta é obrigatória'
+
+        elif step == 6:  # Referências (OBRIGATÓRIO) 
             referencias = form_data.get('referencias', [])
             if len(referencias) == 0:
                 errors['referencias'] = 'Pelo menos uma referência bibliográfica é obrigatória'
@@ -554,6 +588,22 @@ def validate_planta_step():
 # =====================================================
 # CRIAÇÃO DE PLANTAS
 # =====================================================
+def resize_image(image_path, max_size=(800, 800), quality=85):
+    """Redimensiona uma imagem mantendo a proporção"""
+    try:
+        with Image.open(image_path) as img:
+            # Converter para RGB se necessário
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            
+            # Redimensionar mantendo proporção
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # Salvar com qualidade otimizada
+            img.save(image_path, 'JPEG', quality=quality, optimize=True)
+            
+    except Exception as e:
+        logger.error(f"Erro ao redimensionar imagem {image_path}: {e}")
 
 @app.route('/api/wizard/plantas/create', methods=['POST'])
 def create_planta_from_wizard():
@@ -666,7 +716,63 @@ def create_planta_from_wizard():
         for autor in autores_das_referencias:
             if autor not in planta.autores:
                 planta.autores.append(autor)
-        
+
+        imagens_data = data.get('imagens', [])
+        if imagens_data:
+            logger.info(f"🖼️ Processando {len(imagens_data)} imagens...")
+            
+            try:
+                # Criar diretório para as imagens da planta
+                planta_folder = os.path.join(UPLOAD_FOLDER, str(planta.id_planta))
+                os.makedirs(planta_folder, exist_ok=True)
+                
+                for ordem, imagem_info in enumerate(imagens_data, 1):
+                    try:
+                        # Extrair dados da imagem
+                        file_data = imagem_info.get('file_data', '')
+                        file_extension = imagem_info.get('file_extension', 'jpg')
+                        legenda = imagem_info.get('legenda', '')
+                        
+                        if not file_data:
+                            continue
+                        
+                        # Gerar nome único para o arquivo
+                        filename = f"{uuid.uuid4().hex}.{file_extension}"
+                        file_path = os.path.join(planta_folder, filename)
+                        
+                        # Decodificar base64 e salvar
+                        if 'data:' in file_data:
+                            base64_data = file_data.split(',')[1]
+                        else:
+                            base64_data = file_data
+                        
+                        image_binary = base64.b64decode(base64_data)
+                        
+                        # Salvar arquivo
+                        with open(file_path, 'wb') as f:
+                            f.write(image_binary)
+                        
+                        # Redimensionar
+                        resize_image(file_path)
+                        
+                        # Criar registro na BD
+                        nova_imagem = PlantaImagem(
+                            id_planta=planta.id_planta,
+                            nome_arquivo=filename,
+                            ordem=ordem,
+                            legenda=legenda
+                        )
+                        db.session.add(nova_imagem)
+                        
+                        logger.info(f"   ✅ Imagem {ordem} processada: {filename}")
+                        
+                    except Exception as img_error:
+                        logger.error(f"   ❌ Erro ao processar imagem {ordem}: {img_error}")
+                        continue
+                
+            except Exception as e:
+                logger.error(f"❌ Erro geral no processamento de imagens: {e}")
+                
         db.session.commit()
         
         # Eliminar rascunho

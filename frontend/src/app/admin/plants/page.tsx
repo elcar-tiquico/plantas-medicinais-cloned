@@ -5,7 +5,7 @@ import Link from "next/link"
 import styles from "./plants.module.css"
 import modalStyles from "./modal.module.css" // ✅ IMPORTAR CSS DOS MODALS
 import DeleteConfirmModal from './DeleteConfirmModal'
-
+import PlantImageGallery from '../../components/PlantImageGallery';
 // ✅ TIPOS DEFINIDOS PARA TYPESCRIPT
 interface Planta {
   id_planta: number
@@ -15,6 +15,14 @@ interface Planta {
   familia: string
   nomes_comuns: string[]
   provincias: string[]
+    imagens?: Array<{
+    id_imagem: number;
+    nome_arquivo: string;
+    ordem: number;
+    legenda?: string;
+    url: string;
+    data_upload?: string;
+  }>
 }
 
 interface PlantaDetalhada {
@@ -33,6 +41,15 @@ interface PlantaDetalhada {
   provincias: Array<{
     id_provincia: number
     nome_provincia: string
+  }>
+  // ✅ ADICIONAR ESTA PROPRIEDADE AQUI
+  imagens?: Array<{
+    id_imagem: number
+    nome_arquivo: string
+    ordem: number
+    legenda?: string
+    url: string
+    data_upload?: string
   }>
   // ✅ NOVA ESTRUTURA: Usos específicos por parte
   usos_especificos?: Array<{
@@ -53,7 +70,7 @@ interface PlantaDetalhada {
       descricao: string
     }>
   }>
-  // ✅ MANTER COMPATIBILIDADE
+  // ... resto da interface permanece igual
   usos_medicinais: Array<{
     id_uso: number
     parte_usada: string
@@ -968,7 +985,13 @@ export default function PlantsPage() {
                   </div>
                 </div>
               </section>
-
+              {/* ===== SEÇÃO DE IMAGENS ===== */}
+              <section className={modalStyles.modalSection}>
+                <h3 className={modalStyles.sectionTitle}>
+                  📷 Imagens da Planta
+                </h3>
+                <PlantImageGallery imagens={selectedPlanta.imagens} />
+              </section>
               {/* ===== NOMES COMUNS ===== */}
               <section className={modalStyles.modalSection}>
                 <h3 className={modalStyles.sectionTitle}>Nomes Comuns</h3>
@@ -1770,14 +1793,45 @@ export default function PlantsPage() {
                     <td className={styles.tableCellName}>
                       {formatarNomesComuns(planta.nomes_comuns)}
                     </td>
+                    
+                    {/* ===== COLUNA NOME CIENTÍFICO COM INDICADOR DE IMAGENS ===== */}
                     <td className={styles.tableCell}>
-                      <em>{planta.nome_cientifico}</em>
-                      {planta.numero_exsicata && (
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                          Exsicata: {planta.numero_exsicata}
-                        </div>
-                      )}
+                      <div>
+                        <em>{planta.nome_cientifico}</em>
+                        
+                        {/* ===== INDICADOR DE IMAGENS ===== */}
+                        {planta.imagens && planta.imagens.length > 0 && (
+                          <div style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem',
+                            marginLeft: '0.5rem',
+                            color: '#10b981',
+                            fontSize: '0.75rem',
+                            fontWeight: '500'
+                          }}>
+                            📷 
+                            <span style={{
+                              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                              color: '#065f46',
+                              padding: '0.125rem 0.375rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.7rem',
+                              fontWeight: '600'
+                            }}>
+                              {planta.imagens.length}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {planta.numero_exsicata && (
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            Exsicata: {planta.numero_exsicata}
+                          </div>
+                        )}
+                      </div>
                     </td>
+                    
                     <td className={styles.tableCell}>
                       <strong>{formatarFamilia(planta.familia)}</strong>
                     </td>

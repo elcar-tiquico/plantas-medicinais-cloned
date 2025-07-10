@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './add-plant.module.css';
 import ReferenceBibliographyManager from './ReferenceBibliographyManager';
+// No topo do ficheiro, junto com as outras importações
+import PlantImageUploader from './PlantImageUploader';
 
 // Configuração da API do Wizard
 const WIZARD_API_URL = 'http://localhost:5002/api/wizard';
@@ -32,10 +34,21 @@ interface FormData {
   propriedades: number[];
   referencias: number[]; // ✅ APENAS referências - autores vêm delas
   autores_referencias: any[]; // ✅ Autores automaticamente das referências
+  imagens: PlantImage[];
 }
 
 interface ValidationErrors {
   [key: string]: string;
+}
+
+// Adiciona esta interface junto com as outras (depois da linha 20)
+interface PlantImage {
+  id?: number;
+  file: File;
+  url: string;
+  legenda: string;
+  ordem: number;
+  isUploading?: boolean;
 }
 
 interface ApiValidationResponse {
@@ -75,8 +88,9 @@ const CreatePlantWizard: React.FC = () => {
     usos: [],
     compostos: [],
     propriedades: [],
-    referencias: [], // ✅ OBRIGATÓRIO agora
-    autores_referencias: [] // ✅ Gerado automaticamente
+    referencias: [],
+    autores_referencias: [],
+    imagens: [] // ← ADICIONA ESTA LINHA
   });
 
   // Estados para dados das APIs
@@ -169,6 +183,11 @@ const CreatePlantWizard: React.FC = () => {
   };
 
   const isStep5Valid = (): boolean => {
+    // ✅ IMAGENS AGORA SÃO OBRIGATÓRIAS
+    return formData.imagens.length > 0;
+  };
+
+  const isStep6Valid = (): boolean => {
     // ✅ REFERÊNCIAS AGORA SÃO OBRIGATÓRIAS
     return formData.referencias.length > 0;
   };
@@ -180,7 +199,8 @@ const CreatePlantWizard: React.FC = () => {
       case 3: return isStep3Valid();
       case 4: return isStep4Valid();
       case 5: return isStep5Valid();
-      case 6: return true;
+      case 6: return isStep6Valid();
+      case 7: return true; // Revisão final não precisa de validação
       default: return false;
     }
   };
@@ -287,7 +307,7 @@ const CreatePlantWizard: React.FC = () => {
     }
 
     const isValid = await validateStep(currentStep);
-    if (isValid && currentStep < 6) {
+    if (isValid && currentStep < 7) {
       setCurrentStep(currentStep + 1);
       await saveDraft();
     }
@@ -335,8 +355,15 @@ const CreatePlantWizard: React.FC = () => {
       case 4:
         // Composição científica é opcional
         break;
-        
-      case 5:
+      
+        case 5:
+          // Imagens são opcionais, mas podes adicionar warnings
+          if (formData.imagens.length === 0) {
+            newErrors.imagens = 'Pelo menos uma imagem da planta deve ser adicionada';
+          }
+          break;  
+
+      case 6:
         // ✅ REFERÊNCIAS AGORA OBRIGATÓRIAS
         if (formData.referencias.length === 0) {
           newErrors.referencias = 'Pelo menos uma referência bibliográfica deve ser adicionada';
@@ -354,6 +381,15 @@ const CreatePlantWizard: React.FC = () => {
     }
   };
 
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSubmit = async (): Promise<void> => {
     if (!isApiConnected) {
       alert('Erro: API não conectada');
@@ -362,16 +398,74 @@ const CreatePlantWizard: React.FC = () => {
     
     setIsLoading(true);
     try {
+      console.log('📤 Iniciando criação da planta...');
+      console.log('🖼️ Imagens a processar:', formData.imagens.length);
+
+      // ✅ CONVERTER IMAGENS PARA BASE64
+      let imagensProcessadas: string | any[] = [];
+      
+      if (formData.imagens.length > 0) {
+        console.log('🔄 Convertendo imagens para base64...');
+        
+        imagensProcessadas = await Promise.all(
+          formData.imagens.map(async (imagem, index) => {
+            try {
+              const fileData = await convertImageToBase64(imagem.file);
+              const fileExtension = imagem.file.name.split('.').pop()?.toLowerCase() || 'jpg';
+              
+              console.log(`   ✅ Imagem ${index + 1} convertida: ${imagem.file.name}`);
+              
+              return {
+                file_data: fileData,
+                file_extension: fileExtension,
+                legenda: imagem.legenda,
+                ordem: imagem.ordem,
+                file_name: imagem.file.name,
+                file_size: imagem.file.size
+              };
+            } catch (error) {
+              console.error(`   ❌ Erro ao converter imagem ${index + 1}:`, error);
+              throw new Error(`Erro ao processar imagem: ${imagem.file.name}`);
+            }
+          })
+        );
+        
+        console.log('✅ Todas as imagens convertidas com sucesso!');
+      }
+
+      // ✅ PREPARAR DADOS PARA ENVIO (sem objetos File)
+      const dataToSend = {
+        nome_cientifico: formData.nome_cientifico,
+        id_familia: formData.id_familia,
+        numero_exsicata: formData.numero_exsicata,
+        nomes_comuns: formData.nomes_comuns,
+        provincias: formData.provincias,
+        usos: formData.usos,
+        compostos: formData.compostos,
+        propriedades: formData.propriedades,
+        referencias: formData.referencias,
+        autores_referencias: formData.autores_referencias,
+        imagens: imagensProcessadas, // ← Imagens convertidas para base64
+        draft_id: draftId
+      };
+
+      console.log('📊 Dados preparados para envio:', {
+        ...dataToSend,
+        imagens: `${imagensProcessadas.length} imagens processadas`
+      });
+
+      // ✅ ENVIAR DADOS
       const response = await fetch(`${WIZARD_API_URL}/plantas/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, draft_id: draftId })
+        body: JSON.stringify(dataToSend)
       });
 
       if (response.ok) {
         const result: ApiCreateResponse = await response.json();
-        alert('🎉 Planta criada com sucesso!');
-        console.log('Planta criada:', result.planta);
+        console.log('🎉 Planta criada com sucesso!', result);
+        
+        alert(`🎉 Planta "${formData.nome_cientifico}" criada com sucesso!\n📸 ${imagensProcessadas.length} imagens adicionadas`);
         
         // Limpar formulário
         setFormData({
@@ -384,7 +478,8 @@ const CreatePlantWizard: React.FC = () => {
           compostos: [],
           propriedades: [],
           referencias: [],
-          autores_referencias: []
+          autores_referencias: [],
+          imagens: []
         });
         setCurrentStep(1);
         setDraftId(null);
@@ -392,11 +487,17 @@ const CreatePlantWizard: React.FC = () => {
         
       } else {
         const error: ApiErrorResponse = await response.json();
+        console.error('❌ Erro na criação:', error);
         alert(`Erro: ${error.error}`);
       }
     } catch (error) {
-      console.error('Erro ao criar planta:', error);
-      alert('Erro ao criar planta. Verifique a conexão com a API.');
+      console.error('💥 Erro ao criar planta:', error);
+      
+      if (error instanceof Error) {
+        alert(`Erro ao criar planta: ${error.message}`);
+      } else {
+        alert('Erro desconhecido ao criar planta. Verifique a consola para mais detalhes.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -467,10 +568,11 @@ const CreatePlantWizard: React.FC = () => {
   const renderStepIndicator = () => {
     const steps = [
       'Informações Básicas',
-      'Identificação',
+      'Identificação', 
       'Usos Medicinais',
       'Composição',
-      'Referências', // ✅ Agora obrigatório
+      'Imagens',        // ← ADICIONA ESTA LINHA
+      'Referências',
       'Revisão'
     ];
 
@@ -818,10 +920,24 @@ const CreatePlantWizard: React.FC = () => {
     </div>
   );
 
-  // ✅ STEP 5 ATUALIZADO - Referências OBRIGATÓRIAS, sem autores adicionais
   const renderStep5 = () => (
     <div className={styles.stepContent}>
-      <h2>Passo 5: Referências Bibliográficas</h2>
+      <h2>Passo 5: Imagens da Planta</h2>
+      <PlantImageUploader
+        images={formData.imagens}
+        onImagesChange={(images) => updateFormData('imagens', images)}
+        maxImages={3}
+      />
+      {errors.imagens && (
+        <span className={styles.errorText}>{errors.imagens}</span>
+      )}
+    </div>
+  );
+
+  // ✅ STEP 5 ATUALIZADO - Referências OBRIGATÓRIAS, sem autores adicionais
+  const renderStep6 = () => (
+    <div className={styles.stepContent}>
+      <h2>Passo 6: Referências Bibliográficas</h2>
       <p className={styles.helper}>
         <strong>Adicione referências bibliográficas sobre esta planta (obrigatório)</strong>
       </p>
@@ -872,7 +988,7 @@ const CreatePlantWizard: React.FC = () => {
     </div>
   );
 
-  const renderStep6 = () => {
+  const renderStep7 = () => {
     const familia = familias.find(f => f.value === parseInt(formData.id_familia));
     const provinciasNomes = provincias
       .filter(p => formData.provincias.includes(p.value))
@@ -886,7 +1002,7 @@ const CreatePlantWizard: React.FC = () => {
 
     return (
       <div className={styles.stepContent}>
-        <h2>Passo 6: Revisão Final</h2>
+        <h2>Passo 7: Revisão Final</h2>
         
         <div className={styles.review}>
           <div className={styles.reviewSection}>
@@ -937,6 +1053,58 @@ const CreatePlantWizard: React.FC = () => {
             )}
           </div>
 
+          {/* ✅ NOVA SECÇÃO DE IMAGENS */}
+          <div className={styles.reviewSection}>
+            <h3>Imagens da Planta</h3>
+            {formData.imagens.length > 0 ? (
+              <>
+                <p><strong>Total de imagens:</strong> {formData.imagens.length}</p>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                  gap: '12px', 
+                  marginTop: '12px' 
+                }}>
+                  {formData.imagens.map((imagem, index) => (
+                    <div key={index} style={{ 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '8px', 
+                      padding: '8px',
+                      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
+                    }}>
+                      <img 
+                        src={imagem.url} 
+                        alt={`Imagem ${index + 1}`}
+                        style={{ 
+                          width: '100%', 
+                          height: '100px', 
+                          objectFit: 'cover', 
+                          borderRadius: '4px',
+                          marginBottom: '8px'
+                        }}
+                      />
+                      <p style={{ 
+                        fontSize: '0.8rem', 
+                        color: '#6b7280', 
+                        margin: '0',
+                        textAlign: 'center'
+                      }}>
+                        📸 Imagem {imagem.ordem}
+                        {imagem.legenda && (
+                          <span style={{ display: 'block', fontStyle: 'italic' }}>
+                            "{imagem.legenda}"
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className={styles.errorText}>⚠️ Nenhuma imagem adicionada (obrigatório)</p>
+            )}
+          </div>
+
           <div className={styles.reviewSection}>
             <h3>Referências e Autores</h3>
             {formData.referencias.length > 0 && (
@@ -973,14 +1141,16 @@ const CreatePlantWizard: React.FC = () => {
     );
   };
 
+  // Se usas um switch case (procura por algo assim no código)
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1: return renderStep1();
-      case 2: return renderStep2();
+      case 2: return renderStep2(); 
       case 3: return renderStep3();
       case 4: return renderStep4();
-      case 5: return renderStep5();
+      case 5: return renderStep5(); // ← ADICIONA ESTA LINHA
       case 6: return renderStep6();
+      case 7: return renderStep7(); // ← O que era step 6 agora é 7
       default: return renderStep1();
     }
   };
@@ -1010,7 +1180,7 @@ const CreatePlantWizard: React.FC = () => {
           {draftId && (
             <span className={styles.autoSave}>💾 Auto-guardado</span>
           )}
-          {!isCurrentStepValid() && currentStep < 6 && (
+          {!isCurrentStepValid() && currentStep < 7 && (
             <span className={styles.errorText}>
               ⚠️ Complete os campos obrigatórios para avançar
             </span>
@@ -1020,14 +1190,14 @@ const CreatePlantWizard: React.FC = () => {
               ✓ Passo opcional - pode avançar
             </span>
           )}
-          {currentStep === 5 && formData.referencias.length === 0 && (
+          {currentStep === 6 && formData.referencias.length === 0 && (
             <span className={styles.errorText}>
               ⚠️ Referências bibliográficas são obrigatórias
             </span>
           )}
         </div>
 
-        {currentStep < 6 ? (
+        {currentStep < 7 ? (
           <button 
             type="button"
             onClick={handleNext}
@@ -1041,7 +1211,7 @@ const CreatePlantWizard: React.FC = () => {
           <button 
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading || formData.referencias.length === 0}
+            disabled={isLoading || !isCurrentStepValid()}
             className={styles.submitButton}
           >
             {isLoading ? 'Criando...' : 'Criar Planta'}
