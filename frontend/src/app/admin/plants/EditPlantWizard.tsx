@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './add/add-plant.module.css';
 import ReferenceBibliographyManager from './add/ReferenceBibliographyManager';
+import PlantImageUploader from './add/PlantImageUploader';
 
 // Configuração da API
 const WIZARD_API_URL = 'http://localhost:5002/api/wizard';
@@ -38,6 +39,20 @@ interface FormData {
   propriedades: number[];
   referencias: number[];
   autores_referencias: any[];
+  imagens: PlantImage[];  // ✅ ADICIONAR ESTA LINHA
+
+}
+
+interface PlantImage {
+  id_imagem?: number;
+  nome_arquivo?: string;
+  file: File;
+  url: string;
+  legenda: string;
+  ordem: number;
+  isUploading?: boolean;
+  isExisting?: boolean;
+  toDelete?: boolean;
 }
 
 interface UsoEspecifico {
@@ -132,7 +147,9 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
     compostos: [],
     propriedades: [],
     referencias: [],
-    autores_referencias: []
+    autores_referencias: [],
+    imagens: []  // ✅ ADICIONAR ESTA LINHA
+
   });
 
   // Estados para dados das APIs
@@ -275,6 +292,27 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
         }));
       }
       
+
+      // ✅ ADICIONAR ESTE BLOCO antes do setFormData final
+      const imagensResponse = await fetch(`${ADMIN_API_URL}/api/admin/plantas/${plantaId}/imagens`);
+      let imagensExistentes: PlantImage[] = [];
+
+      if (imagensResponse.ok) {
+        const imagensData = await imagensResponse.json();
+        imagensExistentes = imagensData.imagens.map((img: any) => {
+          const dummyFile = new File([''], img.nome_arquivo, { type: 'image/jpeg' });
+          
+          return {
+            id_imagem: img.id_imagem,
+            nome_arquivo: img.nome_arquivo,
+            ordem: img.ordem,
+            legenda: img.legenda || '',
+            url: `${ADMIN_API_URL}${img.url}`, // ✅ ADICIONAR ADMIN_API_URL            
+            file: dummyFile,
+            isExisting: true
+          };
+        });
+      }
       // Aplicar dados ao formulário
       setFormData({
         nome_cientifico: planta.nome_cientifico,
@@ -288,7 +326,9 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
         compostos: planta.compostos?.map(c => c.id_composto) || [],
         propriedades: planta.propriedades?.map(p => p.id_propriedade) || [],
         referencias: planta.referencias.map(r => r.id_referencia),
-        autores_referencias: []
+        autores_referencias: [],
+        imagens: imagensExistentes  // ✅ ADICIONAR ESTA LINHA
+
       });
       
     } catch (error) {
@@ -316,6 +356,10 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
   };
 
   const isStep5Valid = (): boolean => {
+    return true; // ✅ Imagens são opcionais
+  };
+
+  const isStep6Valid = (): boolean => {
     return formData.referencias.length > 0;
   };
 
@@ -325,15 +369,16 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
       case 2: return isStep2Valid();
       case 3: return isStep3Valid();
       case 4: return isStep4Valid();
-      case 5: return isStep5Valid();
-      case 6: return true;
+      case 5: return isStep5Valid(); // ✅ ADICIONAR ESTA LINHA
+      case 6: return isStep6Valid(); // ✅ Era case 5 antes
+      case 7: return true; 
       default: return false;
     }
   };
 
   // ✅ Navegação
   const handleNext = (): void => {
-    if (isCurrentStepValid() && currentStep < 6) {
+    if (isCurrentStepValid() && currentStep < 7) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -344,6 +389,78 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
     }
   };
 
+  // ✅ ADICIONAR estas funções auxiliares antes do handleSave
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const updateImages = async () => {
+    const imagensVisiveis = formData.imagens.filter(img => !img.toDelete);
+    const imagensNovas = imagensVisiveis.filter(img => !img.isExisting && img.file.size > 0);
+    
+    if (imagensNovas.length === 0 && !formData.imagens.some(img => img.toDelete)) {
+      return;
+    }
+
+      let imagensProcessadas: Array<{
+        file_data: string;
+        file_extension: string;
+        legenda: string;
+        ordem: number;
+        file_name: string;
+        file_size: number;
+      }> = [];
+    if (imagensNovas.length > 0) {
+      imagensProcessadas = await Promise.all(
+        imagensNovas.map(async (imagem) => {
+          const fileData = await convertImageToBase64(imagem.file);
+          const fileExtension = imagem.file.name.split('.').pop()?.toLowerCase() || 'jpg';
+          
+          return {
+            file_data: fileData,
+            file_extension: fileExtension,
+            legenda: imagem.legenda,
+            ordem: imagem.ordem,
+            file_name: imagem.file.name,
+            file_size: imagem.file.size
+          };
+        })
+      );
+    }
+
+    const dataToSend = {
+      imagens: {
+        manter: imagensVisiveis
+          .filter(img => img.isExisting)
+          .map(img => ({
+            id_imagem: img.id_imagem,
+            legenda: img.legenda,
+            ordem: img.ordem
+          })),
+        excluir: formData.imagens
+          .filter(img => img.isExisting && img.toDelete)
+          .map(img => img.id_imagem),
+        novas: imagensProcessadas
+      }
+    };
+
+    const response = await fetch(`${ADMIN_API_URL}/api/admin/plantas/${plantaId}/imagens/manage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dataToSend)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Erro ao atualizar imagens');
+    }
+  };
+
   const handleSave = async (): Promise<void> => {
     if (!originalPlanta) return;
     
@@ -351,16 +468,24 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
     try {
       const dataToSave = {
         id_planta: originalPlanta.id_planta,
-        nome_cientifico: formData.nome_cientifico,
-        id_familia: parseInt(formData.id_familia),
-        numero_exsicata: formData.numero_exsicata || null,
+        nome_cientifico: formData.nome_cientifico,  // Obrigatório - já deve estar preenchido
+        id_familia: parseInt(formData.id_familia),  // Obrigatório - já deve estar preenchido
+        numero_exsicata: formData.numero_exsicata || '',  // ✅ OPCIONAL - proteger
         nomes_comuns: formData.nomes_comuns.filter(nome => nome.trim() !== ''),
         provincias: formData.provincias,
-        usos: formData.usos,
-        compostos: formData.compostos,
-        propriedades: formData.propriedades,
+        usos: formData.usos.map(uso => ({
+          ...uso,
+          observacoes: uso.observacoes || '',  // ✅ OPCIONAL - proteger
+          metodos_preparacao: uso.metodos_preparacao || [],  // ✅ OPCIONAL - proteger
+          metodos_extracao: uso.metodos_extracao || []      // ✅ OPCIONAL - proteger
+        })),
+        compostos: formData.compostos || [],        // ✅ OPCIONAL - proteger
+        propriedades: formData.propriedades || [],  // ✅ OPCIONAL - proteger
         referencias: formData.referencias
       };
+      
+      // Debug: verificar o que está a ser enviado
+      console.log('Dados a enviar:', dataToSave);
       
       const response = await fetch(`${ADMIN_API_URL}/api/admin/plantas/${plantaId}`, {
         method: 'PUT',
@@ -375,6 +500,8 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
         throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
       }
       
+      await updateImages();
+
       alert('✅ Alterações salvas com sucesso!');
       router.push(`/admin/plants?highlight=${plantaId}&t=${Date.now()}`);
       
@@ -437,6 +564,7 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
       'Identificação',
       'Usos Medicinais',
       'Composição',
+      'Imagens',        // ✅ ADICIONAR ESTA LINHA
       'Referências',
       'Revisão'
     ];
@@ -892,7 +1020,34 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
       case 5:
         return (
           <div className={styles.stepContent}>
-            <h2>Passo 5: Referências Bibliográficas</h2>
+            <h2>Passo 5: Imagens da Planta</h2>
+            <div style={{
+              backgroundColor: '#eff6ff',
+              border: '1px solid #dbeafe',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ color: '#1e40af', fontWeight: '500' }}>
+                📸 Gestão de Imagens
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#1e3a8a' }}>
+                Adicione, remova ou edite as imagens desta planta (opcional)
+              </div>
+            </div>
+
+            <PlantImageUploader
+              images={formData.imagens}
+              onImagesChange={(images) => updateFormData('imagens', images)}
+              maxImages={3}
+            />
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className={styles.stepContent}>
+            <h2>Passo 6: Referências Bibliográficas</h2>
             
             <div style={{
               backgroundColor: '#eff6ff',
@@ -925,7 +1080,7 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
           </div>
         );
 
-      case 6:
+      case 7:
         const familia = familias.find(f => f.value === parseInt(formData.id_familia));
         const provinciasNomes = provincias
           .filter(p => formData.provincias.includes(p.value))
@@ -939,7 +1094,7 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
 
         return (
           <div className={styles.stepContent}>
-            <h2>Passo 6: Revisão das Alterações</h2>
+            <h2>Passo 7: Revisão das Alterações</h2>
             
             <div style={{
               backgroundColor: '#f0f9ff',
@@ -1148,7 +1303,7 @@ const EditPlantWizard: React.FC<EditPlantWizardProps> = ({ plantaId }) => {
           )}
         </div>
 
-        {currentStep < 6 ? (
+        {currentStep < 7 ? (
           <button 
             type="button"
             onClick={handleNext}

@@ -988,7 +988,7 @@ export default function PlantsPage() {
               {/* ===== SEÇÃO DE IMAGENS ===== */}
               <section className={modalStyles.modalSection}>
                 <h3 className={modalStyles.sectionTitle}>
-                  📷 Imagens da Planta
+                  Imagens da Planta
                 </h3>
                 <PlantImageGallery imagens={selectedPlanta.imagens} />
               </section>

@@ -1,5 +1,6 @@
 # API DASHBOARD ADMIN - VERSÃO COMPLETA COM DADOS REAIS
 
+import base64
 from venv import logger
 from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
@@ -2504,6 +2505,107 @@ def update_planta(planta_id):
     except Exception as e:
         db.session.rollback()
         return handle_error(e, "Erro ao atualizar planta")
+
+# admin_dashboard_api.py - ADICIONAR APENAS ESTAS ROTAS PARA IMAGENS
+# NÃO ALTERAR AS ROTAS DE EDIÇÃO QUE JÁ FUNCIONAM!
+
+@app.route('/api/admin/plantas/<int:planta_id>/imagens/manage', methods=['POST'])
+def manage_plant_images_edit(planta_id):
+    """Gestão de imagens na edição - adicionar, remover, atualizar"""
+    try:
+        planta = Planta.query.get_or_404(planta_id)
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        imagens_data = data.get('imagens', {})
+        
+        # 1. EXCLUIR IMAGENS MARCADAS
+        imagens_para_excluir = imagens_data.get('excluir', [])
+        for imagem_id in imagens_para_excluir:
+            if imagem_id:
+                imagem = PlantaImagem.query.get(imagem_id)
+                if imagem and imagem.id_planta == planta_id:
+                    # Remover arquivo físico
+                    try:
+                        caminho_arquivo = os.path.join(UPLOAD_FOLDER, str(planta_id), imagem.nome_arquivo)
+                        if os.path.exists(caminho_arquivo):
+                            os.remove(caminho_arquivo)
+                    except Exception as e:
+                        logger.warning(f"Erro ao remover arquivo {imagem.nome_arquivo}: {e}")
+                    
+                    # Remover da base de dados
+                    db.session.delete(imagem)
+        
+        # 2. ATUALIZAR IMAGENS EXISTENTES (legenda e ordem)
+        imagens_para_manter = imagens_data.get('manter', [])
+        for img_data in imagens_para_manter:
+            imagem_id = img_data.get('id_imagem')
+            if imagem_id:
+                imagem = PlantaImagem.query.get(imagem_id)
+                if imagem and imagem.id_planta == planta_id:
+                    imagem.legenda = img_data.get('legenda', '')
+                    imagem.ordem = img_data.get('ordem', 1)
+        
+        # 3. ADICIONAR NOVAS IMAGENS
+        imagens_novas = imagens_data.get('novas', [])
+        
+        # Verificar limite
+        total_imagens_atual = PlantaImagem.query.filter_by(id_planta=planta_id).count()
+        if total_imagens_atual + len(imagens_novas) > 3:
+            return jsonify({'error': 'Máximo de 3 imagens por planta'}), 400
+        
+        # Criar pasta se não existir
+        pasta_planta = os.path.join(UPLOAD_FOLDER, str(planta_id))
+        os.makedirs(pasta_planta, exist_ok=True)
+        
+        for img_data in imagens_novas:
+            try:
+                file_data = img_data.get('file_data')
+                if not file_data:
+                    continue
+                
+                if 'base64,' in file_data:
+                    file_data = file_data.split('base64,')[1]
+                
+                image_binary = base64.b64decode(file_data)
+                
+                file_extension = img_data.get('file_extension', 'jpg')
+                nome_arquivo = f"{uuid.uuid4().hex}.{file_extension}"
+                caminho_arquivo = os.path.join(pasta_planta, nome_arquivo)
+                
+                with open(caminho_arquivo, 'wb') as f:
+                    f.write(image_binary)
+                
+                nova_imagem = PlantaImagem(
+                    id_planta=planta_id,
+                    nome_arquivo=nome_arquivo,
+                    ordem=img_data.get('ordem', 1),
+                    legenda=img_data.get('legenda', ''),
+                    data_upload=datetime.utcnow()
+                )
+                db.session.add(nova_imagem)
+                
+            except Exception as e:
+                logger.error(f"Erro ao processar imagem: {e}")
+                return jsonify({'error': f'Erro ao processar imagem: {str(e)}'}), 400
+        
+        # 4. REORDENAR IMAGENS RESTANTES
+        imagens_restantes = PlantaImagem.query.filter_by(id_planta=planta_id).order_by(PlantaImagem.ordem).all()
+        for i, img in enumerate(imagens_restantes):
+            img.ordem = i + 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Imagens atualizadas com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(e, "Erro ao gerir imagens da planta")
 
 @app.route('/api/admin/plantas/estatisticas', methods=['GET'])
 def get_plantas_estatisticas():

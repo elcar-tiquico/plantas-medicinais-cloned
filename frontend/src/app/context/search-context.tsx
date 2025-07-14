@@ -24,6 +24,16 @@ export interface ApiSearchParams {
   per_page?: number
 }
 
+// Interface para imagens da planta
+export interface PlantImage {
+  id_imagem: number
+  nome_arquivo: string
+  ordem: number
+  legenda?: string
+  url: string
+  data_upload?: string
+}
+
 // Interface Plant simplificada
 export interface Plant {
   id: number
@@ -46,6 +56,8 @@ export interface Plant {
   usos_especificos: UsoEspecifico[]
   provincias_detalhadas: ProvinciaDetalhada[]
   referencias_detalhadas: ReferenciaDetalhada[]
+  // Novo campo para imagens
+  imagens?: PlantImage[]
 }
 
 // Interfaces para dados detalhados
@@ -130,6 +142,15 @@ interface ApiPlant {
       papel: 'primeiro' | 'correspondente' | 'coautor'
     }>
   }>
+  // Novo campo para imagens
+  imagens?: Array<{
+    id_imagem: number
+    nome_arquivo: string
+    ordem: number
+    legenda?: string
+    url: string
+    data_upload?: string
+  }>
 }
 
 // Tipo para o contexto
@@ -147,7 +168,7 @@ interface SearchContextType {
 const SearchContext = createContext<SearchContextType | undefined>(undefined)
 
 // URL base da API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 // Filtros iniciais simplificados
 const initialFilters: SearchFilters = {
@@ -165,6 +186,29 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Função utilitária para processar URLs de imagens
+  const processImageUrl = (url: string, plantaId: number): string => {
+    if (!url) return ''
+    
+    // Se já é uma URL completa, retornar como está
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    
+    // Se é um caminho relativo, construir URL completa
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL}${url}`
+    }
+    
+    // Se é apenas o nome do arquivo, construir caminho completo
+    if (!url.startsWith('/')) {
+      return `${API_BASE_URL}/uploads/plantas_imagens/${plantaId}/${url}`
+    }
+    
+    // Fallback
+    return `${API_BASE_URL}${url}`
+  }
 
   // Função para converter dados da API para o formato esperado pelo frontend
   const convertApiPlantToFrontend = (apiPlant: ApiPlant): Plant => {
@@ -215,6 +259,19 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       ano: r.ano,
       autores: r.autores || []
     })) || []
+
+    // 🔥 CORREÇÃO PRINCIPAL: Processar imagens com URLs corretas
+    const imagens: PlantImage[] = apiPlant.imagens?.map(img => ({
+      id_imagem: img.id_imagem,
+      nome_arquivo: img.nome_arquivo,
+      ordem: img.ordem,
+      legenda: img.legenda,
+      url: processImageUrl(img.url, apiPlant.id_planta),
+      data_upload: img.data_upload
+    })) || []
+
+    // Debug das imagens processadas
+    console.log(`📸 Imagens processadas para planta ${apiPlant.id_planta}:`, imagens)
 
     // Criar strings resumidas para compatibilidade com interface antiga
     const autoresStr = autores_detalhados.map(a => {
@@ -321,7 +378,9 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       autores_detalhados,
       usos_especificos,
       provincias_detalhadas,
-      referencias_detalhadas
+      referencias_detalhadas,
+      // 🔥 Campo de imagens corrigido
+      imagens
     }
 
     console.log("Resultado final da conversão:", result)
@@ -377,7 +436,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
       console.log("Parâmetros finais da busca:", searchParams)
 
-      const url = new URL(`${API_BASE_URL}/plantas`)
+      const url = new URL(`${API_BASE_URL}/api/plantas`)
       
       Object.entries(searchParams).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
@@ -419,11 +478,12 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         plantas = []
       }
 
-      // Buscar detalhes completos de cada planta
+      // 🔥 CORREÇÃO: Buscar detalhes completos de cada planta incluindo imagens usando a API principal (app.py)
       const plantsWithDetails = await Promise.all(
         plantas.map(async (plant: any) => {
           try {
-            const detailResponse = await fetch(`${API_BASE_URL}/plantas/${plant.id_planta}`)
+            // Usar a API principal (app.py) para buscar detalhes com imagens
+            const detailResponse = await fetch(`${API_BASE_URL}/api/plantas/${plant.id_planta}`)
             if (detailResponse.ok) {
               const detailData: ApiPlant = await detailResponse.json()
               return convertApiPlantToFrontend(detailData)

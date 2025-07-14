@@ -3,6 +3,7 @@ import type { Plant } from "@/context/search-context"
 import { useLanguage } from "@/context/language-context"
 import { useState } from "react"
 import styles from "./plant-details.module.css"
+import PlantImageGallery, { PlantImage } from "./plant-image-gallery"
 
 interface PlantDetailsProps {
   plant: Plant
@@ -27,7 +28,7 @@ function ParteUsadaCorrelacao({ plant }: { plant: Plant }) {
   if (usosEspecificos.length === 0) {
     // Fallback para dados básicos
     const hasBasicData = plant.parteUsada || plant.usos || plant.metodoPreparacao || plant.metodoExtracao
-    
+
     if (!hasBasicData) return null
     
     return (
@@ -337,6 +338,19 @@ function ReferenciasDetalhadas({ plant }: { plant: Plant }) {
 export function PlantDetails({ plant }: PlantDetailsProps) {
   const { translate } = useLanguage()
   const [showArticle, setShowArticle] = useState(false)
+  const [imageGalleryError, setImageGalleryError] = useState<string | null>(null)
+
+  // 🔥 CORREÇÃO: Verificar e processar imagens da planta
+  const plantImages: PlantImage[] = plant.imagens?.map(img => ({
+    id_imagem: img.id_imagem,
+    nome_arquivo: img.nome_arquivo,
+    ordem: img.ordem,
+    legenda: img.legenda || '',
+    url: img.url,
+    data_upload: img.data_upload
+  })) || []
+
+  console.log(`📸 PlantDetails: Processando ${plantImages.length} imagens para planta ${plant.id}:`, plantImages)
 
   // Artigo simulado para demonstração
   const sampleArticle = `
@@ -399,9 +413,33 @@ export function PlantDetails({ plant }: PlantDetailsProps) {
       <div className={styles.detailsGrid}>
         <div className={styles.plantImageSection}>
           <div className={styles.plantImageCard}>
-            <div className={styles.plantImagePlaceholder}>
-              <span className={styles.placeholderText}>Imagem da planta</span>
-            </div>
+            {/* 🔥 GALERIA DE IMAGENS MELHORADA */}
+            {imageGalleryError ? (
+              <div className={styles.galleryError}>
+                <div className={styles.errorIcon}>
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <p>Erro ao carregar galeria: {imageGalleryError}</p>
+                <button 
+                  onClick={() => setImageGalleryError(null)}
+                  className={styles.retryButton}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : (
+              <PlantImageGallery 
+                plantId={plant.id}
+                plantName={plant.nomes_comuns?.join(', ') || plant.nome || plant.nomeCientifico}
+                images={plantImages}
+                className={styles.plantGallery}
+              />
+            )}
+            
             <div className={styles.plantImageInfo}>
               <h4 className={styles.plantName}>
                 {plant.nomes_comuns?.join(' • ') || plant.nome || 'Nome não disponível'}
@@ -421,6 +459,13 @@ export function PlantDetails({ plant }: PlantDetailsProps) {
             <div className={styles.articleCard}>
               <div className={styles.articleHeader}>
                 <h3 className={styles.articleTitle}>Artigo Científico</h3>
+                <button 
+                  onClick={() => setShowArticle(false)}
+                  className={styles.backButton}
+                  aria-label="Voltar aos detalhes"
+                >
+                  ← Voltar aos detalhes
+                </button>
               </div>
               <div className={styles.articleBody} dangerouslySetInnerHTML={{ __html: sampleArticle }}></div>
             </div>

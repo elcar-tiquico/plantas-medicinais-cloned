@@ -1,12 +1,18 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask import send_from_directory
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 import os
 from datetime import datetime
 from datetime import datetime
 from dotenv import load_dotenv
+from werkzeug.exceptions import NotFound
 load_dotenv()
+
+#UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'plantas_imagens')
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'D:\\Elcar\\uploads\\plantas_imagens')
 
 app = Flask(__name__)
 
@@ -86,7 +92,17 @@ class Planta(db.Model):
                 'partes_usadas': partes_com_indicacoes,  # ← CORRIGIDO: agora usa estrutura específica
                 'propriedades': [prop.to_dict() for prop in self.propriedades],
                 'compostos': [comp.to_dict() for comp in self.compostos],
-                'referencias': referencias_com_autores 
+                'referencias': referencias_com_autores,
+                'imagens': [
+                    {
+                        'id_imagem': img.id_imagem,
+                        'nome_arquivo': img.nome_arquivo,
+                        'ordem': img.ordem,
+                        'legenda': img.legenda or '',
+                        'url': get_full_image_url(self.id_planta, img.nome_arquivo),
+                        'data_upload': img.data_upload.isoformat() if img.data_upload else None
+                    } for img in self.imagens
+                ] 
             })
         
         return data
@@ -114,6 +130,18 @@ class AutorReferencia(db.Model):
     # Relacionamentos
     autor = db.relationship('Autor', backref='autor_referencias')
     referencia = db.relationship('Referencia', backref='referencia_autores')
+
+class PlantaImagem(db.Model):
+    __tablename__ = 'planta_imagem'
+    id_imagem = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_planta = db.Column(db.Integer, db.ForeignKey('planta.id_planta'), nullable=False)
+    nome_arquivo = db.Column(db.String(255), nullable=False)
+    ordem = db.Column(db.Integer, default=1)
+    legenda = db.Column(db.Text)
+    data_upload = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relacionamento com a planta
+    planta = db.relationship('Planta', backref=db.backref('imagens', lazy=True))
 
 class Referencia(db.Model):
     __tablename__ = 'referencia'
@@ -2148,6 +2176,326 @@ def health_check():
         'version': '4.0.0',
         'estrutura': 'corrigida_com_uso_especifico_por_planta'
     })
+
+def get_full_image_url(planta_id, filename, request_obj=None):
+    """
+    Gera URL completa para imagens das plantas
+    """
+    try:
+        # Usar o request atual ou um fornecido
+        req = request_obj or request
+        
+        # Obter a URL base do servidor
+        server_url = req.url_root.rstrip('/')
+        
+        # Construir URL completa
+        full_url = f"{server_url}/uploads/plantas_imagens/{planta_id}/{filename}"
+        
+        return full_url
+    except Exception as e:
+        # Fallback para desenvolvimento
+        print(f"⚠️ Erro ao gerar URL da imagem: {e}")
+        return f"http://localhost:5000/uploads/plantas_imagens/{planta_id}/{filename}"
+
+
+@app.route('/api/plantas/<int:planta_id>/imagens', methods=['GET'])
+def get_imagens_planta_frontend(planta_id):
+    """
+    Buscar imagens de uma planta para o frontend
+    Endpoint principal para carregar imagens nas páginas
+    """
+    try:
+        print(f"📸 Buscando imagens para planta {planta_id} (frontend)")
+        
+        # Verificar se a planta existe
+        planta = Planta.query.get(planta_id)
+        if not planta:
+            return jsonify({'error': 'Planta não encontrada'}), 404
+        
+        # Buscar imagens da planta
+        imagens = PlantaImagem.query.filter_by(id_planta=planta_id).order_by(PlantaImagem.ordem).all()
+        
+        resultado = []
+        for img in imagens:
+            # Gerar URL completa para cada imagem
+            image_url = get_full_image_url(planta_id, img.nome_arquivo)
+            
+            resultado.append({
+                'id_imagem': img.id_imagem,
+                'nome_arquivo': img.nome_arquivo,
+                'ordem': img.ordem,
+                'legenda': img.legenda or '',
+                'url': image_url,
+                'data_upload': img.data_upload.isoformat() if img.data_upload else None
+            })
+        
+        print(f"✅ Retornando {len(resultado)} imagens para planta {planta_id}")
+        
+        return jsonify({
+            'imagens': resultado, 
+            'total': len(resultado),
+            'planta_id': planta_id,
+            'planta_nome': planta.nome_cientifico
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao carregar imagens da planta {planta_id}: {e}")
+        return jsonify({'error': 'Erro ao carregar imagens'}), 500
+
+# Also need to ensure CORS headers for image serving endpoint:
+@app.route('/uploads/plantas_imagens/<int:planta_id>/<filename>')
+def serve_plant_image(planta_id, filename):
+    """
+    Servir imagens das plantas com headers CORS corretos
+    """
+    try:
+        # Verificar se a pasta da planta existe
+        planta_folder = os.path.join(UPLOAD_FOLDER, str(planta_id))
+        
+        if not os.path.exists(planta_folder):
+            print(f"❌ Pasta da planta {planta_id} não encontrada: {planta_folder}")
+            return jsonify({'error': 'Pasta da planta não encontrada'}), 404
+        
+        # Verificar se o arquivo existe
+        file_path = os.path.join(planta_folder, filename)
+        if not os.path.exists(file_path):
+            print(f"❌ Imagem não encontrada: {file_path}")
+            return jsonify({'error': 'Imagem não encontrada'}), 404
+        
+        print(f"✅ Servindo imagem: {file_path}")
+        
+        # Servir o arquivo
+        response = send_from_directory(planta_folder, filename)
+        
+        # Adicionar headers CORS para imagens
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Cross-Origin-Resource-Policy'] = 'cross-origin'
+        response.headers['Cache-Control'] = 'public, max-age=31536000'  # Cache por 1 ano
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Erro ao servir imagem {filename}: {e}")
+        return jsonify({'error': 'Erro ao carregar imagem'}), 404
+
+def get_planta_images_info(planta_id):
+    """
+    Obter informações básicas sobre as imagens de uma planta
+    (sem carregar as imagens completas)
+    """
+    try:
+        # Verificar se a planta existe
+        planta = Planta.query.get(planta_id)
+        if not planta:
+            return jsonify({'error': 'Planta não encontrada'}), 404
+        
+        # Contar imagens
+        total_imagens = PlantaImagem.query.filter_by(id_planta=planta_id).count()
+        
+        # Buscar primeira imagem (para thumbnail)
+        primeira_imagem = PlantaImagem.query.filter_by(id_planta=planta_id).order_by(PlantaImagem.ordem).first()
+        
+        resultado = {
+            'planta_id': planta_id,
+            'total_imagens': total_imagens,
+            'tem_imagens': total_imagens > 0,
+            'primeira_imagem': None
+        }
+        
+        if primeira_imagem:
+            resultado['primeira_imagem'] = {
+                'id_imagem': primeira_imagem.id_imagem,
+                'nome_arquivo': primeira_imagem.nome_arquivo,
+                'url': get_full_image_url(planta_id, primeira_imagem.nome_arquivo),
+                'legenda': primeira_imagem.legenda or ''
+            }
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter info das imagens da planta {planta_id}: {e}")
+        return jsonify({'error': 'Erro ao obter informações das imagens'}), 500
+
+@app.route('/api/plantas/<int:planta_id>/imagens/check', methods=['GET'])
+def check_plant_images_exist(planta_id):
+    """
+    Verificar se as imagens de uma planta existem fisicamente no disco
+    Útil para debug e validação
+    """
+    try:
+        # Verificar se a planta existe
+        planta = Planta.query.get(planta_id)
+        if not planta:
+            return jsonify({'error': 'Planta não encontrada'}), 404
+        
+        # Buscar imagens da base de dados
+        imagens_db = PlantaImagem.query.filter_by(id_planta=planta_id).all()
+        
+        resultado = {
+            'planta_id': planta_id,
+            'total_db': len(imagens_db),
+            'imagens_status': [],
+            'pasta_existe': False,
+            'problemas': []
+        }
+        
+        # Verificar pasta
+        planta_folder = os.path.join(UPLOAD_FOLDER, str(planta_id))
+        resultado['pasta_existe'] = os.path.exists(planta_folder)
+        resultado['caminho_pasta'] = planta_folder
+        
+        if not resultado['pasta_existe']:
+            resultado['problemas'].append(f"Pasta da planta não existe: {planta_folder}")
+        
+        # Verificar cada imagem
+        for img in imagens_db:
+            file_path = os.path.join(planta_folder, img.nome_arquivo)
+            existe = os.path.exists(file_path)
+            
+            status = {
+                'id_imagem': img.id_imagem,
+                'nome_arquivo': img.nome_arquivo,
+                'existe_fisicamente': existe,
+                'caminho_completo': file_path,
+                'url': get_full_image_url(planta_id, img.nome_arquivo)
+            }
+            
+            if not existe:
+                resultado['problemas'].append(f"Arquivo não encontrado: {file_path}")
+            
+            resultado['imagens_status'].append(status)
+        
+        # Contar arquivos físicos na pasta (se existir)
+        if resultado['pasta_existe']:
+            try:
+                arquivos_fisicos = [f for f in os.listdir(planta_folder) 
+                                  if f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))]
+                resultado['total_arquivos_fisicos'] = len(arquivos_fisicos)
+                resultado['arquivos_fisicos'] = arquivos_fisicos
+                
+                # Verificar arquivos órfãos (no disco mas não na DB)
+                nomes_db = {img.nome_arquivo for img in imagens_db}
+                arquivos_orfaos = [f for f in arquivos_fisicos if f not in nomes_db]
+                if arquivos_orfaos:
+                    resultado['arquivos_orfaos'] = arquivos_orfaos
+                    resultado['problemas'].extend([f"Arquivo órfão: {f}" for f in arquivos_orfaos])
+                    
+            except Exception as e:
+                resultado['problemas'].append(f"Erro ao listar pasta: {e}")
+        
+        resultado['tem_problemas'] = len(resultado['problemas']) > 0
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        print(f"❌ Erro ao verificar imagens da planta {planta_id}: {e}")
+        return jsonify({'error': 'Erro ao verificar imagens'}), 500
+
+# Endpoint para buscar múltiplas plantas com informação de imagens
+@app.route('/api/plantas/com-imagens', methods=['GET'])
+def get_plantas_com_info_imagens():
+    """
+    Buscar plantas com informação básica sobre suas imagens
+    Útil para listagens que mostram indicadores de imagens
+    """
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        
+        # Query base
+        plantas_query = db.session.query(
+            Planta.id_planta,
+            Planta.nome_cientifico,
+            Familia.nome_familia.label('familia'),
+            func.count(PlantaImagem.id_imagem).label('total_imagens')
+        ).join(
+            Familia, Planta.id_familia == Familia.id_familia
+        ).outerjoin(
+            PlantaImagem, Planta.id_planta == PlantaImagem.id_planta
+        ).group_by(
+            Planta.id_planta, Planta.nome_cientifico, Familia.nome_familia
+        ).order_by(
+            Planta.nome_cientifico
+        )
+        
+        # Aplicar paginação
+        plantas_paginadas = plantas_query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        resultado = []
+        for planta in plantas_paginadas.items:
+            resultado.append({
+                'id_planta': planta.id_planta,
+                'nome_cientifico': planta.nome_cientifico,
+                'familia': planta.familia,
+                'total_imagens': planta.total_imagens,
+                'tem_imagens': planta.total_imagens > 0
+            })
+        
+        return jsonify({
+            'plantas': resultado,
+            'total': plantas_paginadas.total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': plantas_paginadas.pages,
+            'has_next': plantas_paginadas.has_next,
+            'has_prev': plantas_paginadas.has_prev
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao buscar plantas com info de imagens: {e}")
+        return jsonify({'error': 'Erro ao buscar plantas'}), 500
+
+# Endpoint de saúde específico para imagens
+@app.route('/api/imagens/health', methods=['GET'])
+def images_health_check():
+    """
+    Verificar a saúde do sistema de imagens
+    """
+    try:
+        resultado = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'upload_folder': UPLOAD_FOLDER,
+            'upload_folder_exists': os.path.exists(UPLOAD_FOLDER),
+            'total_plantas_com_imagens': 0,
+            'total_imagens': 0
+        }
+        
+        # Estatísticas básicas
+        total_imagens = PlantaImagem.query.count()
+        plantas_com_imagens = db.session.query(PlantaImagem.id_planta).distinct().count()
+        
+        resultado['total_imagens'] = total_imagens
+        resultado['total_plantas_com_imagens'] = plantas_com_imagens
+        
+        # Verificar espaço em disco (se possível)
+        try:
+            import shutil
+            total, used, free = shutil.disk_usage(UPLOAD_FOLDER)
+            resultado['disk_space'] = {
+                'total_gb': round(total / (1024**3), 2),
+                'used_gb': round(used / (1024**3), 2),
+                'free_gb': round(free / (1024**3), 2),
+                'usage_percent': round((used / total) * 100, 2)
+            }
+        except Exception as e:
+            resultado['disk_space_error'] = str(e)
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        print(f"❌ Erro no health check de imagens: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
 
 @app.route('/api/plantas/<int:id_planta>/track', methods=['GET'])
 def get_planta_with_tracking(id_planta):
