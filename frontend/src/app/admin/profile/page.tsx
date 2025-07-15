@@ -1,4 +1,3 @@
-// D:\Elcar\Projecto\frontend\src\app\profile\page.tsx
 "use client"
 
 import React, { useState, useEffect } from "react"
@@ -170,7 +169,7 @@ export default function UserProfile() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loadingContainer}>
+        <div className={styles.loadingState}>
           <div className={styles.spinner}></div>
           <p>Carregando perfil...</p>
         </div>
@@ -181,8 +180,8 @@ export default function UserProfile() {
   if (!user) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorContainer}>
-          <p>Erro ao carregar perfil do usuário</p>
+        <div className={styles.errorAlert}>
+          <span>Erro ao carregar perfil do usuário</span>
         </div>
       </div>
     )
@@ -190,88 +189,89 @@ export default function UserProfile() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.profileCard}>
-        <div className={styles.header}>
+      {/* Header com estilo similar ao da gestão de utilizadores */}
+      <div className={styles.header}>
+        <h1 className={styles.title}>Meu Perfil</h1>
+        <button onClick={handleLogout} className={styles.logoutButton}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          Sair
+        </button>
+      </div>
+
+      {/* Alertas de erro e sucesso */}
+      {error && (
+        <div className={styles.errorAlert}>
+          <span>{error}</span>
+          <button onClick={() => setError("")} className={styles.closeAlert}>×</button>
+        </div>
+      )}
+
+      {success && (
+        <div className={styles.successAlert}>
+          <span>{success}</span>
+          <button onClick={() => setSuccess("")} className={styles.closeAlert}>×</button>
+        </div>
+      )}
+
+      {/* Card de informações do utilizador */}
+      <div className={styles.userInfoCard}>
+        <div className={styles.userInfoHeader}>
           <div className={styles.userInfo}>
-            <div className={styles.avatar}>
+            <div className={styles.userAvatar}>
               {user.nome_completo.charAt(0).toUpperCase()}
             </div>
             <div className={styles.userDetails}>
-              <h1 className={styles.userName}>{user.nome_completo}</h1>
-              <p className={styles.userRole}>{user.perfil}</p>
+              <h2 className={styles.userName}>{user.nome_completo}</h2>
               <p className={styles.userEmail}>{user.email}</p>
+              <span className={`${styles.roleBadge} ${user.perfil === 'Administrador' ? styles.adminBadge : ''}`}>
+                {user.perfil}
+              </span>
             </div>
           </div>
-          <button 
-            onClick={handleLogout}
-            className={styles.logoutButton}
-            type="button"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            Sair
-          </button>
+          <div className={styles.userStats}>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Status</span>
+              <span className={`${styles.statusBadge} ${user.ativo ? styles.statusActive : styles.statusInactive}`}>
+                {user.ativo ? 'Ativo' : 'Inativo'}
+              </span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Último Login</span>
+              <span className={styles.statValue}>
+                {user.ultimo_login 
+                  ? new Date(user.ultimo_login).toLocaleDateString('pt-PT')
+                  : 'Nunca'
+                }
+              </span>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div className={styles.formContainer}>
-          <h2 className={styles.formTitle}>Editar Perfil</h2>
-          
-          {error && (
-            <div className={styles.errorAlert}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className={styles.successAlert}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              {success}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.formGroup}>
-              <label htmlFor="nome_completo" className={styles.label}>
+      {/* Card de edição do perfil */}
+      <div className={styles.editCard}>
+        <div className={styles.editCardHeader}>
+          <h2 className={styles.editCardTitle}>Editar Perfil</h2>
+        </div>
+        
+        <div className={styles.editCardBody}>
+          <form onSubmit={handleSubmit} className={styles.formGrid}>
+            <div className={styles.formItem}>
+              <label htmlFor="nome_completo" className={styles.formLabel}>
                 Nome Completo
               </label>
               <input
@@ -280,13 +280,14 @@ export default function UserProfile() {
                 name="nome_completo"
                 value={formData.nome_completo}
                 onChange={handleInputChange}
-                className={styles.input}
+                className={styles.formInput}
+                placeholder="Digite o nome completo"
                 required
               />
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="email" className={styles.label}>
+            <div className={styles.formItem}>
+              <label htmlFor="email" className={styles.formLabel}>
                 Email
               </label>
               <input
@@ -295,11 +296,13 @@ export default function UserProfile() {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className={styles.input}
+                className={styles.formInput}
+                placeholder="Digite o email"
                 required
               />
             </div>
 
+            {/* Seção de alteração de senha */}
             <div className={styles.passwordSection}>
               <button
                 type="button"
@@ -326,8 +329,8 @@ export default function UserProfile() {
               
               {showPasswordChange && (
                 <div className={styles.passwordFields}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="password" className={styles.label}>
+                  <div className={styles.formItem}>
+                    <label htmlFor="password" className={styles.formLabel}>
                       Nova Senha
                     </label>
                     <input
@@ -336,13 +339,13 @@ export default function UserProfile() {
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className={styles.input}
+                      className={styles.formInput}
                       placeholder="Mínimo 6 caracteres"
                     />
                   </div>
 
-                  <div className={styles.formGroup}>
-                    <label htmlFor="confirmPassword" className={styles.label}>
+                  <div className={styles.formItem}>
+                    <label htmlFor="confirmPassword" className={styles.formLabel}>
                       Confirmar Nova Senha
                     </label>
                     <input
@@ -351,48 +354,49 @@ export default function UserProfile() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className={styles.input}
+                      className={styles.formInput}
                       placeholder="Repita a nova senha"
                     />
                   </div>
                 </div>
               )}
             </div>
-
-            <div className={styles.formActions}>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className={styles.saveButton}
-              >
-                {isSaving ? (
-                  <>
-                    <div className={styles.spinner}></div>
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                      <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                      <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    Salvar Alterações
-                  </>
-                )}
-              </button>
-            </div>
           </form>
+        </div>
+        
+        <div className={styles.editCardFooter}>
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={isSaving}
+            className={styles.btnPrimary}
+          >
+            {isSaving ? (
+              <>
+                <div className={styles.spinner}></div>
+                Salvando...
+              </>
+            ) : (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Salvar Alterações
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { authAPI } from "../../../lib/api/auth"
 import styles from "./login.module.css"
 
@@ -34,8 +35,8 @@ export default function AdminLogin() {
     <div className={styles.loginContainer}>
       <div className={styles.loginBox}>
         <div className={styles.logoContainer}>
-          <div className={styles.logo}>
-            <svg
+          <div>
+            {/* <svg
               xmlns="http://www.w3.org/2000/svg"
               width="32"
               height="32"
@@ -52,11 +53,19 @@ export default function AdminLogin() {
               <path d="M3 9a3 3 0 0 0 3 3h11"></path>
               <path d="M18 21a3 3 0 0 1-3-3H7"></path>
               <path d="M3 15a3 3 0 0 1 3-3h11"></path>
-            </svg>
+            </svg> */}
+              <Image
+                src="/images/logo isctem.png"
+                alt="Logo ISCTEM"
+                width={160}
+                height={100}
+                className={styles.footerLogoImage}
+                priority
+               />  
           </div>
         </div>
-        <h2 className={styles.title}>Sistema de Plantas Medicinais</h2>
-        <p className={styles.subtitle}>Painel Administrativo - Entre com suas credenciais</p>
+        <h2 className={styles.title}>PhytoMoz - Sistema de Plantas Medicinais</h2>
+        <p className={styles.subtitle}>Painel Administrativo</p>
       </div>
 
       <div className={styles.formContainer}>
@@ -123,7 +132,7 @@ export default function AdminLogin() {
               </div>
             </div>
 
-            <div className={styles.formOptions}>
+            {/* <div className={styles.formOptions}>
               <div className={styles.rememberMe}>
                 <input id="remember-me" name="remember-me" type="checkbox" className={styles.checkbox} />
                 <label htmlFor="remember-me" className={styles.checkboxLabel}>
@@ -131,12 +140,7 @@ export default function AdminLogin() {
                 </label>
               </div>
 
-              <div className={styles.forgotPassword}>
-                <a href="#" className={styles.forgotPasswordLink}>
-                  Esqueceu a senha?
-                </a>
-              </div>
-            </div>
+            </div> */}
 
             <div>
               <button type="submit" disabled={isLoading} className={styles.loginButton}>
@@ -170,14 +174,6 @@ export default function AdminLogin() {
               </button>
             </div>
           </form>
-
-          <div className={styles.loginHelp}>
-            <div className={styles.helpText}>
-              <h4>Credenciais de Teste:</h4>
-              <p><strong>Email:</strong> admin@sistema.com</p>
-              <p><strong>Senha:</strong> admin123</p>
-            </div>
-          </div>
 
           <div className={styles.divider}>
             <div className={styles.dividerLine}></div>

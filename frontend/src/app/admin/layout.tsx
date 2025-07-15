@@ -15,8 +15,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Verificar autenticação
   useEffect(() => {
-    // Pular verificação na página de login
-    if (pathname === "/admin/login") {
+    // Pular verificação nas páginas sem layout (landing e login)
+    if (pathname === "/admin/login" || pathname === "/admin") {
       return
     }
     
@@ -32,8 +32,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setMobileMenuOpen(false)
   }, [pathname])
 
-  // Renderizar apenas o conteúdo para a página de login
-  if (pathname === "/admin/login") {
+  // Renderizar apenas o conteúdo para páginas sem layout (landing e login)
+  if (pathname === "/admin/login" || pathname === "/admin") {
     return <>{children}</>
   }
 
