@@ -1,7 +1,9 @@
+// D:\Elcar\Projecto\frontend\src\components\admin\sidebar.tsx (atualizar o existente)
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { authAPI } from "../../../lib/api/auth"
 import styles from "./sidebar.module.css"
 
 interface AdminSidebarProps {
@@ -12,6 +14,12 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    authAPI.logout()
+    router.push("/admin/login")
+  }
 
   const menuItems = [
     {
@@ -51,14 +59,13 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          {/* ✅ NOVO ÍCONE: Folha orgânica para plantas */}
           <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
           <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
         </svg>
       ),
     },
     {
-      name: "Famílias", // ✅ CORRIGIDO: "Categorias" → "Famílias"
+      name: "Famílias",
       href: "/admin/familias",
       icon: (
         <svg
@@ -72,7 +79,6 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          {/* ✅ NOVO ÍCONE: Árvore genealógica/taxonomia para famílias */}
           <circle cx="12" cy="19" r="2"></circle>
           <circle cx="12" cy="5" r="2"></circle>
           <circle cx="6" cy="12" r="2"></circle>
@@ -122,7 +128,6 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          {/* ✅ NOVO ÍCONE: Livro/Bibliografia para referências */}
           <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
           <path d="M8 7h8"></path>
           <path d="M8 11h8"></path>
@@ -149,26 +154,6 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
         </svg>
       ),
     },
-    {
-      name: "Configurações",
-      href: "/admin/settings",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-          <circle cx="12" cy="12" r="3"></circle>
-        </svg>
-      ),
-    },
   ]
 
   return (
@@ -188,7 +173,6 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
               strokeLinejoin="round"
               className={styles.logoIcon}
             >
-              {/* ✅ LOGO: Usando o mesmo ícone de folha para consistência */}
               <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
               <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
             </svg>
@@ -250,8 +234,8 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
       </nav>
 
       <div className={styles.sidebarFooter}>
-        <Link 
-          href="/" 
+        <button 
+          onClick={handleLogout}
           className={`${styles.logoutLink} ${collapsed ? styles.collapsedLink : ""}`}
           title={collapsed ? "Sair" : undefined}
         >
@@ -271,7 +255,7 @@ export function AdminSidebar({ collapsed, mobileOpen, onToggleCollapse }: AdminS
             <line x1="21" y1="12" x2="9" y2="12"></line>
           </svg>
           <span className={collapsed ? styles.hidden : ""}>Sair</span>
-        </Link>
+        </button>
       </div>
     </div>
   )

@@ -1,7 +1,8 @@
+# D:\Elcar\Projecto\backend\admin_auth.py
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-API de Autenticação e Gerenciamento de Usuários
+API de Autenticação e Gerenciamento de Usuários - VERSÃO CORRIGIDA
 Sistema de Plantas Medicinais - Porta 5003
 """
 
@@ -19,13 +20,11 @@ from functools import wraps
 import json
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=['http://localhost:3000', 'http://localhost:3001'])
 
 # Configurações
 SECRET_KEY = os.environ.get('SECRET_KEY', 'plantas-medicinais-secret-key-2025')
 JWT_EXPIRATION_HOURS = 24
-MAX_LOGIN_ATTEMPTS = 5
-LOCKOUT_DURATION_MINUTES = 30
 
 # Configuração do banco de dados
 DB_CONFIG = {
@@ -33,7 +32,8 @@ DB_CONFIG = {
     'database': 'plantas_medicinais',
     'user': 'root',
     'password': '',
-    'charset': 'utf8mb4'
+    'charset': 'utf8mb4',
+    'autocommit': True
 }
 
 def get_db_connection():
@@ -52,8 +52,8 @@ def validate_email(email):
 
 def validate_password(password):
     """Valida força da senha"""
-    if len(password) < 3:  # Ajustado para desenvolvimento
-        return False, "Senha deve ter pelo menos 3 caracteres"
+    if len(password) < 6:
+        return False, "Senha deve ter pelo menos 6 caracteres"
     return True, "Senha válida"
 
 def hash_password(password):
@@ -69,7 +69,8 @@ def generate_token(user_data):
     payload = {
         'user_id': user_data['id_usuario'],
         'email': user_data['email'],
-        'perfil': user_data['nome_perfil'],
+        'nome': user_data['nome_completo'],
+        'perfil': user_data.get('nome_perfil', 'Usuario'),
         'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
         'iat': datetime.utcnow()
     }
@@ -84,37 +85,6 @@ def verify_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
-
-def log_user_action(user_id, action, description, table_affected=None, record_id=None, 
-                   old_data=None, new_data=None, ip_address=None, user_agent=None):
-    """Registra ação do usuário no log"""
-    connection = get_db_connection()
-    if not connection:
-        return False
-    
-    try:
-        cursor = connection.cursor()
-        query = """
-        INSERT INTO log_acoes_usuario 
-        (id_usuario, acao, descricao, tabela_afetada, id_registro_afetado, 
-         dados_anteriores, dados_novos, ip_origem, user_agent)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        
-        old_json = json.dumps(old_data, default=str) if old_data else None
-        new_json = json.dumps(new_data, default=str) if new_data else None
-        
-        cursor.execute(query, (user_id, action, description, table_affected, 
-                              record_id, old_json, new_json, ip_address, user_agent))
-        connection.commit()
-        return True
-    except Error as e:
-        print(f"Erro ao registrar log: {e}")
-        return False
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 def require_auth(f):
     """Decorator para rotas que requerem autenticação"""
@@ -136,19 +106,8 @@ def require_auth(f):
     
     return decorated_function
 
-def require_admin(f):
-    """Decorator para rotas que requerem perfil de administrador"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if request.current_user.get('perfil') != 'Administrador':
-            return jsonify({'error': 'Acesso negado. Perfil de administrador requerido.'}), 403
-        return f(*args, **kwargs)
-    
-    return decorated_function
-
-# Função para criar usuário admin se não existir
-def create_default_admin():
-    """Cria usuário administrador padrão se não existir"""
+def init_database():
+    """Inicializa perfis padrão e usuário admin"""
     connection = get_db_connection()
     if not connection:
         return
@@ -156,37 +115,56 @@ def create_default_admin():
     try:
         cursor = connection.cursor()
         
-        # Verificar se admin já existe
-        cursor.execute("SELECT id_usuario FROM usuario WHERE email = %s", ('admin@plantasmedicinais.mz',))
-        if cursor.fetchone():
-            return
-        
-        # Verificar se perfil Administrador existe
-        cursor.execute("SELECT id_perfil FROM perfil_usuario WHERE nome_perfil = %s", ('Administrador',))
-        perfil_result = cursor.fetchone()
-        
-        if not perfil_result:
-            # Criar perfil Administrador
+        # Verificar se as tabelas existem
+        cursor.execute("SHOW TABLES LIKE 'perfil_usuario'")
+        if not cursor.fetchone():
+            # Criar tabela perfil_usuario se não existir
             cursor.execute("""
-                INSERT INTO perfil_usuario (nome_perfil, descricao) 
-                VALUES (%s, %s)
-            """, ('Administrador', 'Acesso completo ao sistema'))
-            perfil_id = cursor.lastrowid
-        else:
-            perfil_id = perfil_result[0]
+                CREATE TABLE perfil_usuario (
+                    id_perfil INT AUTO_INCREMENT PRIMARY KEY,
+                    nome_perfil VARCHAR(50) NOT NULL UNIQUE,
+                    descricao TEXT
+                )
+            """)
         
-        # Criar usuário admin
-        password_hash = hash_password('admin123')
-        cursor.execute("""
-            INSERT INTO usuario (nome_completo, email, senha_hash, id_perfil) 
-            VALUES (%s, %s, %s, %s)
-        """, ('Administrador do Sistema', 'admin@plantasmedicinais.mz', password_hash, perfil_id))
+        cursor.execute("SHOW TABLES LIKE 'usuario'")
+        if not cursor.fetchone():
+            # Criar tabela usuario se não existir
+            cursor.execute("""
+                CREATE TABLE usuario (
+                    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+                    nome_completo VARCHAR(100) NOT NULL,
+                    email VARCHAR(100) NOT NULL UNIQUE,
+                    senha_hash VARCHAR(255) NOT NULL,
+                    id_perfil INT DEFAULT 4,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ultimo_login TIMESTAMP NULL,
+                    FOREIGN KEY (id_perfil) REFERENCES perfil_usuario(id_perfil)
+                )
+            """)
+        
+        # Criar perfil Administrador com ID=1 se não existir
+        cursor.execute("SELECT id_perfil FROM perfil_usuario WHERE id_perfil = 1")
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO perfil_usuario (id_perfil, nome_perfil, descricao) 
+                VALUES (1, 'Administrador', 'Administrador do sistema com acesso total')
+            """)
+        
+        # Criar perfil Usuario com ID=4 se não existir
+        cursor.execute("SELECT id_perfil FROM perfil_usuario WHERE id_perfil = 4")
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO perfil_usuario (id_perfil, nome_perfil, descricao) 
+                VALUES (4, 'Usuario', 'Usuário padrão do sistema')
+            """)
         
         connection.commit()
-        print("Usuário administrador padrão criado com sucesso")
+        print("Perfis inicializados: 1=Administrador, 4=Usuario")
         
     except Error as e:
-        print(f"Erro ao criar usuário admin padrão: {e}")
+        print(f"Erro ao inicializar sistema: {e}")
     finally:
         if connection and connection.is_connected():
             cursor.close()
@@ -194,7 +172,7 @@ def create_default_admin():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    """Endpoint de autenticação"""
+    """Endpoint de autenticação - CORRIGIDO"""
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
@@ -212,17 +190,17 @@ def login():
         
         cursor = connection.cursor(dictionary=True)
         
-        # Buscar usuário completo
+        # Buscar usuário - CORRIGIDO: busca sem filtrar por ativo primeiro
         query = """
-        SELECT u.*, p.nome_perfil, p.ativo as perfil_ativo,
+        SELECT u.id_usuario, u.nome_completo, u.email, u.senha_hash, u.ativo,
                CASE 
-                   WHEN u.bloqueado_ate IS NOT NULL AND u.bloqueado_ate > NOW() 
-                   THEN true 
-                   ELSE false 
-               END as esta_bloqueado
+                   WHEN u.id_perfil = 1 THEN 'Administrador'
+                   WHEN u.id_perfil = 4 THEN 'Usuario'
+                   ELSE COALESCE(p.nome_perfil, 'Usuario')
+               END as nome_perfil
         FROM usuario u
-        INNER JOIN perfil_usuario p ON u.id_perfil = p.id_perfil
-        WHERE u.email = %s AND u.ativo = true AND p.ativo = true
+        LEFT JOIN perfil_usuario p ON u.id_perfil = p.id_perfil
+        WHERE u.email = %s
         """
         cursor.execute(query, (email,))
         user = cursor.fetchone()
@@ -230,109 +208,39 @@ def login():
         if not user:
             return jsonify({'error': 'Credenciais inválidas'}), 401
         
-        # Verificar se usuário está bloqueado
-        if user['esta_bloqueado']:
-            return jsonify({'error': 'Conta temporariamente bloqueada. Tente novamente mais tarde.'}), 423
+        # CORRIGIDO: Verificar se usuário está ativo ANTES da senha
+        if not user['ativo']:
+            return jsonify({'error': 'Sua conta está desativada. Entre em contato com o administrador.'}), 401
         
         # Verificar senha
         if not verify_password(password, user['senha_hash']):
-            # Incrementar tentativas de login
-            cursor.execute("""
-                UPDATE usuario 
-                SET tentativas_login = tentativas_login + 1,
-                    bloqueado_ate = CASE 
-                        WHEN tentativas_login + 1 >= %s 
-                        THEN DATE_ADD(NOW(), INTERVAL %s MINUTE)
-                        ELSE bloqueado_ate 
-                    END
-                WHERE id_usuario = %s
-            """, (MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES, user['id_usuario']))
-            connection.commit()
-            
             return jsonify({'error': 'Credenciais inválidas'}), 401
         
-        # Login bem-sucedido - resetar tentativas e atualizar último login
-        session_id = str(uuid.uuid4())
-        token = generate_token(user)
-        
+        # Atualizar último login
         cursor.execute("""
-            UPDATE usuario 
-            SET ultimo_login = NOW(), tentativas_login = 0, bloqueado_ate = NULL
-            WHERE id_usuario = %s
+            UPDATE usuario SET ultimo_login = NOW() WHERE id_usuario = %s
         """, (user['id_usuario'],))
         
-        # Salvar sessão
-        cursor.execute("""
-            INSERT INTO sessao_usuario 
-            (id_sessao, id_usuario, token_acesso, ip_origem, user_agent, data_expiracao)
-            VALUES (%s, %s, %s, %s, %s, DATE_ADD(NOW(), INTERVAL %s HOUR))
-        """, (session_id, user['id_usuario'], token, 
-              request.remote_addr, request.headers.get('User-Agent'), JWT_EXPIRATION_HOURS))
+        # Gerar token
+        token = generate_token(user)
         
-        connection.commit()
-        
-        # Log da ação
-        log_user_action(
-            user['id_usuario'], 'LOGIN', 'Login realizado com sucesso',
-            ip_address=request.remote_addr, user_agent=request.headers.get('User-Agent')
-        )
-        
-        # Remover dados sensíveis da resposta
+        # Resposta limpa
         user_response = {
             'id_usuario': user['id_usuario'],
             'nome_completo': user['nome_completo'],
             'email': user['email'],
             'perfil': user['nome_perfil'],
-            'ultimo_login': user['ultimo_login'].isoformat() if user['ultimo_login'] else None
+            'ativo': user['ativo']
         }
         
         return jsonify({
             'message': 'Login realizado com sucesso',
             'token': token,
-            'user': user_response,
-            'session_id': session_id
+            'user': user_response
         }), 200
         
-    except Error as e:
-        print(f"Erro no login: {e}")
-        return jsonify({'error': 'Erro interno do servidor'}), 500
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
-
-@app.route('/api/auth/logout', methods=['POST'])
-@require_auth
-def logout():
-    """Endpoint de logout"""
-    try:
-        data = request.get_json() or {}
-        session_id = data.get('session_id')
-        
-        connection = get_db_connection()
-        if connection:
-            cursor = connection.cursor()
-            
-            # Desativar sessão
-            if session_id:
-                cursor.execute("""
-                    UPDATE sessao_usuario 
-                    SET ativo = false 
-                    WHERE id_sessao = %s AND id_usuario = %s
-                """, (session_id, request.current_user['user_id']))
-            
-            connection.commit()
-            
-            # Log da ação
-            log_user_action(
-                request.current_user['user_id'], 'LOGOUT', 'Logout realizado',
-                ip_address=request.remote_addr, user_agent=request.headers.get('User-Agent')
-            )
-        
-        return jsonify({'message': 'Logout realizado com sucesso'}), 200
-        
     except Exception as e:
-        print(f"Erro no logout: {e}")
+        print(f"Erro no login: {e}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
     finally:
         if connection and connection.is_connected():
@@ -347,59 +255,60 @@ def verify_auth():
         'valid': True,
         'user': {
             'id_usuario': request.current_user['user_id'],
+            'nome_completo': request.current_user['nome'],
             'email': request.current_user['email'],
-            'perfil': request.current_user['perfil']
+            'perfil': request.current_user['perfil'],
+            'ativo': True
         }
     }), 200
 
 @app.route('/api/users', methods=['GET'])
 @require_auth
 def get_users():
-    """Lista todos os usuários (requer autenticação)"""
+    """Lista usuários - apenas para administradores"""
     try:
+        # Verificar se é administrador
+        if request.current_user['perfil'] != 'Administrador':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
         search = request.args.get('search', '').strip()
-        
-        offset = (page - 1) * per_page
         
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         
         # Query base
         base_query = """
+        SELECT u.id_usuario, u.nome_completo, u.email, u.ativo, u.data_registro, u.ultimo_login,
+               CASE 
+                   WHEN u.id_perfil = 1 THEN 'Administrador'
+                   WHEN u.id_perfil = 4 THEN 'Usuario'
+                   ELSE COALESCE(p.nome_perfil, 'Usuario')
+               END as perfil
         FROM usuario u
-        INNER JOIN perfil_usuario p ON u.id_perfil = p.id_perfil
-        WHERE (u.nome_completo LIKE %s OR u.email LIKE %s)
+        LEFT JOIN perfil_usuario p ON u.id_perfil = p.id_perfil
         """
         
-        search_param = f"%{search}%"
+        # Aplicar filtro de busca
+        if search:
+            base_query += " WHERE u.nome_completo LIKE %s OR u.email LIKE %s"
+            search_param = f"%{search}%"
+            search_params = (search_param, search_param)
+        else:
+            search_params = ()
         
         # Contar total
-        count_query = "SELECT COUNT(*) as total " + base_query
-        cursor.execute(count_query, (search_param, search_param))
+        count_query = f"SELECT COUNT(*) as total FROM ({base_query}) as counted"
+        cursor.execute(count_query, search_params)
         total = cursor.fetchone()['total']
         
-        # Buscar usuários
-        users_query = """
-        SELECT u.id_usuario, u.nome_completo, u.email, p.nome_perfil as perfil, 
-               u.ativo, u.ultimo_login, u.data_registro,
-               CASE 
-                   WHEN u.bloqueado_ate IS NOT NULL AND u.bloqueado_ate > NOW() 
-                   THEN true 
-                   ELSE false 
-               END as esta_bloqueado
-        """ + base_query + " ORDER BY u.data_registro DESC LIMIT %s OFFSET %s"
+        # Aplicar paginação
+        offset = (page - 1) * per_page
+        paginated_query = f"{base_query} ORDER BY u.data_registro DESC LIMIT {per_page} OFFSET {offset}"
+        cursor.execute(paginated_query, search_params)
         
-        cursor.execute(users_query, (search_param, search_param, per_page, offset))
         users = cursor.fetchall()
-        
-        # Converter datetime para string
-        for user in users:
-            if user['ultimo_login']:
-                user['ultimo_login'] = user['ultimo_login'].isoformat()
-            if user['data_registro']:
-                user['data_registro'] = user['data_registro'].isoformat()
         
         return jsonify({
             'users': users,
@@ -421,99 +330,73 @@ def get_users():
 
 @app.route('/api/users', methods=['POST'])
 @require_auth
-@require_admin
 def create_user():
-    """Cria novo usuário (apenas administradores)"""
+    """Cria novo usuário - apenas para administradores"""
+    connection = None
     try:
+        # Verificar se é administrador
+        if request.current_user['perfil'] != 'Administrador':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
         data = request.get_json()
         
-        # Validações
-        required_fields = ['nome_completo', 'email', 'password', 'id_perfil']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'Campo obrigatório: {field}'}), 400
+        nome_completo = data.get('nome_completo', '').strip()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        ativo = data.get('ativo', True)
+        perfil = data.get('perfil', 'Usuario')
         
-        email = data['email'].strip().lower()
+        # Validações
+        if not nome_completo or not email or not password:
+            return jsonify({'error': 'Nome, email e senha são obrigatórios'}), 400
+        
         if not validate_email(email):
             return jsonify({'error': 'Formato de email inválido'}), 400
         
-        password_valid, password_msg = validate_password(data['password'])
+        password_valid, password_msg = validate_password(password)
         if not password_valid:
             return jsonify({'error': password_msg}), 400
         
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        if not connection:
+            return jsonify({'error': 'Erro de conexão com banco de dados'}), 500
+            
+        cursor = connection.cursor()
         
         # Verificar se email já existe
         cursor.execute("SELECT id_usuario FROM usuario WHERE email = %s", (email,))
         if cursor.fetchone():
             return jsonify({'error': 'Email já está em uso'}), 409
         
-        # Verificar se perfil existe e está ativo
-        cursor.execute("SELECT * FROM perfil_usuario WHERE id_perfil = %s AND ativo = true", 
-                      (data['id_perfil'],))
-        perfil = cursor.fetchone()
-        if not perfil:
-            return jsonify({'error': 'Perfil inválido ou inativo'}), 400
+        # CORRIGIDO: Mapear perfil para ID correto
+        perfil_id_map = {
+            'Administrador': 1,
+            'Admin': 1,
+            'Usuario': 4,
+            'User': 4
+        }
+        
+        perfil_id = perfil_id_map.get(perfil, 4)
         
         # Criar usuário
-        password_hash = hash_password(data['password'])
-        
+        password_hash = hash_password(password)
         cursor.execute("""
-            INSERT INTO usuario 
-            (nome_completo, email, senha_hash, id_perfil, ativo, criado_por)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (data['nome_completo'], email, password_hash, data['id_perfil'], 
-              data.get('ativo', True), request.current_user['user_id']))
+            INSERT INTO usuario (nome_completo, email, senha_hash, id_perfil, ativo) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (nome_completo, email, password_hash, perfil_id, ativo))
         
-        new_user_id = cursor.lastrowid
+        user_id = cursor.lastrowid
         connection.commit()
-        
-        # Log da ação
-        log_user_action(
-            request.current_user['user_id'], 'CREATE_USER', 
-            f'Usuário criado: {data["nome_completo"]} ({email})',
-            'usuario', new_user_id, None, {
-                'nome_completo': data['nome_completo'],
-                'email': email,
-                'perfil': perfil['nome_perfil']
-            },
-            request.remote_addr, request.headers.get('User-Agent')
-        )
         
         return jsonify({
             'message': 'Usuário criado com sucesso',
-            'user_id': new_user_id
+            'user_id': user_id
         }), 201
         
-    except Error as e:
-        print(f"Erro ao criar usuário: {e}")
-        return jsonify({'error': 'Erro interno do servidor'}), 500
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
-
-@app.route('/api/profiles', methods=['GET'])
-@require_auth
-def get_profiles():
-    """Lista perfis de usuário disponíveis"""
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-        
-        cursor.execute("""
-            SELECT id_perfil, nome_perfil, descricao, ativo 
-            FROM perfil_usuario 
-            WHERE ativo = true 
-            ORDER BY nome_perfil
-        """)
-        profiles = cursor.fetchall()
-        
-        return jsonify({'profiles': profiles}), 200
-        
     except Exception as e:
-        print(f"Erro ao buscar perfis: {e}")
+        if connection:
+            connection.rollback()
+        print(f"Erro ao criar usuário: {e}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
     finally:
         if connection and connection.is_connected():
@@ -522,24 +405,22 @@ def get_profiles():
 
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 @require_auth
-@require_admin
 def update_user(user_id):
-    """Atualiza dados do usuário"""
+    """Atualiza dados do usuário - CORRIGIDO para suportar alteração de perfil"""
     try:
         data = request.get_json()
+        
+        # Verificar se é administrador ou o próprio usuário
+        if request.current_user['perfil'] != 'Administrador' and request.current_user['user_id'] != user_id:
+            return jsonify({'error': 'Acesso negado'}), 403
         
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         
-        # Buscar usuário atual
-        cursor.execute("""
-            SELECT u.*, p.nome_perfil 
-            FROM usuario u 
-            INNER JOIN perfil_usuario p ON u.id_perfil = p.id_perfil 
-            WHERE u.id_usuario = %s
-        """, (user_id,))
-        current_user = cursor.fetchone()
-        if not current_user:
+        # Verificar se usuário existe
+        cursor.execute("SELECT * FROM usuario WHERE id_usuario = %s", (user_id,))
+        existing_user = cursor.fetchone()
+        if not existing_user:
             return jsonify({'error': 'Usuário não encontrado'}), 404
         
         # Preparar campos para atualização
@@ -564,18 +445,31 @@ def update_user(user_id):
             update_fields.append('email = %s')
             update_values.append(email)
         
-        if 'id_perfil' in data:
-            cursor.execute("SELECT * FROM perfil_usuario WHERE id_perfil = %s AND ativo = true", 
-                          (data['id_perfil'],))
-            if not cursor.fetchone():
-                return jsonify({'error': 'Perfil inválido ou inativo'}), 400
-            
-            update_fields.append('id_perfil = %s')
-            update_values.append(data['id_perfil'])
-        
         if 'ativo' in data:
+            # Apenas administradores podem alterar status ativo
+            if request.current_user['perfil'] != 'Administrador':
+                return jsonify({'error': 'Apenas administradores podem alterar status de ativação'}), 403
+            
             update_fields.append('ativo = %s')
             update_values.append(data['ativo'])
+        
+        # CORRIGIDO: Suporte para alteração de perfil
+        if 'perfil' in data:
+            # Apenas administradores podem alterar perfil
+            if request.current_user['perfil'] != 'Administrador':
+                return jsonify({'error': 'Apenas administradores podem alterar perfil'}), 403
+            
+            # Mapear perfil para ID correto
+            perfil_id_map = {
+                'Administrador': 1,
+                'Admin': 1,
+                'Usuario': 4,
+                'User': 4
+            }
+            
+            perfil_id = perfil_id_map.get(data['perfil'], 4)
+            update_fields.append('id_perfil = %s')
+            update_values.append(perfil_id)
         
         if 'password' in data and data['password']:
             password_valid, password_msg = validate_password(data['password'])
@@ -589,23 +483,11 @@ def update_user(user_id):
         if not update_fields:
             return jsonify({'error': 'Nenhum campo para atualizar'}), 400
         
-        # Adicionar campos de auditoria
-        update_fields.append('atualizado_por = %s')
-        update_values.append(request.current_user['user_id'])
-        
         # Atualizar usuário
         update_values.append(user_id)
         update_query = f"UPDATE usuario SET {', '.join(update_fields)} WHERE id_usuario = %s"
         cursor.execute(update_query, update_values)
         connection.commit()
-        
-        # Log da ação
-        log_user_action(
-            request.current_user['user_id'], 'UPDATE_USER', 
-            f'Usuário atualizado: {current_user["nome_completo"]}',
-            'usuario', user_id, None, data,
-            request.remote_addr, request.headers.get('User-Agent')
-        )
         
         return jsonify({'message': 'Usuário atualizado com sucesso'}), 200
         
@@ -617,58 +499,73 @@ def update_user(user_id):
             cursor.close()
             connection.close()
 
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@require_auth
+def delete_user(user_id):
+    """Remove usuário - apenas para administradores"""
+    try:
+        # Verificar se é administrador
+        if request.current_user['perfil'] != 'Administrador':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        # Não permitir deletar o próprio usuário
+        if user_id == request.current_user['user_id']:
+            return jsonify({'error': 'Não é possível deletar sua própria conta'}), 400
+        
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        
+        # Verificar se usuário existe
+        cursor.execute("SELECT id_usuario FROM usuario WHERE id_usuario = %s", (user_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Usuário não encontrado'}), 404
+        
+        # Deletar usuário
+        cursor.execute("DELETE FROM usuario WHERE id_usuario = %s", (user_id,))
+        connection.commit()
+        
+        return jsonify({'message': 'Usuário removido com sucesso'}), 200
+        
+    except Exception as e:
+        print(f"Erro ao deletar usuário: {e}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+    finally:
+        if connection and connection.is_connected():
+            cursor.close()
+            connection.close()
+
 @app.route('/api/dashboard/stats', methods=['GET'])
 @require_auth
 def get_dashboard_stats():
-    """Retorna estatísticas para o dashboard"""
+    """Estatísticas do dashboard"""
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         
-        # Estatísticas de plantas
-        cursor.execute("SELECT COUNT(*) as total FROM planta")
-        total_plantas = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM familia")
-        total_familias = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM autor")
-        total_autores = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM provincia")
-        total_provincias = cursor.fetchone()['total']
-        
-        cursor.execute("SELECT COUNT(*) as total FROM referencia")
-        total_referencias = cursor.fetchone()['total']
-        
-        # Estatísticas de usuários
+        # Contar usuários
         cursor.execute("SELECT COUNT(*) as total FROM usuario WHERE ativo = true")
-        usuarios_ativos = cursor.fetchone()['total']
+        users_count = cursor.fetchone()['total']
         
-        cursor.execute("""
-            SELECT COUNT(*) as total FROM usuario 
-            WHERE bloqueado_ate IS NOT NULL AND bloqueado_ate > NOW()
-        """)
-        usuarios_bloqueados = cursor.fetchone()['total']
+        # Contar plantas (se tabela existir)
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM planta")
+            plants_count = cursor.fetchone()['total']
+        except:
+            plants_count = 0
         
-        cursor.execute("""
-            SELECT COUNT(*) as total FROM sessao_usuario 
-            WHERE ativo = true AND data_expiracao > NOW()
-        """)
-        sessoes_ativas = cursor.fetchone()['total']
+        # Contar famílias (se tabela existir)
+        try:
+            cursor.execute("SELECT COUNT(*) as total FROM familia")
+            families_count = cursor.fetchone()['total']
+        except:
+            families_count = 0
         
-        stats = {
-            'total_plantas': total_plantas,
-            'total_familias': total_familias,
-            'total_autores': total_autores,
-            'total_provincias': total_provincias,
-            'total_referencias': total_referencias,
-            'usuarios_ativos': usuarios_ativos,
-            'usuarios_bloqueados': usuarios_bloqueados,
-            'sessoes_ativas': sessoes_ativas
-        }
-        
-        return jsonify(stats), 200
+        return jsonify({
+            'users': users_count,
+            'plants': plants_count,
+            'families': families_count,
+            'status': 'online'
+        }), 200
         
     except Exception as e:
         print(f"Erro ao buscar estatísticas: {e}")
@@ -678,22 +575,79 @@ def get_dashboard_stats():
             cursor.close()
             connection.close()
 
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Endpoint não encontrado'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Erro interno do servidor'}), 500
+@app.route('/api/init-admin', methods=['POST'])
+def init_admin():
+    """Endpoint para criar usuário Admin temporário - APENAS PARA TESTES"""
+    connection = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Erro de conexão com banco de dados'}), 500
+            
+        cursor = connection.cursor()
+        
+        # Verificar se já existe um admin (id_perfil = 1)
+        cursor.execute("SELECT id_usuario, email FROM usuario WHERE id_perfil = 1")
+        existing_admin = cursor.fetchone()
+        
+        if existing_admin:
+            return jsonify({
+                'message': 'Já existe um usuário Administrador no sistema',
+                'existing_admin': existing_admin[1]
+            }), 200
+        
+        # Criar usuário Admin temporário
+        admin_email = 'admin@test.com'
+        admin_password = 'admin123'
+        admin_name = 'Admin Temporário'
+        
+        # Verificar se email já existe
+        cursor.execute("SELECT id_usuario FROM usuario WHERE email = %s", (admin_email,))
+        if cursor.fetchone():
+            return jsonify({'error': 'Email admin@test.com já existe'}), 409
+        
+        # Criar usuário com id_perfil = 1 (Administrador)
+        password_hash = hash_password(admin_password)
+        cursor.execute("""
+            INSERT INTO usuario (nome_completo, email, senha_hash, id_perfil, ativo) 
+            VALUES (%s, %s, %s, 1, %s)
+        """, (admin_name, admin_email, password_hash, True))
+        
+        user_id = cursor.lastrowid
+        connection.commit()
+        
+        return jsonify({
+            'message': 'Usuário Admin temporário criado com sucesso',
+            'credentials': {
+                'email': admin_email,
+                'password': admin_password,
+                'nome': admin_name,
+                'perfil': 'Administrador'
+            },
+            'user_id': user_id,
+            'warning': 'Este é um usuário temporário para testes. Exclua após usar!'
+        }), 201
+        
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        print(f"Erro ao criar admin temporário: {e}")
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+    finally:
+        if connection and connection.is_connected():
+            cursor.close()
+            connection.close()
 
 if __name__ == '__main__':
-    # Criar usuário admin padrão ao iniciar
-    # create_default_admin()
-    
-    print("=== API de Usuários - Sistema de Plantas Medicinais ===")
-    print("Porta: 5001")
-    print("Usuário padrão: admin@plantasmedicinais.mz")
-    print("Senha padrão: admin123")
-    print("===============================================")
-    
+    print("Inicializando API de Autenticação...")
+    init_database()
+    print("Servidor rodando na porta 5003")
+    print("Endpoints disponíveis:")
+    print("- POST /api/auth/login")
+    print("- GET /api/auth/verify")
+    print("- GET /api/users")
+    print("- POST /api/users")
+    print("- PUT /api/users/<id>")
+    print("- DELETE /api/users/<id>")
+    print("- GET /api/dashboard/stats")
     app.run(host='0.0.0.0', port=5003, debug=True)

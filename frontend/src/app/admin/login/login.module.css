@@ -1,3 +1,4 @@
+/* D:\Elcar\Projecto\frontend\src\app\admin\login\login.module.css */
 .loginContainer {
   min-height: 100vh;
   background: linear-gradient(to bottom, #f9f5ff, #f0fdf4);
@@ -179,6 +180,7 @@
   width: 100%;
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: 0.5rem 1rem;
   border: 1px solid transparent;
   border-radius: 0.375rem;
@@ -188,9 +190,10 @@
   color: white;
   background: linear-gradient(to right, #9333ea, #22c55e);
   cursor: pointer;
+  transition: all 0.2s;
 }
 
-.loginButton:hover {
+.loginButton:hover:not(:disabled) {
   background: linear-gradient(to right, #7e22ce, #16a34a);
 }
 
@@ -207,7 +210,6 @@
 .loadingSpinner {
   animation: spin 1s linear infinite;
   margin-right: 0.5rem;
-  margin-left: -0.25rem;
   height: 1rem;
   width: 1rem;
 }
@@ -227,6 +229,35 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.loginHelp {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+}
+
+.helpText {
+  text-align: center;
+}
+
+.helpText h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.helpText p {
+  margin: 0.25rem 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.helpText strong {
+  color: #374151;
 }
 
 .divider {
@@ -265,10 +296,12 @@
   color: #374151;
   background-color: white;
   text-decoration: none;
+  transition: all 0.2s;
 }
 
 .homeLinkButton:hover {
   background-color: #f9fafb;
+  transform: translateY(-1px);
 }
 
 .homeLinkButton:focus {

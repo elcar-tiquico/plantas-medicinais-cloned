@@ -6,6 +6,7 @@ import React, { createContext, useContext, useState, ReactNode } from "react"
 export interface SearchFilters {
   popularName: string
   scientificName: string
+  familia?: string  // NOVO CAMPO
   parteUsada?: string
   usoTradicional?: string
   provincia?: string
@@ -16,6 +17,7 @@ export interface SearchFilters {
 export interface ApiSearchParams {
   search_popular?: string
   search_cientifico?: string
+  familia_id?: number  // NOVO PARÂMETRO
   parte_usada?: string
   indicacao_id?: number
   provincia_id?: number
@@ -174,6 +176,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 const initialFilters: SearchFilters = {
   popularName: "",
   scientificName: "",
+  familia: "",  // NOVO CAMPO
   parteUsada: "",
   usoTradicional: "",
   provincia: "",
@@ -411,6 +414,11 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         // Busca por nome científico
         if (filters.scientificName && filters.scientificName.trim()) {
           searchParams.search_cientifico = filters.scientificName.trim()
+        }
+
+        // NOVO: Busca por família (ID)
+        if (filters.familia && filters.familia !== "") {
+          searchParams.familia_id = parseInt(filters.familia)
         }
 
         // Busca por parte usada (string)

@@ -24,6 +24,11 @@ interface Indicacao {
   descricao: string;
 }
 
+interface Familia {
+  id_familia: number;
+  nome_familia: string;
+}
+
 // URL base da API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -242,12 +247,14 @@ export function SearchForm() {
   const [provincias, setProvincias] = useState<Provincia[]>([])
   const [autores, setAutores] = useState<Autor[]>([])
   const [indicacoes, setIndicacoes] = useState<Indicacao[]>([])
+  const [familias, setFamilias] = useState<Familia[]>([])
   const [partesUsadas, setPartesUsadas] = useState<string[]>([])
   
   // Estados de loading
   const [loadingProvincias, setLoadingProvincias] = useState(true)
   const [loadingAutores, setLoadingAutores] = useState(true)
   const [loadingIndicacoes, setLoadingIndicacoes] = useState(true)
+  const [loadingFamilias, setLoadingFamilias] = useState(true)
   const [loadingPartesUsadas, setLoadingPartesUsadas] = useState(true)
   
   const [error, setError] = useState<string | null>(null)
@@ -382,6 +389,7 @@ export function SearchForm() {
         fetchData('/provincias', setProvincias, setLoadingProvincias, 'províncias'),
         fetchData('/autores', setAutores, setLoadingAutores, 'autores'),
         fetchData('/indicacoes', setIndicacoes, setLoadingIndicacoes, 'indicações'),
+        fetchData('/familias', setFamilias, setLoadingFamilias, 'famílias'),
         fetchPartesUsadas()
       ]
       
@@ -433,6 +441,15 @@ export function SearchForm() {
       if (!isNaN(provinciaId)) {
         searchFilters.provincia_id = provinciaId
         console.log('Adicionado filtro provincia_id:', searchFilters.provincia_id)
+      }
+    }
+    
+    // NOVO: Filtro por família (ID)
+    if (filters.familia && filters.familia !== "") {
+      const familiaId = parseInt(filters.familia)
+      if (!isNaN(familiaId)) {
+        searchFilters.familia_id = familiaId
+        console.log('Adicionado filtro familia_id:', searchFilters.familia_id)
       }
     }
     
@@ -520,6 +537,13 @@ export function SearchForm() {
     }))
   }, [indicacoes])
 
+  const familiaOptions = useMemo(() => {
+    return familias.map(familia => ({
+      value: familia.id_familia.toString(),
+      label: familia.nome_familia || `Família ${familia.id_familia}`
+    }))
+  }, [familias])
+
   const parteUsadaOptions = useMemo(() => {
     return partesUsadas.map(parte => ({
       value: parte,
@@ -533,6 +557,7 @@ export function SearchForm() {
     fetchData('/provincias', setProvincias, setLoadingProvincias, 'províncias')
     fetchData('/autores', setAutores, setLoadingAutores, 'autores')
     fetchData('/indicacoes', setIndicacoes, setLoadingIndicacoes, 'indicações')
+    fetchData('/familias', setFamilias, setLoadingFamilias, 'famílias')
     fetchPartesUsadas()
   }
 
@@ -656,6 +681,20 @@ export function SearchForm() {
               </p>
             )}
           </div>
+
+          {/* Família - NOVO FILTRO */}
+          <SearchableComboBox
+            id="familia"
+            label="Família Botânica"
+            placeholder="Escolha uma família..."
+            value={filters.familia || ''}
+            onChange={(value) => {
+              console.log('Mudança na família:', value) // Debug
+              setFilters((prev) => ({ ...prev, familia: value }))
+            }}
+            options={familiaOptions}
+            loading={loadingFamilias}
+          />
 
           {/* Parte da Planta Usada */}
           <SearchableComboBox

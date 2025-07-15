@@ -455,9 +455,12 @@ def create_familia():
 # Adicione estas atualizações ao seu arquivo Flask existente
 
 # ROTA ATUALIZADA - PLANTAS (com suporte a busca por indicação)
+# Modificação na rota /api/plantas do seu arquivo Flask (app.py)
+# Substitua a rota existente por esta versão atualizada:
+
 @app.route('/api/plantas', methods=['GET'])
 def get_plantas():
-    """VERSÃO SEM TRACKING - Só busca e retorna resultados"""
+    """VERSÃO COM FILTRO DE FAMÍLIA - Só busca e retorna resultados"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
@@ -467,9 +470,10 @@ def get_plantas():
         search_cientifico = request.args.get('search_cientifico', '')
         search = request.args.get('search', '')
         
-        # Filtros específicos (mantidos iguais)
+        # Filtros específicos (mantidos iguais + NOVO filtro família)
         autor_id = request.args.get('autor_id', type=int)
         provincia_id = request.args.get('provincia_id', type=int)
+        familia_id = request.args.get('familia_id', type=int)  # NOVO FILTRO
         parte_usada = request.args.get('parte_usada', '')
         indicacao_id = request.args.get('indicacao_id', type=int)
         
@@ -502,6 +506,11 @@ def get_plantas():
         # Filtro por província
         if provincia_id:
             query = query.join(Planta.provincias).filter(Provincia.id_provincia == provincia_id)
+            
+        # NOVO: Filtro por família
+        if familia_id:
+            query = query.filter(Planta.id_familia == familia_id)
+            print(f"🔍 Aplicando filtro por família ID: {familia_id}")
             
         # Filtro por parte usada através da nova estrutura
         if parte_usada:

@@ -1,9 +1,11 @@
+// D:\Elcar\Projecto\frontend\src\app\admin\login\page.tsx
 "use client"
 
 import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { authAPI } from "../../../lib/api/auth"
 import styles from "./login.module.css"
 
 export default function AdminLogin() {
@@ -19,19 +21,10 @@ export default function AdminLogin() {
     setError("")
 
     try {
-      // Simulação de autenticação
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Credenciais de exemplo
-      if (email === "layzaMacuacua@gmail.com" && password === "vicky") {
-        // Armazenar token de autenticação (simulado)
-        localStorage.setItem("adminToken", "simulated-jwt-token")
-        router.push("/admin/dashboard")
-      } else {
-        setError("Credenciais inválidas. Tente novamente.")
-      }
+      await authAPI.login({ email, password })
+      router.push("/admin/dashboard")
     } catch (err) {
-      setError("Ocorreu um erro durante o login. Tente novamente.")
+      setError(err instanceof Error ? err.message : "Erro durante o login")
     } finally {
       setIsLoading(false)
     }
@@ -62,8 +55,8 @@ export default function AdminLogin() {
             </svg>
           </div>
         </div>
-        <h2 className={styles.title}>Acesso ao Painel Administrativo</h2>
-        <p className={styles.subtitle}>Entre com suas credenciais para acessar o painel</p>
+        <h2 className={styles.title}>Sistema de Plantas Medicinais</h2>
+        <p className={styles.subtitle}>Painel Administrativo - Entre com suas credenciais</p>
       </div>
 
       <div className={styles.formContainer}>
@@ -106,7 +99,7 @@ export default function AdminLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={styles.input}
-                  placeholder="layzaMacuacua@gmail.com"
+                  placeholder="admin@sistema.com"
                 />
               </div>
             </div>
@@ -125,7 +118,7 @@ export default function AdminLogin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={styles.input}
-                  placeholder="vicky"
+                  placeholder="Digite sua senha"
                 />
               </div>
             </div>
@@ -177,6 +170,14 @@ export default function AdminLogin() {
               </button>
             </div>
           </form>
+
+          <div className={styles.loginHelp}>
+            <div className={styles.helpText}>
+              <h4>Credenciais de Teste:</h4>
+              <p><strong>Email:</strong> admin@sistema.com</p>
+              <p><strong>Senha:</strong> admin123</p>
+            </div>
+          </div>
 
           <div className={styles.divider}>
             <div className={styles.dividerLine}></div>

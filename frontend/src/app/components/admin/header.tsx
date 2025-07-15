@@ -1,8 +1,10 @@
+// D:\Elcar\Projecto\frontend\src\components\admin\header.tsx (atualizar o existente)
 "use client"
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useRouter } from 'next/navigation'  // ✅ ADICIONADO
+import { useRouter } from 'next/navigation'
+import { authAPI, type User } from "../../../lib/api/auth"
 import styles from "./header.module.css"
 
 interface AdminHeaderProps {
@@ -28,7 +30,6 @@ interface SearchResponse {
 }
 
 export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
-  // ✅ ADICIONADO ROUTER
   const router = useRouter()
   
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -38,6 +39,7 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState("")
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   // Refs para detectar cliques fora
   const searchRef = useRef<HTMLDivElement>(null)
@@ -46,8 +48,13 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
   // API base URL
   const API_BASE_URL = process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:5001'
 
-  // ✅ NOVA: Hook para detectar tamanho da tela
   const [isMobile, setIsMobile] = useState(false)
+
+  // Carregar dados do usuário atual
+  useEffect(() => {
+    const user = authAPI.getCurrentUser()
+    setCurrentUser(user)
+  }, [])
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -81,12 +88,17 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     }
   }, [isSearchOpen, isProfileOpen])
 
+  // Função para logout
+  const handleLogout = () => {
+    authAPI.logout()
+    router.push("/admin/login")
+  }
+
   // Função para alterar filtro de pesquisa
   const handleSearchFilterChange = (filter: string) => {
     console.log(`🔄 Mudando filtro para: ${filter}`)
     setActiveSearchFilter(filter)
     
-    // Se há termo de busca, realizar nova busca com o filtro alterado
     if (searchTerm.trim()) {
       performSearchWithPages(searchTerm, filter)
     }
@@ -103,7 +115,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     setSearchError("")
 
     try {
-      // Mapear filtros para tipos da API
       const filterMap: { [key: string]: string } = {
         "Plantas": "plantas",
         "Famílias": "familias", 
@@ -145,10 +156,8 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     return () => clearTimeout(timeoutId)
   }, [searchTerm, activeSearchFilter, isSearchOpen])
 
-  // ✅ ADICIONAR ESTADO PARA DEBOUNCED SEARCH
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
 
-  // ✅ USEEFFECT PARA DEBOUNCED TERM
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
@@ -160,14 +169,12 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
   const handleResultClick = async (result: SearchResult) => {
     console.log('🔍 Clicando em resultado:', result)
     
-    // ✅ IMPORTANTE: Limpar estado ANTES de navegar
     setIsSearchOpen(false)
     setSearchTerm("")
     setSearchResults(null)
     setSearchError("")
     setIsSearching(false)
     
-    // ✅ ADICIONAR: Pequeno delay para garantir limpeza do estado
     await new Promise(resolve => setTimeout(resolve, 100))
     
     let url = ""
@@ -177,7 +184,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
         case 'planta':
           console.log('📊 Calculando página da planta...', result.id)
           
-          // ✅ USAR NOME CIENTÍFICO PARA BUSCA PRECISA
           const plantaParams = new URLSearchParams({
             limit: '10',
             search: result.nome_cientifico || '',
@@ -192,7 +198,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
             const pageInfo = await plantaResponse.json()
             console.log('✅ Página da planta calculada:', pageInfo)
             
-            // ✅ CONSTRUIR URL COM TIMESTAMP para forçar recarregamento
             const timestamp = Date.now()
             url = `/admin/plants?page=${pageInfo.page}&highlight=${result.id}&search_type=geral&search_term=${encodeURIComponent(result.nome_cientifico || '')}&t=${timestamp}`
           } else {
@@ -225,7 +230,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
           }
           break
           
-        // ✅ NOVO: Caso para autores
         case 'autor':
           console.log('📊 Calculando página do autor...', result.id)
           
@@ -253,14 +257,12 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
       console.log('🚀 Navegando para:', url)
 
       if (url) {
-        // ✅ FORÇAR NAVEGAÇÃO COMPLETA COM LIMPEZA
         window.location.href = url
       }
       
     } catch (error) {
       console.error('❌ Erro ao processar resultado:', error)
       
-      // ✅ FALLBACK com timestamp
       const timestamp = Date.now()
       switch (result.tipo) {
         case 'planta':
@@ -269,7 +271,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
         case 'familia':
           window.location.href = `/admin/familias?highlight=${result.id}&t=${timestamp}`
           break
-        // ✅ NOVO: Fallback para autor
         case 'autor':
           window.location.href = `/admin/authors-references?highlight=${result.id}&type=autor&t=${timestamp}`
           break
@@ -297,7 +298,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
 
       const apiFilter = filter === "Todos" ? "todos" : filterMap[filter] || "plantas"
       
-      // ✅ USAR SEU ENDPOINT DE BUSCA MELHORADO
       const response = await fetch(
         `${API_BASE_URL}/api/admin/dashboard/busca?q=${encodeURIComponent(term)}&tipo=${apiFilter}&limit=10`
       )
@@ -309,7 +309,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
       const data = await response.json()
       console.log('✅ Resultados de busca:', data)
       
-      // ✅ MAPEAR RESULTADOS PARA O FORMATO ESPERADO
       const searchResults: SearchResponse = {
         plantas: data.plantas?.map((planta: any) => ({
           ...planta,
@@ -342,7 +341,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     }
   }
 
-  // Função para lidar com Enter na pesquisa
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchResults && searchResults.total_encontrado > 0) {
       const firstResult = searchResults.plantas[0] || searchResults.familias[0] || searchResults.autores[0]
@@ -354,7 +352,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     }
   }
 
-  // ✅ NOVA FUNÇÃO: Formatação inteligente dos nomes comuns
   const formatarNomesComuns = (nomesComuns: string | null | undefined, maxLength: number = 45) => {
     if (!nomesComuns) return { texto: null, contador: null }
 
@@ -363,15 +360,12 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
     if (nomes.length === 0) return { texto: null, contador: null }
     if (nomes.length === 1) return { texto: nomes[0], contador: null }
 
-    // Começar com o primeiro nome
     let textoExibido = nomes[0]
     let nomesIncluidos = 1
 
-    // Adicionar nomes até atingir o limite de caracteres
     for (let i = 1; i < nomes.length; i++) {
       const proximoTexto = textoExibido + ', ' + nomes[i]
       
-      // Reservar espaço para " +X nomes" (aproximadamente 8-10 caracteres)
       if (proximoTexto.length > maxLength - 10) {
         break
       }
@@ -441,7 +435,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                 </svg>
               </button>
 
-              {/* ✅ OVERLAY para mobile */}
               {isSearchOpen && isMobile && (
                 <div 
                   className={styles.searchOverlay}
@@ -453,7 +446,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                 <div 
                   className={styles.searchDropdown}
                   style={{
-                    // ✅ POSICIONAMENTO DINÂMICO: Ajustar baseado no tamanho da tela
                     ...(isMobile && {
                       position: 'fixed',
                       top: '4rem',
@@ -493,11 +485,10 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                     </div>
                   </div>
 
-                  {/* ✅ RESULTADOS - ESTILO ORIGINAL BONITO RESTAURADO */}
                   {(searchTerm.trim() || searchResults) && (
                     <div style={{ 
                       padding: '1rem', 
-                      maxHeight: isMobile ? '60vh' : '20rem',  // ✅ RESPONSIVO: Altura máxima dinâmica
+                      maxHeight: isMobile ? '60vh' : '20rem',
                       overflowY: 'auto' 
                     }}>
                       {isSearching && (
@@ -524,15 +515,13 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                             {searchResults.total_encontrado} resultado(s) encontrado(s)
                           </div>
 
-                          {/* Plantas - Estilo original bonito */}
                           {searchResults.plantas && searchResults.plantas.length > 0 && (
                             <div style={{ marginBottom: '1rem' }}>
                               <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
                                 🌿 Plantas ({searchResults.plantas.length})
                               </h4>
                               {searchResults.plantas.map((planta) => {
-                                // ✅ FORMATAÇÃO: Aplicar formatação inteligente dos nomes comuns
-                                const nomesFormatados = formatarNomesComuns(planta.nome_comum, isMobile ? 30 : 45)  // ✅ RESPONSIVO: Limite menor em mobile
+                                const nomesFormatados = formatarNomesComuns(planta.nome_comum, isMobile ? 30 : 45)
                                 
                                 return (
                                   <div
@@ -554,12 +543,10 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                                       e.currentTarget.style.backgroundColor = 'transparent'
                                     }}
                                   >
-                                    {/* ✅ TAXONOMIA: Nome científico em itálico */}
                                     <div style={{ fontWeight: '500', color: '#111827', fontStyle: 'italic' }}>
                                       {planta.nome_cientifico}
                                     </div>
                                     
-                                    {/* ✅ NOMES COMUNS: Formatação inteligente com contador */}
                                     {nomesFormatados.texto && (
                                       <div style={{ 
                                         color: '#6b7280', 
@@ -585,7 +572,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                                       </div>
                                     )}
                                     
-                                    {/* ✅ TAXONOMIA: Família em maiúsculas */}
                                     {planta.familia && (
                                       <div style={{ 
                                         color: '#9333ea', 
@@ -604,7 +590,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                             </div>
                           )}
 
-                          {/* Famílias - Estilo original bonito */}
                           {searchResults.familias && searchResults.familias.length > 0 && (
                             <div style={{ marginBottom: '1rem' }}>
                               <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
@@ -630,7 +615,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                                     e.currentTarget.style.backgroundColor = 'transparent'
                                   }}
                                 >
-                                  {/* ✅ TAXONOMIA: Família em maiúsculas */}
                                   <div style={{ 
                                     fontWeight: '500', 
                                     color: '#111827',
@@ -644,7 +628,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                             </div>
                           )}
 
-                          {/* Autores - Estilo original bonito */}
                           {searchResults.autores && searchResults.autores.length > 0 && (
                             <div style={{ marginBottom: '1rem' }}>
                               <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
@@ -701,7 +684,6 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
               )}
             </div>
 
-            {/* ✅ BOTÃO ATUALIZADO: Adicionar nova planta com navegação */}
             <Link href="/admin/plants/add" title="Adicionar nova planta">
               <button className={styles.actionButton}>
                 <svg
@@ -726,8 +708,12 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
                 className={styles.profileButton}
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
               >
-                <div className={styles.avatar}>A</div>
-                <span className={styles.profileName}>Admin</span>
+                <div className={styles.avatar}>
+                  {currentUser?.nome_completo ? currentUser.nome_completo.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <span className={styles.profileName}>
+                  {currentUser?.nome_completo || 'Admin'}
+                </span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -746,16 +732,83 @@ export function AdminHeader({ onToggleMobileMenu }: AdminHeaderProps) {
 
               {isProfileOpen && (
                 <div className={styles.profileDropdown}>
-                  <Link href="/admin/profile" className={styles.profileLink}>
-                    Seu Perfil
+                  <Link href="../../admin/profile" className={styles.profileLink}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginRight: '0.5rem' }}
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Meu Perfil
                   </Link>
-                  <Link href="/admin/settings" className={styles.profileLink}>
-                    Configurações
+                  {currentUser?.perfil === 'Administrador' && (
+                    <Link href="/admin/users" className={styles.profileLink}>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ marginRight: '0.5rem' }}
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                      Utilizadores
+                    </Link>
+                  )}
+                  <Link href="/" className={styles.profileLink}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginRight: '0.5rem' }}
+                    >
+                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                      <polyline points="10 17 15 12 10 7"></polyline>
+                      <line x1="15" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                    Ver Site Principal
                   </Link>
                   <div className={styles.profileDivider} />
-                  <Link href="/" className={styles.profileLink}>
+                  <button onClick={handleLogout} className={styles.profileLink} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginRight: '0.5rem' }}
+                    >
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16 17 21 12 16 7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
                     Sair
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
